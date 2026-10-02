@@ -111,6 +111,8 @@ spectral lint your-asyncapi.yaml
 | **AAR050** | `error` | The `info.title` field must exist and not be empty. |
 | **AAR051** | `error` | Every operation's `operationId` must be present and follow camelCase naming convention. |
 | **AAR063** | `error` | The root `asyncapi` version must be one of the versions allowed by the organization (configurable via `allowedVersions`; default `2.6.0,3.0.0,3.1.0`). |
+| **AAR065** | `warn` | Message identifiers and names (`messageId` and `name` in 2.x, message key and `name` in 3.x) must follow the configured `naming-convention`: `camelCase` (default), `snake_case`, `kebab-case` or `PascalCase`. |
+| **AAR066** | `warn` | Tag names must follow the configured `naming-convention`: `kebab-case` (default), `camelCase`, `snake_case` or `PascalCase`. |
 
 ### Schema Rules
 
@@ -138,7 +140,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 24 custom Spectral functions for complex validation logic:
+The ruleset includes 27 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -167,6 +169,8 @@ The ruleset includes 24 custom Spectral functions for complex validation logic:
 | `asa-subscribe-group-required` | AAR062 | Validates that each consuming operation declares a consumer group |
 | `asa-asyncapi-version-allowed` | AAR063 | Validates that the root `asyncapi` version is one of the allowed versions |
 | `asa-kafka-protocol-required` | AAR064 | Validates that each server protocol is `kafka` or `kafka-ssl` |
+| `asa-message-format` | AAR065 | Checks the casing of message identifiers and names |
+| `asa-tags-format` | AAR066 | Checks the casing of tag names |
 
 ---
 
