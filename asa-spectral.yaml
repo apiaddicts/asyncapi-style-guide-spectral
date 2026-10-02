@@ -40,6 +40,8 @@ functions:
   - asa-channel-naming-convention
   - asa-avro-namespace-pattern
   - asa-numeric-format
+  - asa-message-format
+  - asa-tags-format
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -689,3 +691,27 @@ rules:
       - "$.components.servers[*]"
     then:
       function: asa-kafka-protocol-required
+
+  asa:AAR065:
+    description: "Message identifiers and names (messageId and name in AsyncAPI 2.x, message key and name in 3.x) must follow the configured naming-convention: camelCase (default), snake_case, kebab-case or PascalCase."
+    message: "AAR065: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar065"
+    severity: warn
+    resolved: false
+    given: "$"
+    then:
+      function: asa-message-format
+      functionOptions:
+        naming-convention: camelCase
+
+  asa:AAR066:
+    description: "Tag names must follow the configured naming-convention: kebab-case (default), camelCase, snake_case or PascalCase."
+    message: "AAR066: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar066"
+    severity: warn
+    resolved: false
+    given: "$"
+    then:
+      function: asa-tags-format
+      functionOptions:
+        naming-convention: kebab-case
