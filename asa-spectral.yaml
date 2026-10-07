@@ -42,6 +42,7 @@ functions:
   - asa-numeric-format
   - asa-message-format
   - asa-tags-format
+  - asa-content-type-values
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -715,3 +716,15 @@ rules:
       function: asa-tags-format
       functionOptions:
         naming-convention: kebab-case
+
+  asa:AAR067:
+    description: "Each message and message trait contentType, and the defaultContentType, must be a valid MIME type matching an entry of allowed-content-types ('*' wildcards allowed; case and parameters ignored)."
+    message: "AAR067: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar067"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-content-type-values
+      functionOptions:
+        allowed-content-types: "application/json,application/*+json,application/xml,application/*+xml,text/xml,text/plain,text/csv,application/octet-stream,application/avro,application/*+avro,application/protobuf,application/x-protobuf,application/cbor,application/yaml"

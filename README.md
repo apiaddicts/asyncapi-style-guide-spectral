@@ -126,6 +126,7 @@ spectral lint your-asyncapi.yaml
 | **AAR056** | `error` | When the payload uses Avro, `schemaFormat` must be exactly `application/vnd.apache.avro;version=1.9.0`. |
 | **AAR059** | `error` | The `name` field of every Avro record (including nested records) must be in CamelCase with an uppercase first letter. |
 | **AAR060** | `error` | A message's `contentType` (and the document-level `defaultContentType`) must match `application/*+avro`. |
+| **AAR067** | `error` | Each message and message trait `contentType`, and the `defaultContentType`, must be a valid MIME type matching an entry of `allowed-content-types`. |
 
 ---
 
@@ -140,7 +141,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 27 custom Spectral functions for complex validation logic:
+The ruleset includes 28 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -171,6 +172,7 @@ The ruleset includes 27 custom Spectral functions for complex validation logic:
 | `asa-kafka-protocol-required` | AAR064 | Validates that each server protocol is `kafka` or `kafka-ssl` |
 | `asa-message-format` | AAR065 | Checks the casing of message identifiers and names |
 | `asa-tags-format` | AAR066 | Checks the casing of tag names |
+| `asa-content-type-values` | AAR067 | Validates every message `contentType` and the `defaultContentType` against the allowed MIME types |
 
 ---
 
