@@ -1,0 +1,70 @@
+module.exports = {
+  asyncapi: "3.0.0",
+  info: { title: "Structural Edge Cases", version: "1.0.0" },
+  defaultContentType: null,
+  channels: {
+    nullChannel: null,
+    scalarChannel: "vehicles.events",
+    arrayChannel: [{ messages: { a: { contentType: "text/json" } } }],
+    refChannel: { $ref: "#/components/channels/missing" },
+    externalChannel: { $ref: "./shared/channels.yaml#/vehicles" },
+    nullMessages: { address: null, messages: null },
+    scalarMessages: { address: "x", messages: "positionReported" },
+    arrayMessages: { address: "y", messages: [{ contentType: "text/json" }] },
+    messageEdges: {
+      address: "z",
+      messages: {
+        nullMessage: null,
+        scalarMessage: "text/json",
+        arrayMessage: [{ contentType: "text/json" }],
+        refMessage: { $ref: "#/components/messages/missing" },
+        oneOfMessage: {
+          name: "oneOfMessage",
+          contentType: "application/json",
+          oneOf: [{ contentType: "text/json" }, { contentType: "image/png" }],
+        },
+        traitEdges: {
+          name: "traitEdges",
+          traits: [null, 7, "text/json", [], [null], [[{ contentType: "text/json" }]], { $ref: "#/components/messageTraits/missing" }],
+        },
+        traitObject: { name: "traitObject", traits: { contentType: "text/json" } },
+        bindingsAndExtensions: {
+          name: "bindingsAndExtensions",
+          contentType: "application/json",
+          bindings: { mqtt: { contentType: "text/json", bindingVersion: "0.2.0" }, http: { headers: { properties: { contentType: { const: "x" } } } } },
+          "x-contentType": "text/json",
+          examples: [{ headers: { contentType: "text/json" }, payload: { contentType: "text/json" } }],
+          payload: { schemaFormat: "application/vnd.aai.asyncapi+json;version=3.0.0", schema: { properties: { contentType: { const: "text/json" } } } },
+        },
+      },
+    },
+    v2StyleLeftovers: {
+      address: "orders",
+      publish: { message: { contentType: "text/json" } },
+      subscribe: { message: { oneOf: [{ contentType: "text/json" }] } },
+    },
+  },
+  operations: {
+    inlineMessages: {
+      action: "send",
+      channel: { $ref: "#/channels/messageEdges" },
+      messages: [{ contentType: "text/json" }],
+      reply: { messages: [{ contentType: "text/json" }], address: { location: "$message.header#/replyTo" } },
+    },
+    nullOperation: null,
+  },
+  components: {
+    channels: { nullChannel: null, refChannel: { $ref: "#/channels/messageEdges" } },
+    messages: null,
+    messageTraits: {
+      nullTrait: null,
+      scalarTrait: "text/json",
+      arrayTrait: [{ contentType: "text/json" }],
+      refTrait: { $ref: "#/components/messageTraits/nullTrait" },
+    },
+    operations: { inline: { action: "receive", messages: [{ contentType: "text/json" }] } },
+    replies: { inline: { messages: [{ contentType: "text/json" }] } },
+    operationTraits: { kafka: { contentType: "text/json" } },
+    schemas: { contentType: { type: "string", enum: ["text/json"] } },
+  },
+};

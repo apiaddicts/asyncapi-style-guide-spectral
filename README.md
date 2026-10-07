@@ -111,6 +111,9 @@ spectral lint your-asyncapi.yaml
 | **AAR050** | `error` | The `info.title` field must exist and not be empty. |
 | **AAR051** | `error` | Every operation's `operationId` must be present and follow camelCase naming convention. |
 | **AAR063** | `error` | The root `asyncapi` version must be one of the versions allowed by the organization (configurable via `allowedVersions`; default `2.6.0,3.0.0,3.1.0`). |
+| **AAR065** | `warn` | Message identifiers and names (`messageId` and `name` in 2.x, message key and `name` in 3.x) must follow the configured `naming-convention`: `camelCase` (default), `snake_case`, `kebab-case` or `PascalCase`. |
+| **AAR066** | `warn` | Tag names must follow the configured `naming-convention`: `kebab-case` (default), `camelCase`, `snake_case` or `PascalCase`. |
+| **AAR068** | `error` | Bindings object keys must be protocols listed in `allowed-bindings` (default: all AsyncAPI protocol bindings); `x-` extensions are ignored. |
 
 ### Schema Rules
 
@@ -124,6 +127,7 @@ spectral lint your-asyncapi.yaml
 | **AAR056** | `error` | When the payload uses Avro, `schemaFormat` must be exactly `application/vnd.apache.avro;version=1.9.0`. |
 | **AAR059** | `error` | The `name` field of every Avro record (including nested records) must be in CamelCase with an uppercase first letter. |
 | **AAR060** | `error` | A message's `contentType` (and the document-level `defaultContentType`) must match `application/*+avro`. |
+| **AAR067** | `error` | Each message and message trait `contentType`, and the `defaultContentType`, must be a valid MIME type matching an entry of `allowed-content-types`. |
 
 ---
 
@@ -138,7 +142,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 24 custom Spectral functions for complex validation logic:
+The ruleset includes 29 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -167,6 +171,10 @@ The ruleset includes 24 custom Spectral functions for complex validation logic:
 | `asa-subscribe-group-required` | AAR062 | Validates that each consuming operation declares a consumer group |
 | `asa-asyncapi-version-allowed` | AAR063 | Validates that the root `asyncapi` version is one of the allowed versions |
 | `asa-kafka-protocol-required` | AAR064 | Validates that each server protocol is `kafka` or `kafka-ssl` |
+| `asa-message-format` | AAR065 | Checks the casing of message identifiers and names |
+| `asa-tags-format` | AAR066 | Checks the casing of tag names |
+| `asa-content-type-values` | AAR067 | Validates every message `contentType` and the `defaultContentType` against the allowed MIME types |
+| `asa-binding-types` | AAR068 | Validates that every bindings object key is an allowed protocol |
 
 ---
 
