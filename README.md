@@ -114,6 +114,7 @@ spectral lint your-asyncapi.yaml
 | **AAR065** | `warn` | Message identifiers and names (`messageId` and `name` in 2.x, message key and `name` in 3.x) must follow the configured `naming-convention`: `camelCase` (default), `snake_case`, `kebab-case` or `PascalCase`. |
 | **AAR066** | `warn` | Tag names must follow the configured `naming-convention`: `kebab-case` (default), `camelCase`, `snake_case` or `PascalCase`. |
 | **AAR068** | `error` | Bindings object keys must be protocols listed in `allowed-bindings` (default: all AsyncAPI protocol bindings); `x-` extensions are ignored. |
+| **AAR069** | `error` | Protocol bindings must declare the fields required by `required_binding_props` (default: those mandatory in the AsyncAPI binding specifications). |
 
 ### Schema Rules
 
@@ -142,7 +143,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 29 custom Spectral functions for complex validation logic:
+The ruleset includes 30 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -175,6 +176,7 @@ The ruleset includes 29 custom Spectral functions for complex validation logic:
 | `asa-tags-format` | AAR066 | Checks the casing of tag names |
 | `asa-content-type-values` | AAR067 | Validates every message `contentType` and the `defaultContentType` against the allowed MIME types |
 | `asa-binding-types` | AAR068 | Validates that every bindings object key is an allowed protocol |
+| `asa-binding-required-properties` | AAR069 | Validates that protocol bindings declare their required fields |
 
 ---
 

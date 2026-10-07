@@ -44,6 +44,7 @@ functions:
   - asa-tags-format
   - asa-content-type-values
   - asa-binding-types
+  - asa-binding-required-properties
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -741,3 +742,61 @@ rules:
       function: asa-binding-types
       functionOptions:
         allowed-bindings: "http,ws,kafka,anypointmq,amqp,amqp1,mqtt,mqtt5,nats,jms,sns,solace,sqs,stomp,redis,mercure,ibmmq,googlepubsub,pulsar,ros2"
+
+  asa:AAR069:
+    description: "Protocol bindings must declare the fields required by required_binding_props (default: those mandatory in the AsyncAPI binding specifications)."
+    message: "AAR069: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar069"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-binding-required-properties
+      functionOptions:
+        required_binding_props: >-
+          server.jms.jmsConnectionFactory,
+          server.jms.properties.name,
+          server.jms.properties.value,
+          channel.amqp.exchange|queue,
+          channel.googlepubsub.schemaSettings,
+          channel.googlepubsub.schemaSettings.encoding,
+          channel.googlepubsub.schemaSettings.name,
+          channel.ibmmq.queue.objectName,
+          channel.pulsar.namespace,
+          channel.pulsar.persistence,
+          channel.sns.name,
+          channel.sns.ordering.type,
+          channel.sns.policy.statements,
+          channel.sns.policy.statements.effect,
+          channel.sns.policy.statements.principal,
+          channel.sns.policy.statements.action,
+          channel.sqs.queue,
+          channel.sqs.queue.name,
+          channel.sqs.queue.fifoQueue,
+          channel.sqs.queue.redrivePolicy.deadLetterQueue,
+          channel.sqs.queue.policy.statements,
+          channel.sqs.queue.policy.statements.effect,
+          channel.sqs.queue.policy.statements.principal,
+          channel.sqs.queue.policy.statements.action,
+          channel.sqs.deadLetterQueue.name,
+          channel.sqs.deadLetterQueue.fifoQueue,
+          channel.sqs.deadLetterQueue.redrivePolicy.deadLetterQueue,
+          channel.sqs.deadLetterQueue.policy.statements,
+          channel.sqs.deadLetterQueue.policy.statements.effect,
+          channel.sqs.deadLetterQueue.policy.statements.principal,
+          channel.sqs.deadLetterQueue.policy.statements.action,
+          operation.ros2.role,
+          operation.ros2.node,
+          operation.sns.consumers,
+          operation.sns.consumers.protocol,
+          operation.sns.consumers.endpoint,
+          operation.sns.consumers.rawMessageDelivery,
+          operation.sns.consumers.redrivePolicy.deadLetterQueue,
+          operation.sqs.queues,
+          operation.sqs.queues.name,
+          operation.sqs.queues.redrivePolicy.deadLetterQueue,
+          operation.sqs.queues.policy.statements,
+          operation.sqs.queues.policy.statements.effect,
+          operation.sqs.queues.policy.statements.principal,
+          operation.sqs.queues.policy.statements.action,
+          message.googlepubsub.schema.name
