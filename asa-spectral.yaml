@@ -43,6 +43,7 @@ functions:
   - asa-message-format
   - asa-tags-format
   - asa-content-type-values
+  - asa-binding-types
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -728,3 +729,15 @@ rules:
       function: asa-content-type-values
       functionOptions:
         allowed-content-types: "application/json,application/*+json,application/xml,application/*+xml,text/xml,text/plain,text/csv,application/octet-stream,application/avro,application/*+avro,application/protobuf,application/x-protobuf,application/cbor,application/yaml"
+
+  asa:AAR068:
+    description: "Bindings object keys must be protocols listed in allowed-bindings (default: all AsyncAPI protocol bindings); x- extensions are ignored."
+    message: "AAR068: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar068"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-binding-types
+      functionOptions:
+        allowed-bindings: "http,ws,kafka,anypointmq,amqp,amqp1,mqtt,mqtt5,nats,jms,sns,solace,sqs,stomp,redis,mercure,ibmmq,googlepubsub,pulsar,ros2"
