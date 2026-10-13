@@ -47,6 +47,7 @@ functions:
   - asa-binding-required-properties
   - asa-binding-version-format
   - asa-message-examples-required
+  - asa-message-examples-schema
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -824,3 +825,13 @@ rules:
     given: "$"
     then:
       function: asa-message-examples-required
+
+  asa:AAR072:
+    description: "Message example payloads and headers must comply with the message schemas."
+    message: "AAR072: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar072"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-message-examples-schema

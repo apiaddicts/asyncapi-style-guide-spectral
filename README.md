@@ -131,6 +131,7 @@ spectral lint your-asyncapi.yaml
 | **AAR059** | `error` | The `name` field of every Avro record (including nested records) must be in CamelCase with an uppercase first letter. |
 | **AAR060** | `error` | A message's `contentType` (and the document-level `defaultContentType`) must match `application/*+avro`. |
 | **AAR067** | `error` | Each message and message trait `contentType`, and the `defaultContentType`, must be a valid MIME type matching an entry of `allowed-content-types`. |
+| **AAR072** | `error` | The `payload` and `headers` of every message example must strictly comply with the message schemas, read according to `schemaFormat`. |
 
 ---
 
@@ -145,7 +146,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 32 custom Spectral functions for complex validation logic:
+The ruleset includes 33 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -181,6 +182,7 @@ The ruleset includes 32 custom Spectral functions for complex validation logic:
 | `asa-binding-required-properties` | AAR069 | Validates that protocol bindings declare their required fields |
 | `asa-binding-version-format` | AAR070 | Validates every binding `bindingVersion` against the configured pattern |
 | `asa-message-examples-required` | AAR071 | Validates that every message provides at least one sample payload example |
+| `asa-message-examples-schema` | AAR072 | Validates every message example `payload` and `headers` against their JSON Schema, OpenAPI or Avro schema |
 
 ---
 
