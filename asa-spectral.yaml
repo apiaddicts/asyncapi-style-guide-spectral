@@ -46,6 +46,7 @@ functions:
   - asa-binding-types
   - asa-binding-required-properties
   - asa-binding-version-format
+  - asa-message-examples-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -813,3 +814,13 @@ rules:
       function: asa-binding-version-format
       functionOptions:
         pattern: "^\\d+\\.\\d+\\.\\d+$"
+
+  asa:AAR071:
+    description: "Every message must provide at least one sample payload example in its examples array (header-only examples count only for messages without a payload); message traits are merged as each AsyncAPI version specifies."
+    message: "AAR071: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar071"
+    severity: warn
+    resolved: false
+    given: "$"
+    then:
+      function: asa-message-examples-required

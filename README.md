@@ -116,6 +116,7 @@ spectral lint your-asyncapi.yaml
 | **AAR068** | `error` | Bindings object keys must be protocols listed in `allowed-bindings` (default: all AsyncAPI protocol bindings); `x-` extensions are ignored. |
 | **AAR069** | `error` | Protocol bindings must declare the fields required by `required_binding_props` (default: those mandatory in the AsyncAPI binding specifications). |
 | **AAR070** | `error` | The `bindingVersion` of every protocol binding must be a string matching `pattern` (default `^\d+\.\d+\.\d+$`, e.g. `0.4.0`, so `latest` fails); `x-` extensions are ignored and a missing or null version is left to AAR037. |
+| **AAR071** | `warn` | Every message must provide at least one example with a `payload` in its `examples` array; a header-only example (non-empty `headers`) counts only for messages without a payload. Traits are merged as each version specifies (2.x: traits override the message; 3.x: the message overrides its traits), and each message is checked once, where it is defined. |
 
 ### Schema Rules
 
@@ -144,7 +145,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 31 custom Spectral functions for complex validation logic:
+The ruleset includes 32 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -179,6 +180,7 @@ The ruleset includes 31 custom Spectral functions for complex validation logic:
 | `asa-binding-types` | AAR068 | Validates that every bindings object key is an allowed protocol |
 | `asa-binding-required-properties` | AAR069 | Validates that protocol bindings declare their required fields |
 | `asa-binding-version-format` | AAR070 | Validates every binding `bindingVersion` against the configured pattern |
+| `asa-message-examples-required` | AAR071 | Validates that every message provides at least one sample payload example |
 
 ---
 

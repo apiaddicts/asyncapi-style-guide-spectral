@@ -588,6 +588,136 @@ const BINDING_VERSION_CASES = {
   absent: [undefined, null],
 };
 
+const MESSAGE_EXAMPLE_CASES = {
+  payloadSamples: [
+    { payload: { orderId: "ord-1042", total: 129.9 } },
+    { name: "orderPlaced", summary: "A paid order.", headers: { traceId: "4bf92f35" }, payload: { orderId: "ord-1042" } },
+    { payload: null },
+    { name: "tombstone", payload: null },
+    { payload: {} },
+    { payload: [] },
+    { payload: [{ sku: "SKU-1", quantity: 2 }] },
+    { payload: "" },
+    { payload: "ord-1042" },
+    { payload: "2026-01-15" },
+    { payload: 0 },
+    { payload: 42.5 },
+    { payload: false },
+    { payload: { $ref: "#/components/schemas/Order" } },
+    { headers: null, payload: { orderId: "ord-1042" } },
+    { headers: {}, payload: { orderId: "ord-1042" } },
+    { "x-source": "replay", payload: { orderId: "ord-1042" } },
+  ],
+  headerSamples: [
+    { headers: { traceId: "4bf92f35" } },
+    { name: "heartbeat", summary: "Liveness probe.", headers: { "x-node": "edge-7", sequence: 42 } },
+    { headers: { traceId: null } },
+    { headers: { $ref: "#/components/schemas/TraceHeaders" } },
+  ],
+  nonSamples: [
+    null,
+    0,
+    1,
+    "",
+    "orderPlaced",
+    true,
+    false,
+    [],
+    [{ payload: { orderId: "ord-1042" } }],
+    {},
+    { name: "orderPlaced" },
+    { summary: "A paid order." },
+    { name: "orderPlaced", summary: "A paid order." },
+    { headers: {} },
+    { headers: null },
+    { headers: [] },
+    { headers: [{ traceId: "4bf92f35" }] },
+    { headers: "traceId=4bf92f35" },
+    { headers: 42 },
+    { Payload: { orderId: "ord-1042" } },
+    { PAYLOAD: { orderId: "ord-1042" } },
+    { payloads: [{ orderId: "ord-1042" }] },
+    { "x-payload": { orderId: "ord-1042" } },
+    { value: { orderId: "ord-1042" } },
+    { data: { orderId: "ord-1042" } },
+    { body: { orderId: "ord-1042" } },
+    { example: { orderId: "ord-1042" } },
+  ],
+  emptyValues: [null, []],
+  notArrayValues: [{}, { payload: { orderId: "ord-1042" } }, { 0: { payload: {} } }, "orderPlaced", "", 0, 1, true, false],
+};
+
+const exampleTrait = (name) => ({ $ref: `#/components/messageTraits/${name}` });
+const EXTERNAL_TRAIT = { $ref: "./shared/message-traits.yaml#/components/messageTraits/kafkaEnvelope" };
+const SAMPLE_EXAMPLES = [{ name: "orderPlaced", payload: { orderId: "ord-1042" } }];
+const HEADER_EXAMPLES = [{ headers: { traceId: "4bf92f35" } }];
+
+const EXAMPLE_TRAIT_COMPONENTS = {
+  messageTraits: {
+    withExamples: { examples: [{ name: "fromTrait", payload: { orderId: "ord-7" } }] },
+    emptyExamples: { examples: [] },
+    nullExamples: { examples: null },
+    headerExamples: { examples: HEADER_EXAMPLES },
+    noExamples: { contentType: "application/json", headers: { type: "object", properties: { traceId: { type: "string" } } } },
+    chained: exampleTrait("withExamples"),
+    chainedTwice: exampleTrait("chained"),
+    refExamples: { examples: { $ref: "#/components/x-example-sets/orders" } },
+    refItems: { examples: [{ $ref: "#/components/x-examples/order" }] },
+    cycleA: exampleTrait("cycleB"),
+    cycleB: exampleTrait("cycleA"),
+    external: EXTERNAL_TRAIT,
+  },
+  "x-example-sets": { orders: SAMPLE_EXAMPLES, empty: [], headers: HEADER_EXAMPLES },
+  "x-examples": { order: { payload: { orderId: "ord-9" } }, header: { headers: { traceId: "4bf92f35" } }, blank: {} },
+  "x-trait-lists": { withExamples: [exampleTrait("withExamples")], emptyExamples: [exampleTrait("emptyExamples")] },
+};
+
+const EXAMPLE_TRAIT_MERGE_CASES = [
+  ["no examples and no traits", {}, ["", "missing"], ["", "missing"]],
+  ["own examples only", { examples: SAMPLE_EXAMPLES }, null, null],
+  ["an empty traits list", { traits: [] }, ["", "missing"], ["", "missing"]],
+  ["a trait with examples", { traits: [exampleTrait("withExamples")] }, null, null],
+  ["a trait without examples", { traits: [exampleTrait("noExamples")] }, ["", "missing"], ["", "missing"]],
+  ["a trait with an empty examples array", { traits: [exampleTrait("emptyExamples")] }, ["traits.0", "empty"], ["traits.0", "empty"]],
+  ["a trait with null examples", { traits: [exampleTrait("nullExamples")] }, ["traits.0", "empty"], ["traits.0", "empty"]],
+  ["a trait with header-only examples", { traits: [exampleTrait("headerExamples")] }, ["traits.0", "noSample"], ["traits.0", "noSample"]],
+  ["own examples and a trait with an empty array", { examples: SAMPLE_EXAMPLES, traits: [exampleTrait("emptyExamples")] }, ["traits.0", "empty"], null],
+  ["own examples and a trait with null examples", { examples: SAMPLE_EXAMPLES, traits: [exampleTrait("nullExamples")] }, ["traits.0", "empty"], null],
+  ["own examples and a trait with header-only examples", { examples: SAMPLE_EXAMPLES, traits: [exampleTrait("headerExamples")] }, ["traits.0", "noSample"], null],
+  ["own examples and a trait without examples", { examples: SAMPLE_EXAMPLES, traits: [exampleTrait("noExamples")] }, null, null],
+  ["an own empty array and a trait with examples", { examples: [], traits: [exampleTrait("withExamples")] }, null, ["examples", "empty"]],
+  ["own null examples and a trait with examples", { examples: null, traits: [exampleTrait("withExamples")] }, null, ["examples", "empty"]],
+  ["own header-only examples and a trait with examples", { examples: HEADER_EXAMPLES, traits: [exampleTrait("withExamples")] }, null, ["examples", "noSample"]],
+  ["an own non-array value and a trait with examples", { examples: { payload: { orderId: "ord-1" } }, traits: [exampleTrait("withExamples")] }, null, ["examples", "notArray"]],
+  ["two traits, the last one empty", { traits: [exampleTrait("withExamples"), exampleTrait("emptyExamples")] }, ["traits.1", "empty"], ["traits.1", "empty"]],
+  ["two traits, the last one with examples", { traits: [exampleTrait("emptyExamples"), exampleTrait("withExamples")] }, null, null],
+  ["two traits, the last one null", { traits: [exampleTrait("withExamples"), exampleTrait("nullExamples")] }, ["traits.1", "empty"], ["traits.1", "empty"]],
+  ["two traits, the last one without examples", { traits: [exampleTrait("emptyExamples"), exampleTrait("noExamples")] }, ["traits.0", "empty"], ["traits.0", "empty"]],
+  ["an inline trait with examples", { traits: [{ examples: SAMPLE_EXAMPLES }] }, null, null],
+  ["an inline trait with a non-array value", { traits: [{ examples: { payload: { orderId: "ord-1" } } }] }, ["traits.0", "notArray"], ["traits.0", "notArray"]],
+  ["a tuple trait with examples", { traits: [[exampleTrait("withExamples"), { environment: "prod" }]] }, null, null],
+  ["a tuple trait with an empty array", { traits: [[{ examples: [] }, {}]] }, ["traits.0", "empty"], ["traits.0", "empty"]],
+  ["a chained trait reference", { traits: [exampleTrait("chainedTwice")] }, null, null],
+  ["a trait whose examples are a local reference", { traits: [exampleTrait("refExamples")] }, null, null],
+  ["a trait whose example items are local references", { traits: [exampleTrait("refItems")] }, null, null],
+  ["a dangling trait reference", { traits: [exampleTrait("missing")] }, ["", "missing"], ["", "missing"]],
+  ["a dangling and a valid trait reference", { traits: [exampleTrait("missing"), exampleTrait("withExamples")] }, null, null],
+  ["a cyclic trait reference", { traits: [exampleTrait("cycleA")] }, ["", "missing"], ["", "missing"]],
+  ["non-object trait entries", { traits: [null, 42, "kafkaEnvelope", [], [null]] }, ["", "missing"], ["", "missing"]],
+  ["a non-array traits value", { traits: exampleTrait("withExamples") }, ["", "missing"], ["", "missing"]],
+  ["a traits list behind a local reference", { traits: { $ref: "#/components/x-trait-lists/withExamples" } }, null, null],
+  ["a traits list behind a local reference that empties the examples", { traits: { $ref: "#/components/x-trait-lists/emptyExamples" } }, ["traits", "empty", 0], ["traits", "empty", 0]],
+  ["an external trait", { traits: [EXTERNAL_TRAIT] }, null, null],
+  ["a local trait that points to an external one", { traits: [exampleTrait("external")] }, null, null],
+  ["own examples and an external trait", { examples: SAMPLE_EXAMPLES, traits: [EXTERNAL_TRAIT] }, null, null],
+  ["an own empty array and an external trait", { examples: [], traits: [EXTERNAL_TRAIT] }, null, ["examples", "empty"]],
+  ["an external trait followed by a trait with examples", { traits: [EXTERNAL_TRAIT, exampleTrait("withExamples")] }, null, null],
+  ["an external trait followed by an empty trait", { traits: [EXTERNAL_TRAIT, exampleTrait("emptyExamples")] }, ["traits.1", "empty"], ["traits.1", "empty"]],
+  ["an empty trait followed by an external trait", { traits: [exampleTrait("emptyExamples"), EXTERNAL_TRAIT] }, null, null],
+  ["an external traits list", { traits: { $ref: "./shared/message-traits.yaml#/lists/kafka" } }, null, null],
+  ["an own empty array and an external traits list", { examples: [], traits: { $ref: "./shared/message-traits.yaml#/lists/kafka" } }, null, ["examples", "empty"]],
+];
+
 module.exports.linterForRule = linterForRule;
 module.exports.CASING_TYPES = CASING_TYPES;
 module.exports.CASING_VALUES = CASING_VALUES;
@@ -597,3 +727,6 @@ module.exports.NON_STRING_CONTENT_TYPES = NON_STRING_CONTENT_TYPES;
 module.exports.BINDING_KEY_CASES = BINDING_KEY_CASES;
 module.exports.REQUIRED_BINDING_CASES = REQUIRED_BINDING_CASES;
 module.exports.BINDING_VERSION_CASES = BINDING_VERSION_CASES;
+module.exports.MESSAGE_EXAMPLE_CASES = MESSAGE_EXAMPLE_CASES;
+module.exports.EXAMPLE_TRAIT_COMPONENTS = EXAMPLE_TRAIT_COMPONENTS;
+module.exports.EXAMPLE_TRAIT_MERGE_CASES = EXAMPLE_TRAIT_MERGE_CASES;
