@@ -48,6 +48,7 @@ functions:
   - asa-binding-version-format
   - asa-message-examples-required
   - asa-message-examples-schema
+  - asa-message-traits-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -835,3 +836,15 @@ rules:
     given: "$"
     then:
       function: asa-message-examples-schema
+
+  asa:AAR073:
+    description: "Every message must apply the traits listed in required-traits, or at least one trait when the list is empty."
+    message: "AAR073: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar073"
+    severity: warn
+    resolved: false
+    given: "$"
+    then:
+      function: asa-message-traits-required
+      functionOptions:
+        required-traits: ""

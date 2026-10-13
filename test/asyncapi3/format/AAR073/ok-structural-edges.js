@@ -1,0 +1,61 @@
+module.exports = {
+  asyncapi: "3.0.0",
+  info: { title: "Structural Edges", version: "1.0.0", traits: [] },
+  servers: { kafka: { host: "kafka.example.io:9092", protocol: "kafka", traits: null } },
+  channels: {
+    nullChannel: null,
+    scalarChannel: "orders",
+    listChannel: [{ messages: { orderPlaced: { payload: { type: "object" } } } }],
+    emptyChannel: {},
+    addressOnly: { address: "orders.v1" },
+    nullAddress: { address: null, messages: {} },
+    nullMessages: { address: "orders.v1", messages: null },
+    scalarMessages: { address: "orders.v1", messages: "orderPlaced" },
+    listMessages: { address: "orders.v1", messages: [{ payload: { type: "object" } }] },
+    oddMessages: { address: "orders.v1", messages: { nullMessage: null, scalarMessage: "orderPlaced", listMessage: [{ payload: { type: "object" } }] } },
+    refMessages: {
+      address: "orders.v1",
+      messages: {
+        dangling: { $ref: "#/components/messages/missing" },
+        external: { $ref: "./external.yaml#/components/messages/orderPlaced" },
+        chained: { $ref: "#/channels/refMessages/messages/dangling" },
+      },
+    },
+    refChannel: { $ref: "#/components/channels/missing" },
+    externalChannel: { $ref: "./external.yaml#/channels/orders" },
+    v2Leftovers: {
+      address: "orders.v2",
+      publish: { message: { payload: { type: "object" } } },
+      subscribe: { message: { oneOf: [{ payload: { type: "object" } }] } },
+    },
+    withExtensions: {
+      address: "orders.v3",
+      "x-traits": [],
+      "x-messages": { orderPlaced: { payload: { type: "object" } } },
+      messages: {
+        orderPlaced: {
+          name: "orderPlaced",
+          payload: { schemaFormat: "application/schema+json;version=draft-07", schema: { type: "object", properties: { traits: { type: "array" } } } },
+          traits: [{ $ref: "./traits/commonHeaders.yaml" }, { $ref: "./traits/tracing.yaml" }],
+          "x-traits": [],
+        },
+      },
+    },
+  },
+  operations: {
+    nullOperation: null,
+    sendOrder: { action: "send", channel: { $ref: "#/channels/withExtensions" }, traits: [], messages: [{ payload: { type: "object" } }, { $ref: "#/channels/withExtensions/messages/orderPlaced" }] },
+    replyOrder: { action: "receive", channel: { $ref: "#/channels/addressOnly" }, reply: { channel: { $ref: "#/channels/nullAddress" }, messages: [{ payload: { type: "object" } }] } },
+  },
+  components: {
+    schemas: { Order: { type: "object", properties: { traits: { type: "array", items: { type: "string" } } } } },
+    messages: { nullMessage: null, scalarMessage: "message", listMessage: [{ payload: { type: "object" } }], refMessage: { $ref: "#/components/messages/nullMessage" } },
+    messageTraits: { orphanEmpty: {}, orphanNull: null, orphanList: [], orphanWithTraits: { traits: [] } },
+    operationTraits: { tracing: { traits: [] } },
+    operations: { sendOrder: { action: "send", messages: [{ payload: { type: "object" } }] } },
+    replies: { orderReply: { messages: [{ payload: { type: "object" } }] } },
+    channels: { nullChannel: null, refChannel: { $ref: "#/channels/emptyChannel" }, emptyChannel: {}, scalarChannel: "audit", noMessages: { address: "audit" } },
+    "x-messages": { orderPlaced: { payload: { type: "object" } } },
+  },
+  "x-messages": { orderPlaced: { payload: { type: "object" } } },
+};

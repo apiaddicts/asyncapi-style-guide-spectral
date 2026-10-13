@@ -1173,6 +1173,188 @@ const EXAMPLE_SCHEMA_TRAIT_CASES = [
   ["an empty traits list", { traits: [], examples: [{ headers: { partitionKey: 1 } }] }, [["examples.0.headers.partitionKey", issue(0, "headers.partitionKey", "must be string")]], "same"],
 ];
 
+const CH = "commonHeaders";
+const TR = "tracing";
+const REQUIRED_TRAIT_NAMES = [CH, TR];
+const SHARED_TRAITS = "./shared/message-traits.yaml#/components/messageTraits";
+
+const REQUIRED_TRAIT_COMPONENTS = {
+  messageTraits: {
+    commonHeaders: {
+      headers: { type: "object", required: ["traceId"], properties: { traceId: { type: "string", format: "uuid" }, tenantId: { type: ["string", "null"] } } },
+    },
+    tracing: { correlationId: { description: "W3C trace context of the producer.", location: "$message.header#/traceparent" } },
+    kafkaKey: { bindings: { kafka: { key: { type: "string", maxLength: 64 }, bindingVersion: "0.5.0" } } },
+    CommonHeaders: { headers: { type: "object", properties: { legacyId: { type: "string" } } } },
+    "audit/v2": { headers: { type: "object", properties: { auditId: { type: "string" } } } },
+    "tracing v2": { correlationId: { location: "$message.header#/traceparent" } },
+    blank: {},
+    nullTrait: null,
+    scalarTrait: "commonHeaders",
+    listTrait: [{ headers: { type: "object" } }],
+    headersAlias: traitRef(CH),
+    platformDefaults: traitRef("headersAlias"),
+    blankAlias: traitRef("blank"),
+    danglingAlias: traitRef("missing"),
+    cycleA: traitRef("cycleB"),
+    cycleB: traitRef("cycleA"),
+    sharedTracing: { $ref: `${SHARED_TRAITS}/tracing` },
+  },
+  "x-trait-lists": {
+    standard: [traitRef(CH), traitRef(TR)],
+    headersOnly: [traitRef(CH)],
+    chained: { $ref: "#/components/x-trait-lists/standard" },
+    empty: [],
+    blank: [traitRef("blank"), {}],
+    notList: { headers: { type: "object" } },
+    nullList: null,
+    cycleA: { $ref: "#/components/x-trait-lists/cycleB" },
+    cycleB: { $ref: "#/components/x-trait-lists/cycleA" },
+    external: { $ref: "./shared/message-traits.yaml#/lists/kafka" },
+  },
+  "x-missing": {},
+};
+
+const REQUIRED_TRAIT_CASES = [
+  ["no traits field", {}, "missing", [CH, TR]],
+  ["a null traits value", { traits: null }, "none", [CH, TR]],
+  ["an empty traits list", { traits: [] }, "none", [CH, TR]],
+  ["an inline trait object instead of a list", { traits: { headers: { type: "object" } } }, "notArray", [CH, TR]],
+  ["a single trait reference instead of a list", { traits: traitRef(CH) }, "notArray", [CH, TR]],
+  ["a trait name instead of a list", { traits: "commonHeaders" }, "notArray", [CH, TR]],
+  ["an empty string", { traits: "" }, "notArray", [CH, TR]],
+  ["a number", { traits: 1 }, "notArray", [CH, TR]],
+  ["zero", { traits: 0 }, "notArray", [CH, TR]],
+  ["true", { traits: true }, "notArray", [CH, TR]],
+  ["false", { traits: false }, "notArray", [CH, TR]],
+  ["the common headers trait", { traits: [traitRef(CH)] }, null, [TR]],
+  ["the tracing trait", { traits: [traitRef(TR)] }, null, [CH]],
+  ["both required traits", { traits: [traitRef(CH), traitRef(TR)] }, null, []],
+  ["both required traits after an unrelated one, in reverse order", { traits: [traitRef("kafkaKey"), traitRef(TR), traitRef(CH)] }, null, []],
+  ["the same trait twice", { traits: [traitRef(CH), traitRef(CH)] }, null, [TR]],
+  ["only an unrelated trait", { traits: [traitRef("kafkaKey")] }, null, [CH, TR]],
+  ["a trait whose name differs only in case", { traits: [traitRef("CommonHeaders"), traitRef(TR)] }, null, [CH]],
+  ["an inline trait", { traits: [{ headers: { type: "object", properties: { traceId: { type: "string" } } } }] }, null, [CH, TR]],
+  ["an inline trait with only an extension", { traits: [{ "x-owner": "platform-team" }] }, null, [CH, TR]],
+  ["an inline trait whose name and title match the required ones", { traits: [{ name: CH, title: TR }] }, null, [CH, TR]],
+  ["an empty inline trait", { traits: [{}] }, "none", [CH, TR]],
+  ["non-object entries", { traits: [null, 42, "commonHeaders", true, [], [null]] }, "none", [CH, TR]],
+  ["a chained alias of a required trait", { traits: [traitRef("headersAlias"), traitRef(TR)] }, null, []],
+  ["a trait chained twice", { traits: [traitRef("platformDefaults")] }, null, [TR]],
+  ["a reference to an empty trait", { traits: [traitRef("blank")] }, "none", [CH, TR]],
+  ["an alias of an empty trait", { traits: [traitRef("blankAlias")] }, "none", [CH, TR]],
+  ["a reference to a null trait", { traits: [traitRef("nullTrait")] }, "none", [CH, TR]],
+  ["a reference to a scalar trait", { traits: [traitRef("scalarTrait")] }, "none", [CH, TR]],
+  ["a reference to a list", { traits: [traitRef("listTrait")] }, "none", [CH, TR]],
+  ["a reference to the document root", { traits: [{ $ref: "#" }] }, "none", [CH, TR]],
+  ["a dangling reference", { traits: [traitRef("missing")] }, "none", [CH, TR]],
+  ["dangling references named like the required traits", { traits: [{ $ref: "#/components/x-missing/commonHeaders" }, { $ref: "#/components/x-missing/tracing" }] }, "none", [CH, TR]],
+  ["a dangling alias", { traits: [traitRef("danglingAlias")] }, "none", [CH, TR]],
+  ["a cyclic reference", { traits: [traitRef("cycleA")] }, "none", [CH, TR]],
+  ["references with a non-string $ref", { traits: [{ $ref: 42 }, { $ref: null }] }, "none", [CH, TR]],
+  ["a dangling reference next to a valid one", { traits: [traitRef("missing"), traitRef(TR)] }, null, [CH]],
+  ["an empty inline trait next to a valid one", { traits: [{}, traitRef(CH)] }, null, [TR]],
+  ["tuple entries", { traits: [[traitRef(CH), { environment: "prod" }], [traitRef(TR), {}]] }, null, []],
+  ["a tuple with an inline trait", { traits: [[{ headers: { type: "object" } }, {}]] }, null, [CH, TR]],
+  ["tuples without a trait", { traits: [[null, {}], [], [{}, { environment: "prod" }]] }, "none", [CH, TR]],
+  ["a tuple whose trait is dangling", { traits: [[traitRef("missing"), {}]] }, "none", [CH, TR]],
+  ["an external trait pointer", { traits: [{ $ref: `${SHARED_TRAITS}/tracing` }, traitRef(CH)] }, null, []],
+  ["an external trait with another name", { traits: [{ $ref: `${SHARED_TRAITS}/tracingV2` }] }, null, [CH, TR]],
+  ["external whole-file references", { traits: [{ $ref: "./traits/commonHeaders.yaml" }, { $ref: "https://schemas.example.io/asyncapi/traits/tracing.json" }] }, null, []],
+  ["external files with an upper-case extension or a query", { traits: [{ $ref: "../traits/commonHeaders.YAML" }, { $ref: "./traits/tracing.yml?version=2" }] }, null, []],
+  ["external files with an empty fragment", { traits: [{ $ref: "./traits/commonHeaders.yaml#" }, { $ref: "./traits/tracing.yaml#/" }] }, null, []],
+  ["an external file with another extension", { traits: [{ $ref: "./traits/commonHeaders.avsc" }] }, null, [CH, TR]],
+  ["Windows-style external paths", { traits: [{ $ref: "..\\traits\\commonHeaders.yaml" }, { $ref: "C:\\specs\\traits\\tracing.json" }] }, null, []],
+  ["a local alias of an external trait", { traits: [traitRef("sharedTracing"), traitRef(CH)] }, null, []],
+  ["an escaped pointer", { traits: [{ $ref: "#/components/messageTraits/audit~1v2" }] }, null, [CH, TR]],
+  ["a percent-encoded pointer", { traits: [{ $ref: "#/components/messageTraits/tracing%20v2" }] }, null, [CH, TR]],
+  ["a malformed percent-encoded pointer", { traits: [{ $ref: "#/components/messageTraits/tracing%E0%A4%A" }] }, "none", [CH, TR]],
+  ["a pointer without a leading slash", { traits: [{ $ref: "#components/messageTraits/commonHeaders" }] }, "none", [CH, TR]],
+  ["a traits list behind a local reference", { traits: { $ref: "#/components/x-trait-lists/standard" } }, null, []],
+  ["a traits list behind a chained reference", { traits: { $ref: "#/components/x-trait-lists/chained" } }, null, []],
+  ["a referenced list with one required trait", { traits: { $ref: "#/components/x-trait-lists/headersOnly" } }, null, [TR]],
+  ["a referenced empty list", { traits: { $ref: "#/components/x-trait-lists/empty" } }, "none", [CH, TR]],
+  ["a referenced list of empty traits", { traits: { $ref: "#/components/x-trait-lists/blank" } }, "none", [CH, TR]],
+  ["a referenced null list", { traits: { $ref: "#/components/x-trait-lists/nullList" } }, "none", [CH, TR]],
+  ["a referenced object instead of a list", { traits: { $ref: "#/components/x-trait-lists/notList" } }, "notArray", [CH, TR]],
+  ["a list reference to the document root", { traits: { $ref: "#" } }, "notArray", [CH, TR]],
+  ["a dangling list reference", { traits: { $ref: "#/components/x-trait-lists/missing" } }, "none", [CH, TR]],
+  ["a cyclic list reference", { traits: { $ref: "#/components/x-trait-lists/cycleA" } }, "none", [CH, TR]],
+  ["a list reference with a non-string $ref", { traits: { $ref: ["standard"] } }, "none", [CH, TR]],
+  ["an external traits list", { traits: { $ref: "./shared/message-traits.yaml#/lists/kafka" } }, null, []],
+  ["a local list that points to an external one", { traits: { $ref: "#/components/x-trait-lists/external" } }, null, []],
+];
+
+const missingTraitsMessage = (names) => `AAR073: Message is missing the required trait${names.length === 1 ? "" : "s"} ${names.map((name) => `'${name}'`).join(", ")}.`;
+
+const REQUIRED_TRAIT_MESSAGES = {
+  missing: (names = []) => (names.length === 0 ? "AAR073: Message must apply at least one trait." : missingTraitsMessage(names)),
+  notArray: () => "AAR073: Message 'traits' must be an array.",
+  none: () => "AAR073: Message 'traits' does not apply any valid trait.",
+  lacks: (names) => missingTraitsMessage(names),
+};
+
+const requiredTraitFindings = (base, fields, defaultKind, missing, named) => {
+  const at = (kind) => (kind === "missing" ? base : `${base}.traits`);
+  if (!named) return defaultKind === null ? [] : [[at(defaultKind), REQUIRED_TRAIT_MESSAGES[defaultKind]()]];
+  if (missing.length === 0) return [];
+  const kind = !("traits" in fields) ? "missing" : defaultKind === "notArray" ? "notArray" : "lacks";
+  return [[at(kind), REQUIRED_TRAIT_MESSAGES[kind](missing)]];
+};
+
+const REQUIRED_TRAIT_PROBES = {
+  noTraits: { fields: {}, state: "absent" },
+  emptyList: { fields: { traits: [] }, state: "list", applies: [], any: false },
+  notList: { fields: { traits: { headers: { type: "object" } } }, state: "notArray" },
+  headersOnly: { fields: { traits: [traitRef(CH)] }, state: "list", applies: [CH], any: true },
+  tracingOnly: { fields: { traits: [traitRef(TR)] }, state: "list", applies: [TR], any: true },
+  both: { fields: { traits: [traitRef(CH), traitRef(TR)] }, state: "list", applies: [CH, TR], any: true },
+  all: { fields: { traits: [traitRef(CH), traitRef(TR), traitRef("kafkaKey")] }, state: "list", applies: [CH, TR, "kafkaKey"], any: true },
+  aliases: { fields: { traits: [traitRef("platformDefaults"), traitRef("sharedTracing")] }, state: "list", applies: ["platformDefaults", "headersAlias", CH, "sharedTracing", TR], any: true },
+  caseVariant: { fields: { traits: [traitRef("CommonHeaders")] }, state: "list", applies: ["CommonHeaders"], any: true },
+  escaped: { fields: { traits: [{ $ref: "#/components/messageTraits/audit~1v2" }] }, state: "list", applies: ["audit/v2"], any: true },
+  inline: { fields: { traits: [{ headers: { type: "object" } }] }, state: "list", applies: [], any: true },
+  dangling: { fields: { traits: [{ $ref: "#/components/x-missing/commonHeaders" }] }, state: "list", applies: [], any: false },
+};
+
+const requiredTraitProbeFindings = (prefix, required) =>
+  Object.entries(REQUIRED_TRAIT_PROBES)
+    .flatMap(([key, probe]) => {
+      const base = `${prefix}.${key}`;
+      if (probe.state === "absent") return [[base, REQUIRED_TRAIT_MESSAGES.missing(required)]];
+      if (probe.state === "notArray") return [[`${base}.traits`, REQUIRED_TRAIT_MESSAGES.notArray(required)]];
+      if (required.length === 0) return probe.any ? [] : [[`${base}.traits`, REQUIRED_TRAIT_MESSAGES.none()]];
+      const missing = required.filter((name) => !probe.applies.includes(name));
+      return missing.length === 0 ? [] : [[`${base}.traits`, REQUIRED_TRAIT_MESSAGES.lacks(missing)]];
+    })
+    .sort((a, b) => a[0].localeCompare(b[0]));
+
+const REQUIRED_TRAIT_OPTIONS = [
+  ["the shipped empty string", "", []],
+  ["a blank string", "  \t ", []],
+  ["only commas and spaces", " , ,, ", []],
+  ["a single name", "commonHeaders", [CH]],
+  ["two padded names", " commonHeaders ,  tracing ", [CH, TR]],
+  ["the names in another order", "tracing,commonHeaders", [TR, CH]],
+  ["duplicated names", "tracing,commonHeaders,tracing", [TR, CH]],
+  ["three names", "commonHeaders,tracing,kafkaKey", [CH, TR, "kafkaKey"]],
+  ["a name with another case", "COMMONHEADERS", ["COMMONHEADERS"]],
+  ["a name nobody applies", "piiClassification", ["piiClassification"]],
+  ["a name with a slash", "audit/v2", ["audit/v2"]],
+  ["a local $ref", "#/components/messageTraits/commonHeaders", [CH]],
+  ["an external $ref and a name", "./shared/message-traits.yaml#/components/messageTraits/tracing, commonHeaders", [TR, CH]],
+  ["an escaped $ref", "#/components/messageTraits/audit~1v2", ["audit/v2"]],
+  ["a bare hash", "#", []],
+  ["an array of names", [CH, TR], [CH, TR]],
+  ["an array of comma-separated lists", ["commonHeaders, tracing", "kafkaKey"], [CH, TR, "kafkaKey"]],
+  ["an array with non-string items", [null, 42, "tracing", {}, ["commonHeaders"]], [TR]],
+  ["an empty array", [], []],
+  ["null", null, []],
+  ["a number", 42, []],
+  ["true", true, []],
+  ["an object", { commonHeaders: true }, []],
+];
+
 module.exports.linterForRule = linterForRule;
 module.exports.CASING_TYPES = CASING_TYPES;
 module.exports.CASING_VALUES = CASING_VALUES;
@@ -1199,3 +1381,11 @@ module.exports.EXAMPLE_SCHEMA_FORMAT_CASES = EXAMPLE_SCHEMA_FORMAT_CASES;
 module.exports.TRAIT_BASE_MESSAGE = TRAIT_BASE_MESSAGE;
 module.exports.EXAMPLE_SCHEMA_TRAIT_COMPONENTS = EXAMPLE_SCHEMA_TRAIT_COMPONENTS;
 module.exports.EXAMPLE_SCHEMA_TRAIT_CASES = EXAMPLE_SCHEMA_TRAIT_CASES;
+module.exports.REQUIRED_TRAIT_NAMES = REQUIRED_TRAIT_NAMES;
+module.exports.REQUIRED_TRAIT_COMPONENTS = REQUIRED_TRAIT_COMPONENTS;
+module.exports.REQUIRED_TRAIT_CASES = REQUIRED_TRAIT_CASES;
+module.exports.REQUIRED_TRAIT_MESSAGES = REQUIRED_TRAIT_MESSAGES;
+module.exports.REQUIRED_TRAIT_PROBES = REQUIRED_TRAIT_PROBES;
+module.exports.REQUIRED_TRAIT_OPTIONS = REQUIRED_TRAIT_OPTIONS;
+module.exports.requiredTraitFindings = requiredTraitFindings;
+module.exports.requiredTraitProbeFindings = requiredTraitProbeFindings;
