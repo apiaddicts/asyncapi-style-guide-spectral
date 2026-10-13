@@ -536,6 +536,58 @@ const REQUIRED_BINDING_CASES = {
   ],
 };
 
+const BINDING_VERSION_CASES = {
+  valid: ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0", "0.0.1", "0.0.0", "1.0.0", "2.11.4", "10.20.30", "00.04.00", "2026.10.12", "999999999.0.1"],
+  invalid: [
+    "latest",
+    "LATEST",
+    "Latest",
+    "0.4",
+    "0",
+    "1",
+    "1.0",
+    "v0.4.0",
+    "V1.0.0",
+    "0.4.0-beta",
+    "0.4.0-rc.1",
+    "0.4.0+build.7",
+    "0.4.0.1",
+    "1.0.0.0",
+    "0.4.x",
+    "0.4.*",
+    "x.y.z",
+    "~0.4.0",
+    "^0.4.0",
+    ">=0.4.0",
+    "0.4.0 ",
+    " 0.4.0",
+    "0. 4.0",
+    "0.4.0\n",
+    "\t0.4.0",
+    "0,4,0",
+    "0-4-0",
+    "0_4_0",
+    "0..4",
+    ".4.0",
+    "0.4.",
+    "-1.0.0",
+    "+1.0.0",
+    "0x1.0.0",
+    "1e3.0.0",
+    "٠.٤.٠",
+    "０.４.０",
+    "kafka-0.4.0",
+    "0.4.0/kafka",
+    "2026-01-15",
+    "null",
+    "true",
+    "",
+    " ",
+  ],
+  nonString: [0.4, 1, 0, -1, 1.5, true, false, [], ["0.4.0"], {}, { major: 0, minor: 4, patch: 0 }, { $ref: "#/components/x-versions/kafka" }],
+  absent: [undefined, null],
+};
+
 module.exports.linterForRule = linterForRule;
 module.exports.CASING_TYPES = CASING_TYPES;
 module.exports.CASING_VALUES = CASING_VALUES;
@@ -544,3 +596,4 @@ module.exports.CONTENT_TYPE_CASES = CONTENT_TYPE_CASES;
 module.exports.NON_STRING_CONTENT_TYPES = NON_STRING_CONTENT_TYPES;
 module.exports.BINDING_KEY_CASES = BINDING_KEY_CASES;
 module.exports.REQUIRED_BINDING_CASES = REQUIRED_BINDING_CASES;
+module.exports.BINDING_VERSION_CASES = BINDING_VERSION_CASES;

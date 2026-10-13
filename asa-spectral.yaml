@@ -45,6 +45,7 @@ functions:
   - asa-content-type-values
   - asa-binding-types
   - asa-binding-required-properties
+  - asa-binding-version-format
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -800,3 +801,15 @@ rules:
           operation.sqs.queues.policy.statements.principal,
           operation.sqs.queues.policy.statements.action,
           message.googlepubsub.schema.name
+
+  asa:AAR070:
+    description: "The bindingVersion of every protocol binding must be a string matching the configured pattern (default: a semantic version such as 0.4.0); x- extensions are ignored."
+    message: "AAR070: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar070"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-binding-version-format
+      functionOptions:
+        pattern: "^\\d+\\.\\d+\\.\\d+$"

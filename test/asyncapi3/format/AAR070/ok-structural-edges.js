@@ -1,0 +1,82 @@
+const latest = { kafka: { bindingVersion: "latest" } };
+
+module.exports = {
+  asyncapi: "3.0.0",
+  info: { title: "Structural Edges", version: "1.0.0", bindings: latest, "x-bindings": latest },
+  servers: {
+    nullServer: null,
+    scalarServer: "kafka.example.io:9092",
+    listServer: [{ bindings: latest }],
+    noBindings: { host: "k:9092", protocol: "kafka" },
+    nullBindings: { host: "k:9092", protocol: "kafka", bindings: null },
+    listBindings: { host: "k:9092", protocol: "kafka", bindings: [latest] },
+    scalarBindings: { host: "k:9092", protocol: "kafka", bindings: "kafka@latest" },
+    missingVersions: { host: "k:9092", protocol: "kafka", bindings: { kafka: { schemaRegistryUrl: "https://registry.example.io" }, amqp: {}, mqtt: null } },
+    nullVersions: { host: "k:9092", protocol: "kafka", bindings: { kafka: { bindingVersion: null }, ws: { bindingVersion: undefined } } },
+    oddProtocolValues: { host: "k:9092", protocol: "kafka", bindings: { kafka: "latest", amqp: ["latest"], mqtt: 0.4, ws: true, bindingVersion: "latest" } },
+    extensionsOnly: { host: "k:9092", protocol: "kafka", bindings: { "x-": { bindingVersion: "latest" }, "x-kafka": { bindingVersion: 0.4 }, "x-Kafka": { bindingVersion: "" } } },
+    variables: { host: "{host}:9092", protocol: "kafka", variables: { host: { default: "kafka", bindings: latest } } },
+  },
+  channels: {
+    nullChannel: null,
+    scalarChannel: "orders",
+    listChannel: [{ bindings: latest }],
+    orders: {
+      address: null,
+      parameters: { orderId: { description: "Order identifier.", bindings: latest } },
+      publish: { bindings: latest, message: { bindings: latest } },
+      subscribe: { bindings: latest, traits: [{ bindings: latest }], message: { oneOf: [{ bindings: latest }] } },
+      messages: {
+        nullMessage: null,
+        scalarMessage: "message",
+        listMessage: [{ bindings: latest }],
+        refMessage: { $ref: "#/components/messages/missing" },
+        oneOfLeftover: { oneOf: [{ bindings: latest }] },
+        orderCreated: {
+          payload: {
+            schemaFormat: "application/schema+json;version=draft-07",
+            schema: { type: "object", properties: { bindings: { type: "object", properties: { kafka: { type: "object", properties: { bindingVersion: { type: "string", const: "latest" } } } } } } },
+          },
+          headers: { type: "object", properties: { bindingVersion: { type: ["string", "null"], default: "latest" } } },
+          examples: [{ payload: { bindings: latest }, headers: { bindingVersion: "latest" } }],
+          correlationId: { location: "$message.header#/bindingVersion" },
+          traits: [null, 42, [], [null, { bindings: latest }], [["nested"]], [{ $ref: "#/components/messageTraits/ref" }]],
+          "x-bindings": latest,
+        },
+      },
+    },
+  },
+  operations: {
+    nullOperation: null,
+    listOperation: [{ bindings: latest }],
+    sendOrder: {
+      action: "send",
+      channel: { $ref: "#/channels/orders" },
+      messages: [{ bindings: latest }, { $ref: "#/channels/orders/messages/orderCreated" }],
+      message: { bindings: latest },
+      traits: [null, "trait", [], [{ bindings: latest }], { $ref: "#/components/operationTraits/missing" }],
+      reply: { bindings: latest, address: { location: "$message.header#/replyTo", bindings: latest }, messages: [{ bindings: latest }] },
+    },
+  },
+  components: {
+    schemas: {
+      Bindings: { type: "object", properties: { bindingVersion: { type: "string", enum: ["latest"] } }, bindings: latest },
+      AvroBindings: {
+        schemaFormat: "application/vnd.apache.avro;version=1.9.0",
+        schema: { type: "record", name: "Bindings", fields: [{ name: "bindingVersion", type: ["null", "string"], default: null }] },
+      },
+    },
+    messages: { nullMessage: null, scalarMessage: "message", listMessage: [{ bindings: latest }] },
+    parameters: { orderId: { description: "Order identifier.", bindings: latest } },
+    correlationIds: { orderId: { location: "$message.header#/orderId", bindings: latest } },
+    securitySchemes: { sasl: { type: "scramSha512", bindings: latest } },
+    replies: { ack: { bindings: latest, messages: [{ bindings: latest }] } },
+    replyAddresses: { inbox: { location: "$message.header#/replyTo", bindings: latest } },
+    serverBindings: { nullBindings: null, listBindings: [latest], scalarBindings: "latest", ref: { $ref: "#/components/serverBindings/nullBindings" } },
+    channelBindings: { nested: { kafka: { topicConfiguration: { bindingVersion: "latest" }, bindingVersion: "0.5.0" } } },
+    operationBindings: { keyOnly: { kafka: { groupId: { type: "string", default: "latest" } } } },
+    messageBindings: { refBinding: { kafka: { $ref: "#/components/x-kafka/keyed" } } },
+    "x-kafka": { keyed: { bindingVersion: "latest" } },
+  },
+  "x-bindings": latest,
+};
