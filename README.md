@@ -118,6 +118,7 @@ spectral lint your-asyncapi.yaml
 | **AAR070** | `error` | The `bindingVersion` of every protocol binding must be a string matching `pattern` (default `^\d+\.\d+\.\d+$`, e.g. `0.4.0`, so `latest` fails); `x-` extensions are ignored and a missing or null version is left to AAR037. |
 | **AAR071** | `warn` | Every message must provide at least one example with a `payload` in its `examples` array; a header-only example (non-empty `headers`) counts only for messages without a payload. Traits are merged as each version specifies (2.x: traits override the message; 3.x: the message overrides its traits), and each message is checked once, where it is defined. |
 | **AAR073** | `warn` | Every message must apply message traits in `traits`: at least one by default, or every trait listed in `required-traits` (comma-separated). |
+| **AAR075** | `error` | The `info` object must populate every field listed in `fields-to-apply` (comma-separated; default `title,version,description`): a missing, null, blank or empty value is reported. |
 
 ### Schema Rules
 
@@ -148,7 +149,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 35 custom Spectral functions for complex validation logic:
+The ruleset includes 36 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -187,6 +188,7 @@ The ruleset includes 35 custom Spectral functions for complex validation logic:
 | `asa-message-examples-schema` | AAR072 | Validates every message example `payload` and `headers` against their JSON Schema, OpenAPI or Avro schema |
 | `asa-message-traits-required` | AAR073 | Validates that every message applies at least one message trait, or every trait listed in `required-traits` |
 | `asa-properties-object-format` | AAR074 | Checks the casing of schema property names and Avro record field names |
+| `asa-info-attributes-required` | AAR075 | Validates that the `info` object populates every field listed in `fields-to-apply` |
 
 ---
 

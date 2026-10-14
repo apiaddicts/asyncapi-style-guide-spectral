@@ -1492,6 +1492,233 @@ const PROPERTY_FORMAT_FINDINGS = { json: ["properties.order_id"], avro: ["fields
 
 const AVRO_TEXT_SCHEMA = JSON.stringify({ type: "record", name: "OrderPlaced", fields: [{ name: "orderId", type: "string" }, { name: "order_id", type: "string" }, { name: "Line_Count", type: "int" }] });
 
+const chars = (...codes) => String.fromCharCode(...codes);
+const INFO_DEFAULT_FIELDS = ["title", "version", "description"];
+const INFO_V2_FIELDS = [...INFO_DEFAULT_FIELDS, "termsOfService", "contact", "license"];
+const INFO_V3_FIELDS = [...INFO_V2_FIELDS, "tags", "externalDocs"];
+const infoText = (name) => ({ $ref: `#/components/x-texts/${name}` });
+const infoTarget = (name) => ({ $ref: `#/components/x-info/${name}` });
+
+const INFO_COMPONENTS = {
+  "x-texts": {
+    summary: "Order lifecycle events published by the commerce platform.",
+    alias: infoText("summary"),
+    aliasTwice: infoText("alias"),
+    empty: "",
+    blank: " \t ",
+    nothing: null,
+    emptyObject: {},
+    emptyList: [],
+    number: 2,
+    falsy: false,
+    emptyAlias: infoText("empty"),
+    cycleA: infoText("cycleB"),
+    cycleB: infoText("cycleA"),
+    self: infoText("self"),
+    "a/b": "Escaped pointer text.",
+    "with space": "Percent-encoded pointer text.",
+    external: { $ref: "./shared/info-texts.yaml#/description" },
+    list: ["Order lifecycle events."],
+    contact: { name: "Commerce Integration", email: "integration@commerce.example.io" },
+  },
+  "x-info": {
+    complete: { title: "Commerce Events", version: "4.2.0", description: "Order, payment and shipment events of the commerce platform." },
+    sparse: { title: "Commerce Events", version: "" },
+    empty: {},
+    alias: infoTarget("complete"),
+    sparseAlias: infoTarget("sparse"),
+    cycleA: infoTarget("cycleB"),
+    cycleB: infoTarget("cycleA"),
+    list: [{ title: "Commerce Events", version: "4.2.0", description: "Listed info." }],
+    text: "Commerce Events",
+    nothing: null,
+  },
+};
+
+const INFO_VALUE_CASES = [
+  ["a plain string", "Order lifecycle events.", true],
+  ["a single character", "x", true],
+  ["a string with surrounding spaces", "  Order events  ", true],
+  ["a multi-line string", "Order events.\n\nPublished by the commerce platform.\n", true],
+  ["the string null", "null", true],
+  ["the string 0", "0", true],
+  ["a string made of dots", "...", true],
+  ["a non-Latin string", "注文イベント", true],
+  ["a very long string", "Order events. ".repeat(5000), true],
+  ["text between zero-width characters", `${chars(0x200b)}Orders${chars(0xfeff)}`, true],
+  ["zero", 0, true],
+  ["a decimal number", 1.5, true],
+  ["a negative number", -1, true],
+  ["true", true, true],
+  ["false", false, true],
+  ["a non-empty object", { url: "https://commerce.example.io" }, true],
+  ["an object with only an extension", { "x-team": "commerce" }, true],
+  ["a non-empty array", ["Order events."], true],
+  ["an array with a null item", [null], true],
+  ["an empty string", "", false],
+  ["a space", " ", false],
+  ["several spaces", "     ", false],
+  ["a tab", "\t", false],
+  ["a newline", "\n", false],
+  ["mixed whitespace", " \t\r\n \n", false],
+  ["very long whitespace", " ".repeat(100000), false],
+  ["non-breaking spaces", chars(0xa0, 0xa0), false],
+  ["an ideographic space", chars(0x3000), false],
+  ["em and thin spaces", chars(0x2003, 0x2009), false],
+  ["line and paragraph separators", chars(0x2028, 0x2029), false],
+  ["zero-width characters", chars(0x200b, 0x200c, 0x200d, 0x2060), false],
+  ["a byte order mark", chars(0xfeff), false],
+  ["zero-width characters between spaces", ` ${chars(0x200b)} \t${chars(0xfeff)} `, false],
+  ["null", null, false],
+  ["an empty object", {}, false],
+  ["an empty array", [], false],
+  ["a local reference to a text", infoText("summary"), true],
+  ["a chained reference", infoText("alias"), true],
+  ["a reference chained twice", infoText("aliasTwice"), true],
+  ["a reference to a number", infoText("number"), true],
+  ["a reference to false", infoText("falsy"), true],
+  ["a reference to a non-empty object", infoText("contact"), true],
+  ["a reference to a non-empty array", infoText("list"), true],
+  ["a pointer into an array item", { $ref: "#/components/x-texts/list/0" }, true],
+  ["an escaped pointer", { $ref: "#/components/x-texts/a~1b" }, true],
+  ["a percent-encoded pointer", { $ref: "#/components/x-texts/with%20space" }, true],
+  ["an external reference", { $ref: "./shared/info-texts.yaml#/description" }, true],
+  ["an external whole-file reference", { $ref: "https://specs.example.io/texts/description.yaml" }, true],
+  ["a local alias of an external text", infoText("external"), true],
+  ["a reference to an empty string", infoText("empty"), false],
+  ["a reference to a blank string", infoText("blank"), false],
+  ["a reference to null", infoText("nothing"), false],
+  ["a reference to an empty object", infoText("emptyObject"), false],
+  ["a reference to an empty array", infoText("emptyList"), false],
+  ["a chain that ends in an empty string", infoText("emptyAlias"), false],
+  ["a reference with siblings, which are ignored", { $ref: "#/components/x-texts/empty", text: "Ignored sibling." }, false],
+  ["a dangling reference", infoText("missing"), false],
+  ["a pointer past the end of an array", { $ref: "#/components/x-texts/list/5" }, false],
+  ["a cyclic reference", infoText("cycleA"), false],
+  ["a self reference", infoText("self"), false],
+  ["a reference to the document root", { $ref: "#" }, false],
+  ["an empty reference, which points to the document itself", { $ref: "" }, false],
+  ["a pointer without a leading slash", { $ref: "#components/x-texts/summary" }, false],
+  ["a malformed percent-encoded pointer", { $ref: "#/components/x-texts/%E0%A4%A" }, false],
+  ["a non-string reference", { $ref: 42 }, false],
+  ["a null reference", { $ref: null }, false],
+];
+
+const INFO_OBJECT_CASES = [
+  ["an inline info object with every default field", { title: "Commerce Events", version: "4.2.0", description: "Order events." }, []],
+  ["an empty info object", {}, [["info", "missing", "title"], ["info", "missing", "version"], ["info", "missing", "description"]]],
+  ["a reference to a complete info object", infoTarget("complete"), []],
+  ["a chained reference to a complete info object", infoTarget("alias"), []],
+  ["a reference with siblings, which are ignored", { ...infoTarget("complete"), title: "" }, []],
+  ["an external reference", { $ref: "./shared/info.yaml#/info" }, []],
+  ["an external whole-file reference", { $ref: "https://specs.example.io/commerce/info.yaml" }, []],
+  ["a reference to a sparse info object", infoTarget("sparse"), [["components.x-info.sparse", "missing", "description"], ["components.x-info.sparse.version", "empty", "version"]]],
+  ["a chained reference to a sparse info object", infoTarget("sparseAlias"), [["components.x-info.sparse", "missing", "description"], ["components.x-info.sparse.version", "empty", "version"]]],
+  ["a reference to an empty object", infoTarget("empty"), [["components.x-info.empty", "missing", "title"], ["components.x-info.empty", "missing", "version"], ["components.x-info.empty", "missing", "description"]]],
+  ["a null info", null, [["info", "invalid"]]],
+  ["an empty string", "", [["info", "invalid"]]],
+  ["a title instead of an object", "Commerce Events", [["info", "invalid"]]],
+  ["zero", 0, [["info", "invalid"]]],
+  ["a number", 42, [["info", "invalid"]]],
+  ["true", true, [["info", "invalid"]]],
+  ["false", false, [["info", "invalid"]]],
+  ["an empty list", [], [["info", "invalid"]]],
+  ["a list holding an info object", [{ title: "Commerce Events", version: "4.2.0", description: "Order events." }], [["info", "invalid"]]],
+  ["a dangling reference", infoTarget("missing"), [["info", "invalid"]]],
+  ["a cyclic reference", infoTarget("cycleA"), [["info", "invalid"]]],
+  ["a reference to the document root", { $ref: "#" }, [["info", "invalid"]]],
+  ["an empty reference", { $ref: "" }, [["info", "invalid"]]],
+  ["a reference to a list", infoTarget("list"), [["info", "invalid"]]],
+  ["a reference to a string", infoTarget("text"), [["info", "invalid"]]],
+  ["a reference to null", infoTarget("nothing"), [["info", "invalid"]]],
+  ["a pointer without a leading slash", { $ref: "#components/x-info/complete" }, [["info", "invalid"]]],
+  ["a malformed percent-encoded pointer", { $ref: "#/components/x-info/%E0%A4%A" }, [["info", "invalid"]]],
+  ["a non-string reference", { $ref: 42 }, [["info", "invalid"]]],
+  ["a null reference", { $ref: null }, [["info", "invalid"]]],
+];
+
+const INFO_PROBE = {
+  title: "Fleet Telemetry",
+  version: "  ",
+  termsOfService: "https://fleet.example.io/terms",
+  contact: {},
+  tags: [],
+  externalDocs: { url: "https://fleet.example.io/docs" },
+  "x-audience": "external-partner",
+  "x-api-id": "",
+  "x-team.owner_id": null,
+};
+
+const INFO_PROBE_STATES = {
+  title: "populated",
+  version: "empty",
+  description: "missing",
+  termsOfService: "populated",
+  contact: "empty",
+  license: "missing",
+  tags: "empty",
+  externalDocs: "populated",
+  "x-audience": "populated",
+  "x-api-id": "empty",
+  "x-team.owner_id": "empty",
+  "x-owner": "missing",
+};
+
+const INFO_OPTION_CASES = [
+  ["the shipped default list", "title,version,description", INFO_DEFAULT_FIELDS],
+  ["an empty string", "", INFO_DEFAULT_FIELDS],
+  ["a blank string", "  \t ", INFO_DEFAULT_FIELDS],
+  ["only commas and spaces", " , ,, ", INFO_DEFAULT_FIELDS],
+  ["only the title", "title", ["title"]],
+  ["only the description", "description", ["description"]],
+  ["two padded names in another order", "  description ,  title ", ["description", "title"]],
+  ["duplicated names", "title,title,version,title", ["title", "version"]],
+  ["empty entries between names", ",title,,version,", ["title", "version"]],
+  ["fixed fields in any case", "Title,VERSION,Description", INFO_DEFAULT_FIELDS],
+  ["camelCase fields written in lower and upper case", "termsofservice,EXTERNALDOCS,Contact", ["termsOfService", "externalDocs", "contact"]],
+  ["every AsyncAPI 2.x info field", INFO_V2_FIELDS.join(","), INFO_V2_FIELDS],
+  ["every AsyncAPI 3.x info field", INFO_V3_FIELDS.join(","), INFO_V3_FIELDS],
+  ["only the 3.x-only fields", "tags,externalDocs", ["tags", "externalDocs"]],
+  ["one extension", "x-audience", ["x-audience"]],
+  ["several extensions", "x-audience,x-api-id,x-owner", ["x-audience", "x-api-id", "x-owner"]],
+  ["an extension with dots and underscores", "x-team.owner_id", ["x-team.owner_id"]],
+  ["padded extensions and fields", "  x-api-id  ,  contact ", ["x-api-id", "contact"]],
+  ["an extension with an upper-case prefix", "X-Audience", INFO_DEFAULT_FIELDS],
+  ["a bare extension prefix", "x-", INFO_DEFAULT_FIELDS],
+  ["an extension with a forbidden character", "x-audience!", INFO_DEFAULT_FIELDS],
+  ["nested paths, prefixed names and fields the info object does not define", "contact.email,info.title,$.info.version,owner,summary,servers,id", INFO_DEFAULT_FIELDS],
+  ["an unusable name next to a usable one", "owner,license", ["license"]],
+  ["names separated by spaces", "title version", INFO_DEFAULT_FIELDS],
+  ["names separated by semicolons", "title;version", INFO_DEFAULT_FIELDS],
+  ["an array of names", ["title", "contact"], ["title", "contact"]],
+  ["an array of comma-separated lists", ["title, version", "license"], ["title", "version", "license"]],
+  ["an array with non-string items", [null, 7, "license", {}, ["title"]], ["license"]],
+  ["an empty array", [], INFO_DEFAULT_FIELDS],
+  ["null", null, INFO_DEFAULT_FIELDS],
+  ["a number", 42, INFO_DEFAULT_FIELDS],
+  ["true", true, INFO_DEFAULT_FIELDS],
+  ["an object", { title: true }, INFO_DEFAULT_FIELDS],
+];
+
+const quotedList = (fields) => {
+  const quoted = fields.map((field) => `'${field}'`);
+  return quoted.length === 1 ? quoted[0] : `${quoted.slice(0, -1).join(", ")} and ${quoted[quoted.length - 1]}`;
+};
+
+const INFO_MESSAGES = {
+  missing: (field) => `AAR075: The 'info' object must declare the mandatory field '${field}'.`,
+  empty: (field) => `AAR075: The mandatory 'info' field '${field}' must not be empty.`,
+  invalid: (fields = INFO_DEFAULT_FIELDS) => `AAR075: The document must declare an 'info' object with the mandatory fields ${quotedList(fields)}.`,
+};
+
+const infoFieldsFor = (fields, isV3) => fields.filter((field) => isV3 || !["tags", "externalDocs"].includes(field));
+
+const infoProbeFindings = (fields, isV3) =>
+  infoFieldsFor(fields, isV3)
+    .map((field) => [field, INFO_PROBE_STATES[field] || "missing"])
+    .filter(([, state]) => state !== "populated")
+    .map(([field, state]) => (state === "missing" ? ["info", INFO_MESSAGES.missing(field)] : [`info.${field}`, INFO_MESSAGES.empty(field)]));
+
 module.exports.linterForRule = linterForRule;
 module.exports.CASING_TYPES = CASING_TYPES;
 module.exports.CASING_VALUES = CASING_VALUES;
@@ -1532,3 +1759,14 @@ module.exports.PROPERTY_FORMAT_CASES = PROPERTY_FORMAT_CASES;
 module.exports.PROPERTY_FORMAT_PAYLOADS = PROPERTY_FORMAT_PAYLOADS;
 module.exports.PROPERTY_FORMAT_FINDINGS = PROPERTY_FORMAT_FINDINGS;
 module.exports.AVRO_TEXT_SCHEMA = AVRO_TEXT_SCHEMA;
+module.exports.INFO_DEFAULT_FIELDS = INFO_DEFAULT_FIELDS;
+module.exports.INFO_V2_FIELDS = INFO_V2_FIELDS;
+module.exports.INFO_V3_FIELDS = INFO_V3_FIELDS;
+module.exports.INFO_COMPONENTS = INFO_COMPONENTS;
+module.exports.INFO_VALUE_CASES = INFO_VALUE_CASES;
+module.exports.INFO_OBJECT_CASES = INFO_OBJECT_CASES;
+module.exports.INFO_PROBE = INFO_PROBE;
+module.exports.INFO_OPTION_CASES = INFO_OPTION_CASES;
+module.exports.INFO_MESSAGES = INFO_MESSAGES;
+module.exports.infoFieldsFor = infoFieldsFor;
+module.exports.infoProbeFindings = infoProbeFindings;
