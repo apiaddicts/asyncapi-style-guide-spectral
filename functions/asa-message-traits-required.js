@@ -1,14 +1,10 @@
 /**
  * @param {object} document - The whole AsyncAPI document (given: "$", resolved: false)
- * @param {object} options - Function options
- * @param {string|string[]} options\["required-traits"] - Comma-separated list (or array) of the message traits every
- *   message must apply. A trait is named after the last segment of the $ref that applies it, or of any local $ref it
- *   chains.
+ * @param {object} _options - Unused: every message must always apply at least one valid trait
  * @param {import('@stoplight/spectral-core').RulesetFunctionContext} context
  * @returns {Array} Array of error objects
  */
 const UNKNOWN = Symbol("unknown");
-const FILE_EXTENSION = /\.(ya?ml|json)$/i;
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
@@ -40,70 +36,33 @@ const pointer = (root, ref) => {
   return current;
 };
 
-const nameOf = (ref) => {
-  const hash = ref.indexOf("#");
-  if (hash !== -1) {
-    let fragment = ref.slice(hash + 1);
-    try {
-      fragment = decodeURIComponent(fragment);
-    } catch (error) {
-      fragment = ref.slice(hash + 1);
-    }
-    const name = unescapeToken(fragment.slice(fragment.lastIndexOf("/") + 1));
-    if (name !== "") return name;
-  }
-  const file = (hash === -1 ? ref : ref.slice(0, hash)).split("?")[0];
-  return file.slice(Math.max(file.lastIndexOf("/"), file.lastIndexOf("\\")) + 1).replace(FILE_EXTENSION, "");
-};
-
-const parseRequired = (raw) => {
-  let candidates = [];
-  if (typeof raw === "string") {
-    candidates = raw.split(",");
-  } else if (Array.isArray(raw)) {
-    candidates = raw.filter((item) => typeof item === "string").flatMap((item) => item.split(","));
-  }
-  const names = candidates
-    .map((entry) => entry.trim())
-    .map((entry) => (entry.includes("#") ? nameOf(entry) : entry))
-    .filter((name) => name !== "");
-  return [...new Set(names)];
-};
-
-const missingText = (names) => `Message is missing the required trait${names.length === 1 ? "" : "s"} ${names.map((name) => `'${name}'`).join(", ")}.`;
-
 const entriesOf = (map) => (isObject(map) ? Object.entries(map) : []);
 
-module.exports = (document, options, context) => {
+module.exports = (document, _options, context) => {
   const errors = [];
   if (!isObject(document) || !has(document, "asyncapi")) {
     return errors;
   }
 
   const isV3 = isVersion3Plus(document.asyncapi);
-  const required = parseRequired(isObject(options) ? options["required-traits"] : undefined);
 
   const follow = (node) => {
-    const names = [];
     const seen = new Set();
     let current = node;
     while (isRef(current)) {
       const ref = current.$ref;
-      if (typeof ref !== "string") return { node: undefined, names };
-      const name = nameOf(ref);
-      if (name !== "") names.push(name);
-      if (!ref.startsWith("#")) return { node: UNKNOWN, names };
-      if (seen.has(ref)) return { node: undefined, names };
+      if (typeof ref !== "string") return undefined;
+      if (!ref.startsWith("#")) return UNKNOWN;
+      if (seen.has(ref)) return undefined;
       seen.add(ref);
       current = pointer(document, ref);
     }
-    return { node: current, names };
+    return current;
   };
 
-  const traitOf = (entry) => {
-    const { node, names } = follow(Array.isArray(entry) ? entry[0] : entry);
-    if (node === UNKNOWN || (isObject(node) && node !== document && Object.keys(node).length > 0)) return { applied: true, names };
-    return { applied: false, names: [] };
+  const applies = (entry) => {
+    const node = follow(Array.isArray(entry) ? entry[0] : entry);
+    return node === UNKNOWN || (isObject(node) && node !== document && Object.keys(node).length > 0);
   };
 
   const locatable = (path) => {
@@ -126,24 +85,17 @@ module.exports = (document, options, context) => {
       return;
     }
     if (!has(message, "traits")) {
-      report(required.length === 0 ? "Message must apply at least one trait." : missingText(required), path);
+      report("Message must apply at least one trait.", path);
       return;
     }
     const traitsPath = [...path, "traits"];
-    const list = follow(message.traits).node;
+    const list = follow(message.traits);
     if (list === UNKNOWN) return;
     if (list !== undefined && list !== null && !Array.isArray(list)) {
       report("Message 'traits' must be an array.", traitsPath);
       return;
     }
-    const traits = Array.isArray(list) ? list.map(traitOf) : [];
-    if (required.length === 0) {
-      if (!traits.some((trait) => trait.applied)) report("Message 'traits' does not apply any valid trait.", traitsPath);
-      return;
-    }
-    const applied = new Set(traits.flatMap((trait) => trait.names));
-    const missing = required.filter((name) => !applied.has(name));
-    if (missing.length > 0) report(missingText(missing), traitsPath);
+    if (!Array.isArray(list) || !list.some(applies)) report("Message 'traits' does not apply any valid trait.", traitsPath);
   };
 
   const checkChannels = (channels, path) => {

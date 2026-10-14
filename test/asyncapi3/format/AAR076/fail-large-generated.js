@@ -7,10 +7,10 @@ const E = "empty";
 const DOCS = { url: "https://docs.metroflow.example.com/tags" };
 
 const LIBRARY_VARIANTS = [
-  (name) => [{ name, description: `Shared tag ${name}.`, externalDocs: DOCS, "x-owner": "mobility-platform" }, { name: P, description: P, externalDocs: P, "x-owner": P }],
+  (name) => [{ name, description: `Shared tag ${name}.`, externalDocs: DOCS, "x-owner": "mobility-platform" }, { name: P, description: P }],
   (name) => [{ name }, { name: P }],
-  (name) => [{ name, description: `${ZERO_WIDTH} `, externalDocs: {} }, { name: P, description: E, externalDocs: E }],
-  (name) => [{ name, description: `Shared tag ${name}.`, "x-owner": null }, { name: P, description: P, "x-owner": E }],
+  (name) => [{ name, description: `${ZERO_WIDTH} `, externalDocs: {} }, { name: P, description: E }],
+  (name) => [{ name, description: `Shared tag ${name}.`, "x-owner": null }, { name: P, description: P }],
   () => [{ description: "Shared tag without name." }, { description: P }],
 ];
 
@@ -21,8 +21,8 @@ const VARIANTS = [
   [() => ({ description: "Unnamed tag." }), { description: P }, false],
   [() => ({}), {}, false],
   [() => ({ name: null, description: "Null name." }), { name: E, description: P }, false],
-  [(name) => ({ name, description: [], externalDocs: DOCS }), { name: P, description: E, externalDocs: P }, true],
-  [(name) => ({ name, description: `Events of ${name}.`, externalDocs: DOCS, "x-owner": "mobility-platform" }), { name: P, description: P, externalDocs: P, "x-owner": P }, true],
+  [(name) => ({ name, description: [], externalDocs: DOCS }), { name: P, description: E }, true],
+  [(name) => ({ name, description: `Events of ${name}.`, externalDocs: DOCS, "x-owner": "mobility-platform" }), { name: P, description: P }, true],
 ];
 
 const tags = [];

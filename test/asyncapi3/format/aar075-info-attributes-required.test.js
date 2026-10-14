@@ -1,14 +1,12 @@
 const {
   linterForRule,
   INFO_DEFAULT_FIELDS,
-  INFO_V3_FIELDS,
   INFO_COMPONENTS,
   INFO_VALUE_CASES,
   INFO_OBJECT_CASES,
   INFO_PROBE,
   INFO_OPTION_CASES,
   INFO_MESSAGES: MSG,
-  infoFieldsFor,
   infoProbeFindings,
 } = require("../../helpers/utils");
 const okExample = require("./AAR075/ok-example");
@@ -18,39 +16,34 @@ const okStructuralEdges = require("./AAR075/ok-structural-edges");
 const failLargeGenerated = require("./AAR075/fail-large-generated");
 
 const RULE = "asa:AAR075";
-const FULL_FIELDS = ["title", "version", "description", "termsOfService", "contact", "license", "tags", "externalDocs", "x-audience", "x-api-id"];
-const FULL = { "fields-to-apply": FULL_FIELDS.join(",") };
+const FULL = { "fields-to-apply": "title,version,description,termsOfService,contact,license,tags,externalDocs,x-audience,x-api-id" };
 const OPTIONAL_FIELDS = ["termsOfService", "contact", "license", "tags", "externalDocs", "x-audience", "x-api-id"];
+const NO_INFO = "AAR075: The document must declare an 'info' object with the mandatory fields 'title', 'version' and 'description'.";
 const OMIT = Symbol("omit");
 
 const byPath = (a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]);
 const only = (results) => results.filter((r) => r.code === RULE);
 const findingsOf = (results) => only(results).map((r) => [r.path.join("."), r.message]).sort(byPath);
 const withVersion = (doc, version) => ({ ...doc, asyncapi: version });
-const toFindings = (expected, fields = INFO_DEFAULT_FIELDS) => expected.map(([path, kind, field]) => [path, kind === "invalid" ? MSG.invalid(fields) : MSG[kind](field)]).sort(byPath);
+const toFindings = (expected) => expected.map(([path, kind, field]) => [path, MSG[kind](field)]).sort(byPath);
 
 const FAIL_DEFAULT = [
   ["info", MSG.missing("version")],
   ["info.description", MSG.empty("description")],
 ].sort(byPath);
 
-const FAIL_V3_ONLY = [
-  ["info.tags", MSG.empty("tags")],
-  ["info.externalDocs", MSG.empty("externalDocs")],
-];
-
-const FAIL_FULL_AS_V2 = [...FAIL_DEFAULT, ["info.contact", MSG.empty("contact")], ["info.license", MSG.empty("license")], ["info", MSG.missing("x-audience")]].sort(byPath);
-const FAIL_FULL = [...FAIL_FULL_AS_V2, ...FAIL_V3_ONLY].sort(byPath);
-
 const SHARED = "components.x-shared-info.instantPaymentsBase";
 const SHARED_DEFAULT = [[SHARED, MSG.missing("version")]];
-const SHARED_FULL = [
-  ...SHARED_DEFAULT,
-  [`${SHARED}.termsOfService`, MSG.empty("termsOfService")],
-  [SHARED, MSG.missing("license")],
-  [`${SHARED}.tags`, MSG.empty("tags")],
-  [`${SHARED}.x-api-id`, MSG.empty("x-api-id")],
-].sort(byPath);
+
+const UNRELATED_OPTIONS = [
+  ["an empty object", {}],
+  ["a camelCase fields-to-apply key", { fieldsToApply: "tags,externalDocs" }],
+  ["a properties list", { properties: ["contact", "license"] }],
+  ["a required-fields list", { "required-fields": "tags" }],
+  ["a field option", { field: "externalDocs" }],
+  ["a pattern", { pattern: "^x-" }],
+  ["null and non-string values", { properties: null, pattern: 42, field: true }],
+];
 
 const COMPLETE = { title: "Commerce Events", version: "4.2.0", description: "Order, payment and shipment events of the commerce platform." };
 const CHANNELS = {
@@ -72,48 +65,35 @@ const without = (fields) => Object.fromEntries(Object.entries(COMPLETE).filter((
 
 describe("AAR075 (AsyncAPI 3.x): the info object must populate its mandatory fields", () => {
   let linter;
-  let full;
 
   beforeAll(async () => {
     linter = await linterForRule(RULE);
-    full = await linterForRule(RULE, { functionOptions: FULL });
   });
 
   test("passes a realistic WebSocket and Kafka document whose info object populates every field, tags and externalDocs included", async () => {
     expect(findingsOf(await linter.run(okExample))).toEqual([]);
-    expect(findingsOf(await full.run(okExample))).toEqual([]);
   });
 
   test("reports a missing version and a whitespace-only description at the info object and at the field", async () => {
     expect(findingsOf(await linter.run(failExample))).toEqual(FAIL_DEFAULT);
   });
 
-  test("with every info field required, also reports null, empty and dangling fields, an empty tags list and a missing extension", async () => {
-    expect(findingsOf(await full.run(failExample))).toEqual(FAIL_FULL);
-  });
-
   test.each(["3.0.0", "3.1.0"])("reports the same findings on AsyncAPI %s", async (version) => {
     expect(findingsOf(await linter.run(withVersion(failExample, version)))).toEqual(FAIL_DEFAULT);
-    expect(findingsOf(await full.run(withVersion(failExample, version)))).toEqual(FAIL_FULL);
-    expect(findingsOf(await full.run(withVersion(failSharedRef, version)))).toEqual(SHARED_FULL);
-    expect(findingsOf(await full.run(withVersion(okExample, version)))).toEqual([]);
+    expect(findingsOf(await linter.run(withVersion(failSharedRef, version)))).toEqual(SHARED_DEFAULT);
+    expect(findingsOf(await linter.run(withVersion(okExample, version)))).toEqual([]);
   });
 
-  test("treats every version from 3 on as 3.x", async () => {
-    for (const version of [3, "3", "3.0", " 3.1.0", "3.2.0", "4.0.0"]) {
-      expect(findingsOf(await full.run(withVersion(failExample, version)))).toEqual(FAIL_FULL);
+  test("reports the same findings whatever the asyncapi value, the same document read as AsyncAPI 2.6 included", async () => {
+    for (const version of [3, "3", "3.0", " 3.1.0", "3.2.0", "4.0.0", "2.6.0"]) {
+      expect(findingsOf(await linter.run(withVersion(failExample, version)))).toEqual(FAIL_DEFAULT);
     }
   });
 
-  test("the same document read as AsyncAPI 2.6 no longer checks tags and externalDocs", async () => {
-    expect(findingsOf(await full.run(withVersion(failExample, "2.6.0")))).toEqual(FAIL_FULL_AS_V2);
-    expect(findingsOf(await linter.run(withVersion(failExample, "2.6.0")))).toEqual(FAIL_DEFAULT);
-  });
-
   test("reports with the error severity and one finding per mandatory field", async () => {
-    const results = only(await full.run(failExample));
-    expect(results).toHaveLength(FAIL_FULL.length);
-    expect(new Set(results.map((r) => r.message)).size).toBe(FAIL_FULL.length);
+    const results = only(await linter.run(failExample));
+    expect(results).toHaveLength(FAIL_DEFAULT.length);
+    expect(new Set(results.map((r) => r.message)).size).toBe(FAIL_DEFAULT.length);
     results.forEach((r) => expect(r.severity).toBe(0));
   });
 
@@ -125,10 +105,8 @@ describe("AAR075 (AsyncAPI 3.x): the info object must populate its mandatory fie
       expect(findingsOf(await linter.run(base({ ...COMPLETE, [field]: value })))).toEqual(expected);
     });
 
-    test.each(INFO_VALUE_CASES)("termsOfService, contact, license, tags, externalDocs and extensions set to %s, with every field required", async (_, value, populated) => {
+    test.each(INFO_VALUE_CASES)("never inspects termsOfService, contact, license, tags, externalDocs and extensions set to %s", async (_, value) => {
       const info = { ...COMPLETE, ...Object.fromEntries(OPTIONAL_FIELDS.map((field) => [field, value])) };
-      const expected = populated ? [] : OPTIONAL_FIELDS.map((field) => [`info.${field}`, MSG.empty(field)]).sort(byPath);
-      expect(findingsOf(await full.run(base(info)))).toEqual(expected);
       expect(findingsOf(await linter.run(base(info)))).toEqual([]);
     });
 
@@ -137,47 +115,13 @@ describe("AAR075 (AsyncAPI 3.x): the info object must populate its mandatory fie
       expect(findingsOf(await linter.run(base(without(fields))))).toEqual(expected);
     });
 
-    test("does not inspect the optional fields with the shipped options", async () => {
+    test("does not inspect the optional fields", async () => {
       expect(findingsOf(await linter.run(base({ ...COMPLETE, termsOfService: "", contact: {}, license: null, tags: [], externalDocs: {}, "x-audience": " " })))).toEqual([]);
     });
 
     test("matches field names case-sensitively in the document", async () => {
       const info = { Title: "Commerce Events", VERSION: "4.2.0", Description: "Order events.", Tags: [{ name: "orders" }], externaldocs: { url: "https://commerce.example.io/docs" } };
       expect(findingsOf(await linter.run(base(info)))).toEqual(INFO_DEFAULT_FIELDS.map((field) => ["info", MSG.missing(field)]).sort(byPath));
-      const v3Only = await linterForRule(RULE, { functionOptions: { "fields-to-apply": "tags,externalDocs" } });
-      expect(findingsOf(await v3Only.run(base({ ...COMPLETE, ...info })))).toEqual([["info", MSG.missing("externalDocs")], ["info", MSG.missing("tags")]]);
-    });
-
-    test("checks info.tags and info.externalDocs only inside info: root-level tags and externalDocs, operation tags and component tags never stand in for them", async () => {
-      const v3Only = await linterForRule(RULE, { functionOptions: { "fields-to-apply": "tags,externalDocs" } });
-      const doc = base(COMPLETE, {
-        tags: [{ name: "orders" }],
-        externalDocs: { url: "https://commerce.example.io/docs" },
-        operations: { publishOrderPlaced: { ...OPERATIONS.publishOrderPlaced, tags: [{ name: "orders" }], externalDocs: { url: "https://commerce.example.io/ops" } } },
-        components: { ...INFO_COMPONENTS, tags: { orders: { name: "orders" } }, externalDocs: { docs: { url: "https://commerce.example.io/docs" } } },
-      });
-      expect(findingsOf(await v3Only.run(doc))).toEqual([["info", MSG.missing("externalDocs")], ["info", MSG.missing("tags")]]);
-    });
-
-    test("follows tag and externalDocs references", async () => {
-      const v3Only = await linterForRule(RULE, { functionOptions: { "fields-to-apply": "tags,externalDocs" } });
-      const components = {
-        ...INFO_COMPONENTS,
-        tags: { orders: { name: "orders" } },
-        externalDocs: { docs: { url: "https://commerce.example.io/docs" }, alias: { $ref: "#/components/externalDocs/docs" }, blank: {} },
-        "x-tag-lists": { standard: [{ $ref: "#/components/tags/orders" }], empty: [] },
-      };
-      const run = async (fields) => findingsOf(await v3Only.run(base({ ...COMPLETE, ...fields }, { components })));
-      expect(await run({ tags: [{ $ref: "#/components/tags/orders" }], externalDocs: { $ref: "#/components/externalDocs/alias" } })).toEqual([]);
-      expect(await run({ tags: { $ref: "#/components/x-tag-lists/standard" }, externalDocs: { $ref: "./shared/docs.yaml#/handbook" } })).toEqual([]);
-      expect(await run({ tags: { $ref: "#/components/x-tag-lists/empty" }, externalDocs: { $ref: "#/components/externalDocs/blank" } })).toEqual([
-        ["info.externalDocs", MSG.empty("externalDocs")],
-        ["info.tags", MSG.empty("tags")],
-      ]);
-      expect(await run({ tags: { $ref: "#/components/x-tag-lists/missing" }, externalDocs: { $ref: "#/components/externalDocs/missing" } })).toEqual([
-        ["info.externalDocs", MSG.empty("externalDocs")],
-        ["info.tags", MSG.empty("tags")],
-      ]);
     });
   });
 
@@ -186,61 +130,57 @@ describe("AAR075 (AsyncAPI 3.x): the info object must populate its mandatory fie
       expect(findingsOf(await linter.run(base(info)))).toEqual(toFindings(expected));
     });
 
-    test.each(INFO_OBJECT_CASES.filter(([, , expected]) => expected.some(([, kind]) => kind === "invalid")))("%s lists every required 3.x field in the message", async (_, info) => {
-      expect(findingsOf(await full.run(base(info)))).toEqual([["info", MSG.invalid(FULL_FIELDS)]]);
-    });
-
     test("reports a document without info once, at the document root", async () => {
-      expect(findingsOf(await linter.run(base(OMIT)))).toEqual([["", MSG.invalid()]]);
-      expect(findingsOf(await full.run(base(OMIT)))).toEqual([["", MSG.invalid(FULL_FIELDS)]]);
+      expect(findingsOf(await linter.run(base(OMIT)))).toEqual([["", NO_INFO]]);
     });
 
     test("does not read the info object of an external file", async () => {
-      expect(findingsOf(await full.run(base({ $ref: "./shared/info.yaml#/info" })))).toEqual([]);
-      expect(findingsOf(await full.run(base({ $ref: "#/components/x-info/external" }, { components: { ...INFO_COMPONENTS, "x-info": { external: { $ref: "../commerce/info.json" } } } })))).toEqual([]);
+      expect(findingsOf(await linter.run(base({ $ref: "./shared/info.yaml#/info" })))).toEqual([]);
+      expect(findingsOf(await linter.run(base({ $ref: "#/components/x-info/external" }, { components: { ...INFO_COMPONENTS, "x-info": { external: { $ref: "../commerce/info.json" } } } })))).toEqual([]);
     });
   });
 
-  describe("fields-to-apply option", () => {
-    test.each(INFO_OPTION_CASES)("%s", async (_, value, effective) => {
+  describe("functionOptions", () => {
+    test("requires title, version and description", async () => {
+      expect(findingsOf(await linter.run(base(INFO_PROBE)))).toEqual(infoProbeFindings().sort(byPath));
+    });
+
+    test.each(INFO_OPTION_CASES)("an injected fields-to-apply %s changes nothing", async (_, value) => {
       const custom = await linterForRule(RULE, { functionOptions: { "fields-to-apply": value } });
-      expect(findingsOf(await custom.run(base(INFO_PROBE)))).toEqual(infoProbeFindings(effective, true).sort(byPath));
+      expect(findingsOf(await custom.run(base(INFO_PROBE)))).toEqual(infoProbeFindings().sort(byPath));
     });
 
-    test.each(INFO_OPTION_CASES)("%s, on a document without info", async (_, value, effective) => {
+    test.each(INFO_OPTION_CASES)("an injected fields-to-apply %s changes nothing on a document without info", async (_, value) => {
       const custom = await linterForRule(RULE, { functionOptions: { "fields-to-apply": value } });
-      expect(findingsOf(await custom.run(base(OMIT)))).toEqual([["", MSG.invalid(infoFieldsFor(effective, true))]]);
+      expect(findingsOf(await custom.run(base(OMIT)))).toEqual([["", NO_INFO]]);
     });
 
-    test("ships title, version and description", async () => {
-      expect(findingsOf(await linter.run(base(INFO_PROBE)))).toEqual(infoProbeFindings(INFO_DEFAULT_FIELDS, true).sort(byPath));
+    test("an injected fields-to-apply listing every info field changes nothing on the realistic, shared and structural documents", async () => {
+      const custom = await linterForRule(RULE, { functionOptions: FULL });
+      expect(findingsOf(await custom.run(okExample))).toEqual([]);
+      expect(findingsOf(await custom.run(failExample))).toEqual(FAIL_DEFAULT);
+      expect(findingsOf(await custom.run(failSharedRef))).toEqual(SHARED_DEFAULT);
+      expect(findingsOf(await custom.run(okStructuralEdges))).toEqual([]);
     });
 
-    test("a rule served without fields-to-apply requires the defaults", async () => {
-      const unset = await linterForRule(RULE, { functionOptions: { "fields-to-apply": undefined } });
-      expect(findingsOf(await unset.run(failExample))).toEqual(FAIL_DEFAULT);
-    });
-
-    test("requires the 3.x fixed fields in the order they are configured", async () => {
-      const reversed = await linterForRule(RULE, { functionOptions: { "fields-to-apply": [...INFO_V3_FIELDS].reverse().join(",") } });
-      expect(findingsOf(await reversed.run(base(OMIT)))).toEqual([["", MSG.invalid([...INFO_V3_FIELDS].reverse())]]);
+    test.each(UNRELATED_OPTIONS)("ignores options unrelated to the rule: %s", async (_, functionOptions) => {
+      const custom = await linterForRule(RULE, { functionOptions });
+      expect(findingsOf(await custom.run(failExample))).toEqual(FAIL_DEFAULT);
     });
   });
 
   test("follows chained local references from info and from its fields, and skips external ones", async () => {
     expect(findingsOf(await linter.run(failSharedRef))).toEqual(SHARED_DEFAULT);
-    expect(findingsOf(await full.run(failSharedRef))).toEqual(SHARED_FULL);
   });
 
   test("only inspects the root info object: info-like servers, channels, operations, replies, messages, schemas, tags, externalDocs and extensions are ignored", async () => {
     expect(findingsOf(await linter.run(okStructuralEdges))).toEqual([]);
-    expect(findingsOf(await full.run(okStructuralEdges))).toEqual([]);
   });
 
   test("does not inspect a document without the asyncapi field", async () => {
     const { asyncapi, ...withoutVersion } = failExample;
     expect(asyncapi).toBe("3.0.0");
-    expect(findingsOf(await full.run(withoutVersion))).toEqual([]);
+    expect(findingsOf(await linter.run(withoutVersion))).toEqual([]);
   });
 
   test("returns no results for non-object documents", async () => {
@@ -248,9 +188,7 @@ describe("AAR075 (AsyncAPI 3.x): the info object must populate its mandatory fie
     expect(findingsOf(await linter.run([{ asyncapi: "3.0.0", info: {} }]))).toEqual([]);
   });
 
-  test("handles a very large document with a huge tags list and hundreds of required extensions and reports exactly the generated violations", async () => {
-    expect(findingsOf(await linter.run(failLargeGenerated.document))).toEqual(toFindings(failLargeGenerated.expectedDefault));
-    const many = await linterForRule(RULE, { functionOptions: { "fields-to-apply": failLargeGenerated.fullOption } });
-    expect(findingsOf(await many.run(failLargeGenerated.document))).toEqual(toFindings(failLargeGenerated.expectedFull));
+  test("handles a very large document with a huge tags list and hundreds of extensions it ignores and reports exactly the generated violations", async () => {
+    expect(findingsOf(await linter.run(failLargeGenerated.document))).toEqual(toFindings(failLargeGenerated.expected));
   });
 });

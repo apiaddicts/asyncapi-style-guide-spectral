@@ -52,6 +52,7 @@ functions:
   - asa-properties-object-format
   - asa-info-attributes-required
   - asa-tag-properties-required
+  - asa-contact-attributes-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -841,7 +842,7 @@ rules:
       function: asa-message-examples-schema
 
   asa:AAR073:
-    description: "Every message must apply the traits listed in required-traits, or at least one trait when the list is empty."
+    description: "Every message must apply at least one message trait; a message without traits, a traits value that is not an array and a traits list without any valid trait are reported."
     message: "AAR073: {{error}}"
     documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar073"
     severity: warn
@@ -849,8 +850,6 @@ rules:
     given: "$"
     then:
       function: asa-message-traits-required
-      functionOptions:
-        required-traits: ""
 
   asa:AAR074:
     description: "Schema property names and Avro record field names must follow the configured naming-convention: camelCase (default), snake_case, kebab-case or PascalCase."
@@ -865,7 +864,7 @@ rules:
         naming-convention: camelCase
 
   asa:AAR075:
-    description: "The info object must populate every mandatory field listed in fields-to-apply (default: title, version and description); a field that is missing, null, blank or empty is reported."
+    description: "The info object must populate the mandatory fields title, version and description; an info object that is missing or unusable, and a field that is missing, null, blank or empty, are reported."
     message: "AAR075: {{error}}"
     documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar075"
     severity: error
@@ -873,11 +872,9 @@ rules:
     given: "$"
     then:
       function: asa-info-attributes-required
-      functionOptions:
-        fields-to-apply: "title,version,description"
 
   asa:AAR076:
-    description: "Every Tag object must populate every mandatory field listed in fields-to-apply (default: name and description); a field that is missing, null, blank or empty is reported."
+    description: "Every Tag object must populate the mandatory fields name and description; a tag that is not a Tag object, a reference that does not resolve to one, and a field that is missing, null, blank or empty, are reported."
     message: "AAR076: {{error}}"
     documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar076"
     severity: error
@@ -885,5 +882,13 @@ rules:
     given: "$"
     then:
       function: asa-tag-properties-required
-      functionOptions:
-        fields-to-apply: "name,description"
+
+  asa:AAR077:
+    description: "The info object must declare a contact object that populates the mandatory fields name and email; a contact or info object that is missing or unusable, and a field that is missing, null, blank or empty, are reported."
+    message: "AAR077: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar077"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-contact-attributes-required

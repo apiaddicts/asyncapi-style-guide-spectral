@@ -2,9 +2,6 @@ const {
   linterForRule,
   INFO_COMPONENTS,
   INFO_VALUE_CASES,
-  TAG_DEFAULT_FIELDS,
-  TAG_FIXED_FIELDS,
-  TAG_FULL_FIELDS,
   TAG_COMPONENTS,
   TAG_ITEM_CASES,
   TAG_LIST_CASES,
@@ -22,7 +19,7 @@ const okStructuralEdges = require("./AAR076/ok-structural-edges");
 const failLargeGenerated = require("./AAR076/fail-large-generated");
 
 const RULE = "asa:AAR076";
-const FULL = { "fields-to-apply": TAG_FULL_FIELDS.join(",") };
+const FULL = { "fields-to-apply": "name,description,externalDocs,x-owner" };
 const P = "populated";
 const E = "empty";
 const G = "channels.harborline.cmd.containers.gate-in.v2";
@@ -35,7 +32,7 @@ const findingsOf = (results) => sorted(only(results).map((r) => [r.path.join("."
 const withVersion = (doc, version) => ({ ...doc, asyncapi: version });
 
 const FAIL_TAGS = [
-  ["tags.0", "containers", { name: P, description: P, externalDocs: P, "x-owner": P }],
+  ["tags.0", "containers", { name: P, description: P }],
   ["tags.1", "vessels", { name: P }],
   ["tags.2", "yard", { name: P, description: E }],
   ["tags.3", undefined, { description: P }],
@@ -61,7 +58,6 @@ const FAIL_INVALID = [
   [`${V}.subscribe.tags.0`, "reference", "#/components/x-tag-library/missing"],
 ];
 const FAIL_DEFAULT = sorted(tagFindings(FAIL_TAGS, FAIL_INVALID));
-const FAIL_FULL = sorted(tagFindings(FAIL_TAGS, FAIL_INVALID, TAG_FULL_FIELDS));
 
 const SHARED_TAGS = [
   ["components.x-tag-sets.platform.0", "clearing-platform", { name: P, description: E }],
@@ -75,7 +71,16 @@ const SHARED_TAGS = [
 ];
 const SHARED_INVALID = [["components.x-message-library.chargebackOpened.tags.1", "reference", "#/components/x-tag-library/cycleA"]];
 const SHARED_DEFAULT = sorted(tagFindings(SHARED_TAGS, SHARED_INVALID));
-const SHARED_FULL = sorted(tagFindings(SHARED_TAGS, SHARED_INVALID, TAG_FULL_FIELDS));
+
+const UNRELATED_OPTIONS = [
+  ["an empty object", {}],
+  ["a camelCase fields-to-apply key", { fieldsToApply: "externalDocs,x-owner" }],
+  ["a properties list", { properties: ["name", "description", "externalDocs"] }],
+  ["a required-fields list", { "required-fields": "externalDocs" }],
+  ["a field option", { field: "externalDocs" }],
+  ["a pattern", { pattern: "^x-" }],
+  ["null and non-string values", { properties: null, pattern: 42, field: true }],
+];
 
 const INFO = { title: "Commerce Events", version: "4.2.0", description: "Order, payment and shipment events of the commerce platform." };
 const COMPONENTS = { ...INFO_COMPONENTS, ...TAG_COMPONENTS };
@@ -191,31 +196,23 @@ const IGNORED = [
 
 describe("AAR076 (AsyncAPI 2.x): every Tag object must populate its mandatory fields", () => {
   let linter;
-  let full;
 
   beforeAll(async () => {
     linter = await linterForRule(RULE);
-    full = await linterForRule(RULE, { functionOptions: FULL });
   });
 
   test("passes a realistic Kafka, AMQP, MQTT and WebSocket document whose tags populate every field", async () => {
     expect(findingsOf(await linter.run(okExample))).toEqual([]);
-    expect(findingsOf(await full.run(okExample))).toEqual([]);
   });
 
   test("reports root, server, operation, operation trait, message, message trait, oneOf and components tags", async () => {
     expect(findingsOf(await linter.run(failExample))).toEqual(FAIL_DEFAULT);
   });
 
-  test("with externalDocs and an extension also required, reports them on every Tag object and lists them in the invalid-tag messages", async () => {
-    expect(findingsOf(await full.run(failExample))).toEqual(FAIL_FULL);
-  });
-
   test.each(["2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"])("reports the same findings on AsyncAPI %s", async (version) => {
     expect(findingsOf(await linter.run(withVersion(failExample, version)))).toEqual(FAIL_DEFAULT);
-    expect(findingsOf(await full.run(withVersion(failExample, version)))).toEqual(FAIL_FULL);
     expect(findingsOf(await linter.run(withVersion(failSharedRef, version)))).toEqual(SHARED_DEFAULT);
-    expect(findingsOf(await full.run(withVersion(okExample, version)))).toEqual([]);
+    expect(findingsOf(await linter.run(withVersion(okExample, version)))).toEqual([]);
     expect(findingsOf(await linter.run(withVersion(okStructuralEdges, version)))).toEqual([]);
   });
 
@@ -226,8 +223,8 @@ describe("AAR076 (AsyncAPI 2.x): every Tag object must populate its mandatory fi
   });
 
   test("reports with the error severity and one finding per mandatory field", async () => {
-    const results = only(await full.run(failExample));
-    expect(results).toHaveLength(FAIL_FULL.length);
+    const results = only(await linter.run(failExample));
+    expect(results).toHaveLength(FAIL_DEFAULT.length);
     results.forEach((r) => expect(r.severity).toBe(0));
   });
 
@@ -252,7 +249,6 @@ describe("AAR076 (AsyncAPI 2.x): every Tag object must populate its mandatory fi
 
   test("follows chained references to tags, tag lists, messages and traits, reporting each shared tag once", async () => {
     expect(findingsOf(await linter.run(failSharedRef))).toEqual(SHARED_DEFAULT);
-    expect(findingsOf(await full.run(failSharedRef))).toEqual(SHARED_FULL);
   });
 
   describe("tag locations", () => {
@@ -262,12 +258,10 @@ describe("AAR076 (AsyncAPI 2.x): every Tag object must populate its mandatory fi
 
     test.each(IGNORED)("ignores %s", async (_, build) => {
       expect(findingsOf(await linter.run(build()))).toEqual([]);
-      expect(findingsOf(await full.run(build()))).toEqual([]);
     });
 
     test("skips null, scalar, external, dangling and sibling nodes around tags, and every 3.x-only location", async () => {
       expect(findingsOf(await linter.run(okStructuralEdges))).toEqual([]);
-      expect(findingsOf(await full.run(okStructuralEdges))).toEqual([]);
     });
   });
 
@@ -279,13 +273,13 @@ describe("AAR076 (AsyncAPI 2.x): every Tag object must populate its mandatory fi
     const CASES = AT.flatMap(([where, build, path]) => TAG_ITEM_CASES.map(([label, item, expected]) => [label, where, build, path, item, expected]));
 
     test.each(CASES)("%s in %s", async (_, __, build, path, item, expected) => {
-      expect(findingsOf(await linter.run(build(item)))).toEqual(sorted(expected.map((entry) => tagFinding(path, entry, TAG_DEFAULT_FIELDS))));
+      expect(findingsOf(await linter.run(build(item)))).toEqual(sorted(expected.map((entry) => tagFinding(path, entry))));
     });
 
     test.each(TAG_LIST_CASES)("a tags field set to %s", async (_, list, expected) => {
       const extra = list === undefined ? {} : { tags: list };
       expect(findingsOf(await linter.run(doc({ channels: { orders: { publish: { operationId: "publishOrder", ...extra } } } })))).toEqual(
-        sorted(expected.map((entry) => tagFinding("channels.orders.publish.tags", entry, TAG_DEFAULT_FIELDS)))
+        sorted(expected.map((entry) => tagFinding("channels.orders.publish.tags", entry)))
       );
     });
   });
@@ -301,10 +295,8 @@ describe("AAR076 (AsyncAPI 2.x): every Tag object must populate its mandatory fi
       expect(findingsOf(await linter.run(doc({ tags: [{ name: value, description: "Order events." }] })))).toEqual(expected);
     });
 
-    test.each(INFO_VALUE_CASES)("externalDocs and an extension set to %s, with them required", async (_, value, populated) => {
+    test.each(INFO_VALUE_CASES)("never inspects externalDocs and extensions set to %s", async (_, value) => {
       const tags = [{ name: "orders", description: "Order events.", externalDocs: value, "x-owner": value }];
-      const expected = populated ? [] : sorted([["tags.0.externalDocs", MSG.empty("externalDocs", "orders")], ["tags.0.x-owner", MSG.empty("x-owner", "orders")]]);
-      expect(findingsOf(await full.run(doc({ tags })))).toEqual(expected);
       expect(findingsOf(await linter.run(doc({ tags })))).toEqual([]);
     });
 
@@ -314,7 +306,7 @@ describe("AAR076 (AsyncAPI 2.x): every Tag object must populate its mandatory fi
       expect(findingsOf(await linter.run(doc({ tags: [tag] })))).toEqual(sorted(fields.map((field) => ["tags.0", MSG.missing(field, name)])));
     });
 
-    test("does not inspect externalDocs and extensions with the shipped options", async () => {
+    test("does not inspect externalDocs and extensions", async () => {
       expect(findingsOf(await linter.run(doc({ tags: [{ ...complete, externalDocs: {}, "x-owner": "" }] })))).toEqual([]);
     });
   });
@@ -344,43 +336,46 @@ describe("AAR076 (AsyncAPI 2.x): every Tag object must populate its mandatory fi
     });
   });
 
-  describe("fields-to-apply option", () => {
-    test.each(TAG_OPTION_CASES)("%s", async (_, value, effective) => {
-      const custom = await linterForRule(RULE, { functionOptions: { "fields-to-apply": value } });
-      expect(findingsOf(await custom.run(doc({ tags: TAG_PROBE })))).toEqual(sorted(tagProbeFindings("tags", effective)));
+  describe("functionOptions", () => {
+    const NOT_OBJECTS = [
+      ["tags.0", MSG.named("orders")],
+      ["tags.1", MSG.invalid()],
+      ["tags.2", MSG.reference("#/components/x-tags/missing")],
+    ];
+
+    test("requires name and description", async () => {
+      expect(findingsOf(await linter.run(doc({ tags: TAG_PROBE })))).toEqual(sorted(tagProbeFindings("tags")));
     });
 
-    test.each(TAG_OPTION_CASES)("%s, listed in the messages of tags that are not objects", async (_, value, effective) => {
+    test.each(TAG_OPTION_CASES)("an injected fields-to-apply %s changes nothing", async (_, value) => {
+      const custom = await linterForRule(RULE, { functionOptions: { "fields-to-apply": value } });
+      expect(findingsOf(await custom.run(doc({ tags: TAG_PROBE })))).toEqual(sorted(tagProbeFindings("tags")));
+    });
+
+    test.each(TAG_OPTION_CASES)("an injected fields-to-apply %s changes nothing in the messages of tags that are not objects", async (_, value) => {
       const custom = await linterForRule(RULE, { functionOptions: { "fields-to-apply": value } });
       const built = doc({ tags: ["orders", null, { $ref: "#/components/x-tags/missing" }] });
-      expect(findingsOf(await custom.run(built))).toEqual(
-        sorted([
-          ["tags.0", MSG.named("orders", effective)],
-          ["tags.1", MSG.invalid(effective)],
-          ["tags.2", MSG.reference("#/components/x-tags/missing", effective)],
-        ])
-      );
+      expect(findingsOf(await custom.run(built))).toEqual(sorted(NOT_OBJECTS));
     });
 
-    test("ships name and description", async () => {
-      expect(findingsOf(await linter.run(doc({ tags: TAG_PROBE })))).toEqual(sorted(tagProbeFindings("tags", TAG_DEFAULT_FIELDS)));
+    test("an injected fields-to-apply requiring externalDocs and an extension changes nothing on the realistic, shared and structural documents", async () => {
+      const custom = await linterForRule(RULE, { functionOptions: FULL });
+      expect(findingsOf(await custom.run(okExample))).toEqual([]);
+      expect(findingsOf(await custom.run(failExample))).toEqual(FAIL_DEFAULT);
+      expect(findingsOf(await custom.run(failSharedRef))).toEqual(SHARED_DEFAULT);
+      expect(findingsOf(await custom.run(okStructuralEdges))).toEqual([]);
     });
 
-    test("a rule served without fields-to-apply requires the defaults", async () => {
-      const unset = await linterForRule(RULE, { functionOptions: { "fields-to-apply": undefined } });
-      expect(findingsOf(await unset.run(failExample))).toEqual(FAIL_DEFAULT);
-    });
-
-    test("lists the fields in the order they are configured", async () => {
-      const reversed = await linterForRule(RULE, { functionOptions: { "fields-to-apply": [...TAG_FIXED_FIELDS].reverse().join(",") } });
-      expect(findingsOf(await reversed.run(doc({ tags: [null] })))).toEqual([["tags.0", MSG.invalid([...TAG_FIXED_FIELDS].reverse())]]);
+    test.each(UNRELATED_OPTIONS)("ignores options unrelated to the rule: %s", async (_, functionOptions) => {
+      const custom = await linterForRule(RULE, { functionOptions });
+      expect(findingsOf(await custom.run(failExample))).toEqual(FAIL_DEFAULT);
     });
   });
 
   test("does not inspect a document without the asyncapi field", async () => {
     const { asyncapi, ...withoutVersion } = failExample;
     expect(asyncapi).toBe("2.6.0");
-    expect(findingsOf(await full.run(withoutVersion))).toEqual([]);
+    expect(findingsOf(await linter.run(withoutVersion))).toEqual([]);
   });
 
   test("follows a components object given as a $ref, and ignores one that points to the document itself", async () => {
@@ -398,6 +393,5 @@ describe("AAR076 (AsyncAPI 2.x): every Tag object must populate its mandatory fi
     const { document, tags, invalid } = failLargeGenerated;
     expect(tags.length + invalid.length).toBeGreaterThan(4000);
     expect(findingsOf(await linter.run(document))).toEqual(sorted(tagFindings(tags, invalid)));
-    expect(findingsOf(await full.run(document))).toEqual(sorted(tagFindings(tags, invalid, TAG_FULL_FIELDS)));
   });
 });

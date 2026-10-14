@@ -1,17 +1,13 @@
 /**
  * @param {object} document - The whole AsyncAPI document (given: "$", resolved: false)
- * @param {object} options - Function options
- * @param {string|string[]} options\["fields-to-apply"] - Comma-separated list (or array) of the fields every Tag object must
- *   populate. name, description and externalDocs are matched case-insensitively and x- extensions as written; any other
- *   entry is ignored, and name and description are required when no entry is usable.
+ * @param {object} _options - Unused: the mandatory Tag object fields are always name and description
  * @param {import('@stoplight/spectral-core').RulesetFunctionContext} context
  * @returns {Array} Array of error objects
  */
 const UNKNOWN = Symbol("unknown");
-const DEFAULT_FIELDS = ["name", "description"];
-const FIXED_FIELDS = ["name", "description", "externalDocs"];
-const EXTENSION = /^x-[\w.-]+$/;
+const FIELDS = ["name", "description"];
 const INVISIBLE = /[\u200b-\u200d\u2060\ufeff]/g;
+const TAG_OBJECT = "a Tag object with the mandatory fields 'name' and 'description'";
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
@@ -39,38 +35,15 @@ const pointerPath = (ref) => {
   return fragment.slice(1).split("/").map(unescapeToken);
 };
 
-const canonicalOf = (entry) => {
-  if (EXTENSION.test(entry)) return entry;
-  const lower = entry.toLowerCase();
-  return FIXED_FIELDS.find((field) => field.toLowerCase() === lower);
-};
-
-const parseFields = (raw) => {
-  let candidates = [];
-  if (typeof raw === "string") {
-    candidates = raw.split(",");
-  } else if (Array.isArray(raw)) {
-    candidates = raw.filter((item) => typeof item === "string").flatMap((item) => item.split(","));
-  }
-  const fields = candidates.map((entry) => canonicalOf(entry.trim())).filter((field) => field !== undefined);
-  return fields.length === 0 ? DEFAULT_FIELDS : [...new Set(fields)];
-};
-
-const listOf = (fields) => {
-  const quoted = fields.map((field) => `'${field}'`);
-  return quoted.length === 1 ? quoted[0] : `${quoted.slice(0, -1).join(", ")} and ${quoted[quoted.length - 1]}`;
-};
-
 const quote = (value) => (typeof value === "string" ? `'${value}'` : JSON.stringify(value));
 
-module.exports = (document, options, context) => {
+module.exports = (document, _options, context) => {
   const errors = [];
   if (!isObject(document) || !has(document, "asyncapi")) {
     return errors;
   }
 
   const isV3 = isVersion3Plus(document.asyncapi);
-  const fields = parseFields(isObject(options) ? options["fields-to-apply"] : undefined);
   const visited = new Set();
   const visitedItems = new Set();
   const visitedTags = new Set();
@@ -134,13 +107,12 @@ module.exports = (document, options, context) => {
     const target = follow(tag, path);
     if (target.node === UNKNOWN) return;
     if (!isObject(target.node) || target.node === document) {
-      const expected = `a Tag object with the mandatory fields ${listOf(fields)}`;
       if (isRef(tag)) {
-        report(`The tag reference ${quote(tag.$ref)} must resolve to ${expected}.`, path);
+        report(`The tag reference ${quote(tag.$ref)} must resolve to ${TAG_OBJECT}.`, path);
       } else if (typeof tag === "string" && !isBlank(tag)) {
-        report(`Tag '${tag}' must be ${expected}.`, path);
+        report(`Tag '${tag}' must be ${TAG_OBJECT}.`, path);
       } else {
-        report(`The tag must be ${expected}.`, path);
+        report(`The tag must be ${TAG_OBJECT}.`, path);
       }
       return;
     }
@@ -150,7 +122,7 @@ module.exports = (document, options, context) => {
     visitedTags.add(tagKey);
 
     const name = nameOf(target.node);
-    for (const field of fields) {
+    for (const field of FIELDS) {
       if (!has(target.node, field)) {
         report(`${name === undefined ? "The tag" : `Tag '${name}'`} must declare the mandatory field '${field}'.`, target.path);
       } else if (!populated(target.node[field])) {

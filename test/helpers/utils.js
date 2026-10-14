@@ -1175,7 +1175,6 @@ const EXAMPLE_SCHEMA_TRAIT_CASES = [
 
 const CH = "commonHeaders";
 const TR = "tracing";
-const REQUIRED_TRAIT_NAMES = [CH, TR];
 const SHARED_TRAITS = "./shared/message-traits.yaml#/components/messageTraits";
 
 const REQUIRED_TRAIT_COMPONENTS = {
@@ -1216,143 +1215,132 @@ const REQUIRED_TRAIT_COMPONENTS = {
 };
 
 const REQUIRED_TRAIT_CASES = [
-  ["no traits field", {}, "missing", [CH, TR]],
-  ["a null traits value", { traits: null }, "none", [CH, TR]],
-  ["an empty traits list", { traits: [] }, "none", [CH, TR]],
-  ["an inline trait object instead of a list", { traits: { headers: { type: "object" } } }, "notArray", [CH, TR]],
-  ["a single trait reference instead of a list", { traits: traitRef(CH) }, "notArray", [CH, TR]],
-  ["a trait name instead of a list", { traits: "commonHeaders" }, "notArray", [CH, TR]],
-  ["an empty string", { traits: "" }, "notArray", [CH, TR]],
-  ["a number", { traits: 1 }, "notArray", [CH, TR]],
-  ["zero", { traits: 0 }, "notArray", [CH, TR]],
-  ["true", { traits: true }, "notArray", [CH, TR]],
-  ["false", { traits: false }, "notArray", [CH, TR]],
-  ["the common headers trait", { traits: [traitRef(CH)] }, null, [TR]],
-  ["the tracing trait", { traits: [traitRef(TR)] }, null, [CH]],
-  ["both required traits", { traits: [traitRef(CH), traitRef(TR)] }, null, []],
-  ["both required traits after an unrelated one, in reverse order", { traits: [traitRef("kafkaKey"), traitRef(TR), traitRef(CH)] }, null, []],
-  ["the same trait twice", { traits: [traitRef(CH), traitRef(CH)] }, null, [TR]],
-  ["only an unrelated trait", { traits: [traitRef("kafkaKey")] }, null, [CH, TR]],
-  ["a trait whose name differs only in case", { traits: [traitRef("CommonHeaders"), traitRef(TR)] }, null, [CH]],
-  ["an inline trait", { traits: [{ headers: { type: "object", properties: { traceId: { type: "string" } } } }] }, null, [CH, TR]],
-  ["an inline trait with only an extension", { traits: [{ "x-owner": "platform-team" }] }, null, [CH, TR]],
-  ["an inline trait whose name and title match the required ones", { traits: [{ name: CH, title: TR }] }, null, [CH, TR]],
-  ["an empty inline trait", { traits: [{}] }, "none", [CH, TR]],
-  ["non-object entries", { traits: [null, 42, "commonHeaders", true, [], [null]] }, "none", [CH, TR]],
-  ["a chained alias of a required trait", { traits: [traitRef("headersAlias"), traitRef(TR)] }, null, []],
-  ["a trait chained twice", { traits: [traitRef("platformDefaults")] }, null, [TR]],
-  ["a reference to an empty trait", { traits: [traitRef("blank")] }, "none", [CH, TR]],
-  ["an alias of an empty trait", { traits: [traitRef("blankAlias")] }, "none", [CH, TR]],
-  ["a reference to a null trait", { traits: [traitRef("nullTrait")] }, "none", [CH, TR]],
-  ["a reference to a scalar trait", { traits: [traitRef("scalarTrait")] }, "none", [CH, TR]],
-  ["a reference to a list", { traits: [traitRef("listTrait")] }, "none", [CH, TR]],
-  ["a reference to the document root", { traits: [{ $ref: "#" }] }, "none", [CH, TR]],
-  ["a dangling reference", { traits: [traitRef("missing")] }, "none", [CH, TR]],
-  ["dangling references named like the required traits", { traits: [{ $ref: "#/components/x-missing/commonHeaders" }, { $ref: "#/components/x-missing/tracing" }] }, "none", [CH, TR]],
-  ["a dangling alias", { traits: [traitRef("danglingAlias")] }, "none", [CH, TR]],
-  ["a cyclic reference", { traits: [traitRef("cycleA")] }, "none", [CH, TR]],
-  ["references with a non-string $ref", { traits: [{ $ref: 42 }, { $ref: null }] }, "none", [CH, TR]],
-  ["a dangling reference next to a valid one", { traits: [traitRef("missing"), traitRef(TR)] }, null, [CH]],
-  ["an empty inline trait next to a valid one", { traits: [{}, traitRef(CH)] }, null, [TR]],
-  ["tuple entries", { traits: [[traitRef(CH), { environment: "prod" }], [traitRef(TR), {}]] }, null, []],
-  ["a tuple with an inline trait", { traits: [[{ headers: { type: "object" } }, {}]] }, null, [CH, TR]],
-  ["tuples without a trait", { traits: [[null, {}], [], [{}, { environment: "prod" }]] }, "none", [CH, TR]],
-  ["a tuple whose trait is dangling", { traits: [[traitRef("missing"), {}]] }, "none", [CH, TR]],
-  ["an external trait pointer", { traits: [{ $ref: `${SHARED_TRAITS}/tracing` }, traitRef(CH)] }, null, []],
-  ["an external trait with another name", { traits: [{ $ref: `${SHARED_TRAITS}/tracingV2` }] }, null, [CH, TR]],
-  ["external whole-file references", { traits: [{ $ref: "./traits/commonHeaders.yaml" }, { $ref: "https://schemas.example.io/asyncapi/traits/tracing.json" }] }, null, []],
-  ["external files with an upper-case extension or a query", { traits: [{ $ref: "../traits/commonHeaders.YAML" }, { $ref: "./traits/tracing.yml?version=2" }] }, null, []],
-  ["external files with an empty fragment", { traits: [{ $ref: "./traits/commonHeaders.yaml#" }, { $ref: "./traits/tracing.yaml#/" }] }, null, []],
-  ["an external file with another extension", { traits: [{ $ref: "./traits/commonHeaders.avsc" }] }, null, [CH, TR]],
-  ["Windows-style external paths", { traits: [{ $ref: "..\\traits\\commonHeaders.yaml" }, { $ref: "C:\\specs\\traits\\tracing.json" }] }, null, []],
-  ["a local alias of an external trait", { traits: [traitRef("sharedTracing"), traitRef(CH)] }, null, []],
-  ["an escaped pointer", { traits: [{ $ref: "#/components/messageTraits/audit~1v2" }] }, null, [CH, TR]],
-  ["a percent-encoded pointer", { traits: [{ $ref: "#/components/messageTraits/tracing%20v2" }] }, null, [CH, TR]],
-  ["a malformed percent-encoded pointer", { traits: [{ $ref: "#/components/messageTraits/tracing%E0%A4%A" }] }, "none", [CH, TR]],
-  ["a pointer without a leading slash", { traits: [{ $ref: "#components/messageTraits/commonHeaders" }] }, "none", [CH, TR]],
-  ["a traits list behind a local reference", { traits: { $ref: "#/components/x-trait-lists/standard" } }, null, []],
-  ["a traits list behind a chained reference", { traits: { $ref: "#/components/x-trait-lists/chained" } }, null, []],
-  ["a referenced list with one required trait", { traits: { $ref: "#/components/x-trait-lists/headersOnly" } }, null, [TR]],
-  ["a referenced empty list", { traits: { $ref: "#/components/x-trait-lists/empty" } }, "none", [CH, TR]],
-  ["a referenced list of empty traits", { traits: { $ref: "#/components/x-trait-lists/blank" } }, "none", [CH, TR]],
-  ["a referenced null list", { traits: { $ref: "#/components/x-trait-lists/nullList" } }, "none", [CH, TR]],
-  ["a referenced object instead of a list", { traits: { $ref: "#/components/x-trait-lists/notList" } }, "notArray", [CH, TR]],
-  ["a list reference to the document root", { traits: { $ref: "#" } }, "notArray", [CH, TR]],
-  ["a dangling list reference", { traits: { $ref: "#/components/x-trait-lists/missing" } }, "none", [CH, TR]],
-  ["a cyclic list reference", { traits: { $ref: "#/components/x-trait-lists/cycleA" } }, "none", [CH, TR]],
-  ["a list reference with a non-string $ref", { traits: { $ref: ["standard"] } }, "none", [CH, TR]],
-  ["an external traits list", { traits: { $ref: "./shared/message-traits.yaml#/lists/kafka" } }, null, []],
-  ["a local list that points to an external one", { traits: { $ref: "#/components/x-trait-lists/external" } }, null, []],
+  ["no traits field", {}, "missing"],
+  ["a null traits value", { traits: null }, "none"],
+  ["an empty traits list", { traits: [] }, "none"],
+  ["an inline trait object instead of a list", { traits: { headers: { type: "object" } } }, "notArray"],
+  ["a single trait reference instead of a list", { traits: traitRef(CH) }, "notArray"],
+  ["a trait name instead of a list", { traits: "commonHeaders" }, "notArray"],
+  ["an empty string", { traits: "" }, "notArray"],
+  ["a number", { traits: 1 }, "notArray"],
+  ["zero", { traits: 0 }, "notArray"],
+  ["true", { traits: true }, "notArray"],
+  ["false", { traits: false }, "notArray"],
+  ["the common headers trait", { traits: [traitRef(CH)] }, null],
+  ["the tracing trait", { traits: [traitRef(TR)] }, null],
+  ["both organization traits", { traits: [traitRef(CH), traitRef(TR)] }, null],
+  ["both organization traits after an unrelated one, in reverse order", { traits: [traitRef("kafkaKey"), traitRef(TR), traitRef(CH)] }, null],
+  ["the same trait twice", { traits: [traitRef(CH), traitRef(CH)] }, null],
+  ["only an unrelated trait", { traits: [traitRef("kafkaKey")] }, null],
+  ["a trait whose name differs only in case", { traits: [traitRef("CommonHeaders"), traitRef(TR)] }, null],
+  ["an inline trait", { traits: [{ headers: { type: "object", properties: { traceId: { type: "string" } } } }] }, null],
+  ["an inline trait with only an extension", { traits: [{ "x-owner": "platform-team" }] }, null],
+  ["an inline trait whose name and title match the organization ones", { traits: [{ name: CH, title: TR }] }, null],
+  ["an empty inline trait", { traits: [{}] }, "none"],
+  ["non-object entries", { traits: [null, 42, "commonHeaders", true, [], [null]] }, "none"],
+  ["a chained alias of an organization trait", { traits: [traitRef("headersAlias"), traitRef(TR)] }, null],
+  ["a trait chained twice", { traits: [traitRef("platformDefaults")] }, null],
+  ["a reference to an empty trait", { traits: [traitRef("blank")] }, "none"],
+  ["an alias of an empty trait", { traits: [traitRef("blankAlias")] }, "none"],
+  ["a reference to a null trait", { traits: [traitRef("nullTrait")] }, "none"],
+  ["a reference to a scalar trait", { traits: [traitRef("scalarTrait")] }, "none"],
+  ["a reference to a list", { traits: [traitRef("listTrait")] }, "none"],
+  ["a reference to the document root", { traits: [{ $ref: "#" }] }, "none"],
+  ["a dangling reference", { traits: [traitRef("missing")] }, "none"],
+  ["dangling references named like the organization traits", { traits: [{ $ref: "#/components/x-missing/commonHeaders" }, { $ref: "#/components/x-missing/tracing" }] }, "none"],
+  ["a dangling alias", { traits: [traitRef("danglingAlias")] }, "none"],
+  ["a cyclic reference", { traits: [traitRef("cycleA")] }, "none"],
+  ["references with a non-string $ref", { traits: [{ $ref: 42 }, { $ref: null }] }, "none"],
+  ["a dangling reference next to a valid one", { traits: [traitRef("missing"), traitRef(TR)] }, null],
+  ["an empty inline trait next to a valid one", { traits: [{}, traitRef(CH)] }, null],
+  ["tuple entries", { traits: [[traitRef(CH), { environment: "prod" }], [traitRef(TR), {}]] }, null],
+  ["a tuple with an inline trait", { traits: [[{ headers: { type: "object" } }, {}]] }, null],
+  ["tuples without a trait", { traits: [[null, {}], [], [{}, { environment: "prod" }]] }, "none"],
+  ["a tuple whose trait is dangling", { traits: [[traitRef("missing"), {}]] }, "none"],
+  ["an external trait pointer", { traits: [{ $ref: `${SHARED_TRAITS}/tracing` }, traitRef(CH)] }, null],
+  ["an external trait with another name", { traits: [{ $ref: `${SHARED_TRAITS}/tracingV2` }] }, null],
+  ["external whole-file references", { traits: [{ $ref: "./traits/commonHeaders.yaml" }, { $ref: "https://schemas.example.io/asyncapi/traits/tracing.json" }] }, null],
+  ["external files with an upper-case extension or a query", { traits: [{ $ref: "../traits/commonHeaders.YAML" }, { $ref: "./traits/tracing.yml?version=2" }] }, null],
+  ["external files with an empty fragment", { traits: [{ $ref: "./traits/commonHeaders.yaml#" }, { $ref: "./traits/tracing.yaml#/" }] }, null],
+  ["an external file with another extension", { traits: [{ $ref: "./traits/commonHeaders.avsc" }] }, null],
+  ["Windows-style external paths", { traits: [{ $ref: "..\\traits\\commonHeaders.yaml" }, { $ref: "C:\\specs\\traits\\tracing.json" }] }, null],
+  ["a local alias of an external trait", { traits: [traitRef("sharedTracing"), traitRef(CH)] }, null],
+  ["an escaped pointer", { traits: [{ $ref: "#/components/messageTraits/audit~1v2" }] }, null],
+  ["a percent-encoded pointer", { traits: [{ $ref: "#/components/messageTraits/tracing%20v2" }] }, null],
+  ["a malformed percent-encoded pointer", { traits: [{ $ref: "#/components/messageTraits/tracing%E0%A4%A" }] }, "none"],
+  ["a pointer without a leading slash", { traits: [{ $ref: "#components/messageTraits/commonHeaders" }] }, "none"],
+  ["a traits list behind a local reference", { traits: { $ref: "#/components/x-trait-lists/standard" } }, null],
+  ["a traits list behind a chained reference", { traits: { $ref: "#/components/x-trait-lists/chained" } }, null],
+  ["a referenced list with one organization trait", { traits: { $ref: "#/components/x-trait-lists/headersOnly" } }, null],
+  ["a referenced empty list", { traits: { $ref: "#/components/x-trait-lists/empty" } }, "none"],
+  ["a referenced list of empty traits", { traits: { $ref: "#/components/x-trait-lists/blank" } }, "none"],
+  ["a referenced null list", { traits: { $ref: "#/components/x-trait-lists/nullList" } }, "none"],
+  ["a referenced object instead of a list", { traits: { $ref: "#/components/x-trait-lists/notList" } }, "notArray"],
+  ["a list reference to the document root", { traits: { $ref: "#" } }, "notArray"],
+  ["a dangling list reference", { traits: { $ref: "#/components/x-trait-lists/missing" } }, "none"],
+  ["a cyclic list reference", { traits: { $ref: "#/components/x-trait-lists/cycleA" } }, "none"],
+  ["a list reference with a non-string $ref", { traits: { $ref: ["standard"] } }, "none"],
+  ["an external traits list", { traits: { $ref: "./shared/message-traits.yaml#/lists/kafka" } }, null],
+  ["a local list that points to an external one", { traits: { $ref: "#/components/x-trait-lists/external" } }, null],
 ];
 
-const missingTraitsMessage = (names) => `AAR073: Message is missing the required trait${names.length === 1 ? "" : "s"} ${names.map((name) => `'${name}'`).join(", ")}.`;
-
 const REQUIRED_TRAIT_MESSAGES = {
-  missing: (names = []) => (names.length === 0 ? "AAR073: Message must apply at least one trait." : missingTraitsMessage(names)),
+  missing: () => "AAR073: Message must apply at least one trait.",
   notArray: () => "AAR073: Message 'traits' must be an array.",
   none: () => "AAR073: Message 'traits' does not apply any valid trait.",
-  lacks: (names) => missingTraitsMessage(names),
 };
 
-const requiredTraitFindings = (base, fields, defaultKind, missing, named) => {
-  const at = (kind) => (kind === "missing" ? base : `${base}.traits`);
-  if (!named) return defaultKind === null ? [] : [[at(defaultKind), REQUIRED_TRAIT_MESSAGES[defaultKind]()]];
-  if (missing.length === 0) return [];
-  const kind = !("traits" in fields) ? "missing" : defaultKind === "notArray" ? "notArray" : "lacks";
-  return [[at(kind), REQUIRED_TRAIT_MESSAGES[kind](missing)]];
-};
+const requiredTraitFindings = (base, kind) => (kind === null ? [] : [[kind === "missing" ? base : `${base}.traits`, REQUIRED_TRAIT_MESSAGES[kind]()]]);
 
 const REQUIRED_TRAIT_PROBES = {
   noTraits: { fields: {}, state: "absent" },
-  emptyList: { fields: { traits: [] }, state: "list", applies: [], any: false },
+  emptyList: { fields: { traits: [] }, state: "list", any: false },
   notList: { fields: { traits: { headers: { type: "object" } } }, state: "notArray" },
-  headersOnly: { fields: { traits: [traitRef(CH)] }, state: "list", applies: [CH], any: true },
-  tracingOnly: { fields: { traits: [traitRef(TR)] }, state: "list", applies: [TR], any: true },
-  both: { fields: { traits: [traitRef(CH), traitRef(TR)] }, state: "list", applies: [CH, TR], any: true },
-  all: { fields: { traits: [traitRef(CH), traitRef(TR), traitRef("kafkaKey")] }, state: "list", applies: [CH, TR, "kafkaKey"], any: true },
-  aliases: { fields: { traits: [traitRef("platformDefaults"), traitRef("sharedTracing")] }, state: "list", applies: ["platformDefaults", "headersAlias", CH, "sharedTracing", TR], any: true },
-  caseVariant: { fields: { traits: [traitRef("CommonHeaders")] }, state: "list", applies: ["CommonHeaders"], any: true },
-  escaped: { fields: { traits: [{ $ref: "#/components/messageTraits/audit~1v2" }] }, state: "list", applies: ["audit/v2"], any: true },
-  inline: { fields: { traits: [{ headers: { type: "object" } }] }, state: "list", applies: [], any: true },
-  dangling: { fields: { traits: [{ $ref: "#/components/x-missing/commonHeaders" }] }, state: "list", applies: [], any: false },
+  headersOnly: { fields: { traits: [traitRef(CH)] }, state: "list", any: true },
+  tracingOnly: { fields: { traits: [traitRef(TR)] }, state: "list", any: true },
+  both: { fields: { traits: [traitRef(CH), traitRef(TR)] }, state: "list", any: true },
+  all: { fields: { traits: [traitRef(CH), traitRef(TR), traitRef("kafkaKey")] }, state: "list", any: true },
+  aliases: { fields: { traits: [traitRef("platformDefaults"), traitRef("sharedTracing")] }, state: "list", any: true },
+  caseVariant: { fields: { traits: [traitRef("CommonHeaders")] }, state: "list", any: true },
+  escaped: { fields: { traits: [{ $ref: "#/components/messageTraits/audit~1v2" }] }, state: "list", any: true },
+  inline: { fields: { traits: [{ headers: { type: "object" } }] }, state: "list", any: true },
+  dangling: { fields: { traits: [{ $ref: "#/components/x-missing/commonHeaders" }] }, state: "list", any: false },
 };
 
-const requiredTraitProbeFindings = (prefix, required) =>
+const requiredTraitProbeFindings = (prefix) =>
   Object.entries(REQUIRED_TRAIT_PROBES)
     .flatMap(([key, probe]) => {
       const base = `${prefix}.${key}`;
-      if (probe.state === "absent") return [[base, REQUIRED_TRAIT_MESSAGES.missing(required)]];
-      if (probe.state === "notArray") return [[`${base}.traits`, REQUIRED_TRAIT_MESSAGES.notArray(required)]];
-      if (required.length === 0) return probe.any ? [] : [[`${base}.traits`, REQUIRED_TRAIT_MESSAGES.none()]];
-      const missing = required.filter((name) => !probe.applies.includes(name));
-      return missing.length === 0 ? [] : [[`${base}.traits`, REQUIRED_TRAIT_MESSAGES.lacks(missing)]];
+      if (probe.state === "absent") return [[base, REQUIRED_TRAIT_MESSAGES.missing()]];
+      if (probe.state === "notArray") return [[`${base}.traits`, REQUIRED_TRAIT_MESSAGES.notArray()]];
+      return probe.any ? [] : [[`${base}.traits`, REQUIRED_TRAIT_MESSAGES.none()]];
     })
     .sort((a, b) => a[0].localeCompare(b[0]));
 
 const REQUIRED_TRAIT_OPTIONS = [
-  ["the shipped empty string", "", []],
-  ["a blank string", "  \t ", []],
-  ["only commas and spaces", " , ,, ", []],
-  ["a single name", "commonHeaders", [CH]],
-  ["two padded names", " commonHeaders ,  tracing ", [CH, TR]],
-  ["the names in another order", "tracing,commonHeaders", [TR, CH]],
-  ["duplicated names", "tracing,commonHeaders,tracing", [TR, CH]],
-  ["three names", "commonHeaders,tracing,kafkaKey", [CH, TR, "kafkaKey"]],
-  ["a name with another case", "COMMONHEADERS", ["COMMONHEADERS"]],
-  ["a name nobody applies", "piiClassification", ["piiClassification"]],
-  ["a name with a slash", "audit/v2", ["audit/v2"]],
-  ["a local $ref", "#/components/messageTraits/commonHeaders", [CH]],
-  ["an external $ref and a name", "./shared/message-traits.yaml#/components/messageTraits/tracing, commonHeaders", [TR, CH]],
-  ["an escaped $ref", "#/components/messageTraits/audit~1v2", ["audit/v2"]],
-  ["a bare hash", "#", []],
-  ["an array of names", [CH, TR], [CH, TR]],
-  ["an array of comma-separated lists", ["commonHeaders, tracing", "kafkaKey"], [CH, TR, "kafkaKey"]],
-  ["an array with non-string items", [null, 42, "tracing", {}, ["commonHeaders"]], [TR]],
-  ["an empty array", [], []],
-  ["null", null, []],
-  ["a number", 42, []],
-  ["true", true, []],
-  ["an object", { commonHeaders: true }, []],
+  ["an empty string", ""],
+  ["a blank string", "  \t "],
+  ["only commas and spaces", " , ,, "],
+  ["a single name", "commonHeaders"],
+  ["two padded names", " commonHeaders ,  tracing "],
+  ["the names in another order", "tracing,commonHeaders"],
+  ["duplicated names", "tracing,commonHeaders,tracing"],
+  ["three names", "commonHeaders,tracing,kafkaKey"],
+  ["a name with another case", "COMMONHEADERS"],
+  ["a name nobody applies", "piiClassification"],
+  ["a name with a slash", "audit/v2"],
+  ["a local $ref", "#/components/messageTraits/commonHeaders"],
+  ["an external $ref and a name", "./shared/message-traits.yaml#/components/messageTraits/tracing, commonHeaders"],
+  ["an escaped $ref", "#/components/messageTraits/audit~1v2"],
+  ["a bare hash", "#"],
+  ["an array of names", [CH, TR]],
+  ["an array of comma-separated lists", ["commonHeaders, tracing", "kafkaKey"]],
+  ["an array with non-string items", [null, 42, "tracing", {}, ["commonHeaders"]]],
+  ["an empty array", []],
+  ["null", null],
+  ["a number", 42],
+  ["true", true],
+  ["an object", { commonHeaders: true }],
 ];
 
 const deepPropertySchema = (levels) => {
@@ -1653,51 +1641,42 @@ const INFO_PROBE_STATES = {
   title: "populated",
   version: "empty",
   description: "missing",
-  termsOfService: "populated",
-  contact: "empty",
-  license: "missing",
-  tags: "empty",
-  externalDocs: "populated",
-  "x-audience": "populated",
-  "x-api-id": "empty",
-  "x-team.owner_id": "empty",
-  "x-owner": "missing",
 };
 
 const INFO_OPTION_CASES = [
-  ["the shipped default list", "title,version,description", INFO_DEFAULT_FIELDS],
-  ["an empty string", "", INFO_DEFAULT_FIELDS],
-  ["a blank string", "  \t ", INFO_DEFAULT_FIELDS],
-  ["only commas and spaces", " , ,, ", INFO_DEFAULT_FIELDS],
-  ["only the title", "title", ["title"]],
-  ["only the description", "description", ["description"]],
-  ["two padded names in another order", "  description ,  title ", ["description", "title"]],
-  ["duplicated names", "title,title,version,title", ["title", "version"]],
-  ["empty entries between names", ",title,,version,", ["title", "version"]],
-  ["fixed fields in any case", "Title,VERSION,Description", INFO_DEFAULT_FIELDS],
-  ["camelCase fields written in lower and upper case", "termsofservice,EXTERNALDOCS,Contact", ["termsOfService", "externalDocs", "contact"]],
-  ["every AsyncAPI 2.x info field", INFO_V2_FIELDS.join(","), INFO_V2_FIELDS],
-  ["every AsyncAPI 3.x info field", INFO_V3_FIELDS.join(","), INFO_V3_FIELDS],
-  ["only the 3.x-only fields", "tags,externalDocs", ["tags", "externalDocs"]],
-  ["one extension", "x-audience", ["x-audience"]],
-  ["several extensions", "x-audience,x-api-id,x-owner", ["x-audience", "x-api-id", "x-owner"]],
-  ["an extension with dots and underscores", "x-team.owner_id", ["x-team.owner_id"]],
-  ["padded extensions and fields", "  x-api-id  ,  contact ", ["x-api-id", "contact"]],
-  ["an extension with an upper-case prefix", "X-Audience", INFO_DEFAULT_FIELDS],
-  ["a bare extension prefix", "x-", INFO_DEFAULT_FIELDS],
-  ["an extension with a forbidden character", "x-audience!", INFO_DEFAULT_FIELDS],
-  ["nested paths, prefixed names and fields the info object does not define", "contact.email,info.title,$.info.version,owner,summary,servers,id", INFO_DEFAULT_FIELDS],
-  ["an unusable name next to a usable one", "owner,license", ["license"]],
-  ["names separated by spaces", "title version", INFO_DEFAULT_FIELDS],
-  ["names separated by semicolons", "title;version", INFO_DEFAULT_FIELDS],
-  ["an array of names", ["title", "contact"], ["title", "contact"]],
-  ["an array of comma-separated lists", ["title, version", "license"], ["title", "version", "license"]],
-  ["an array with non-string items", [null, 7, "license", {}, ["title"]], ["license"]],
-  ["an empty array", [], INFO_DEFAULT_FIELDS],
-  ["null", null, INFO_DEFAULT_FIELDS],
-  ["a number", 42, INFO_DEFAULT_FIELDS],
-  ["true", true, INFO_DEFAULT_FIELDS],
-  ["an object", { title: true }, INFO_DEFAULT_FIELDS],
+  ["the former default list", "title,version,description"],
+  ["an empty string", ""],
+  ["a blank string", "  \t "],
+  ["only commas and spaces", " , ,, "],
+  ["only the title", "title"],
+  ["only the description", "description"],
+  ["two padded names in another order", "  description ,  title "],
+  ["duplicated names", "title,title,version,title"],
+  ["empty entries between names", ",title,,version,"],
+  ["fixed fields in any case", "Title,VERSION,Description"],
+  ["camelCase fields written in lower and upper case", "termsofservice,EXTERNALDOCS,Contact"],
+  ["every AsyncAPI 2.x info field", INFO_V2_FIELDS.join(",")],
+  ["every AsyncAPI 3.x info field", INFO_V3_FIELDS.join(",")],
+  ["only the 3.x-only fields", "tags,externalDocs"],
+  ["one extension", "x-audience"],
+  ["several extensions", "x-audience,x-api-id,x-owner"],
+  ["an extension with dots and underscores", "x-team.owner_id"],
+  ["padded extensions and fields", "  x-api-id  ,  contact "],
+  ["an extension with an upper-case prefix", "X-Audience"],
+  ["a bare extension prefix", "x-"],
+  ["an extension with a forbidden character", "x-audience!"],
+  ["nested paths, prefixed names and fields the info object does not define", "contact.email,info.title,$.info.version,owner,summary,servers,id"],
+  ["an unusable name next to a usable one", "owner,license"],
+  ["names separated by spaces", "title version"],
+  ["names separated by semicolons", "title;version"],
+  ["an array of names", ["title", "contact"]],
+  ["an array of comma-separated lists", ["title, version", "license"]],
+  ["an array with non-string items", [null, 7, "license", {}, ["title"]]],
+  ["an empty array", []],
+  ["null", null],
+  ["a number", 42],
+  ["true", true],
+  ["an object", { title: true }],
 ];
 
 const quotedList = (fields) => {
@@ -1708,20 +1687,15 @@ const quotedList = (fields) => {
 const INFO_MESSAGES = {
   missing: (field) => `AAR075: The 'info' object must declare the mandatory field '${field}'.`,
   empty: (field) => `AAR075: The mandatory 'info' field '${field}' must not be empty.`,
-  invalid: (fields = INFO_DEFAULT_FIELDS) => `AAR075: The document must declare an 'info' object with the mandatory fields ${quotedList(fields)}.`,
+  invalid: () => `AAR075: The document must declare an 'info' object with the mandatory fields ${quotedList(INFO_DEFAULT_FIELDS)}.`,
 };
 
-const infoFieldsFor = (fields, isV3) => fields.filter((field) => isV3 || !["tags", "externalDocs"].includes(field));
-
-const infoProbeFindings = (fields, isV3) =>
-  infoFieldsFor(fields, isV3)
-    .map((field) => [field, INFO_PROBE_STATES[field] || "missing"])
+const infoProbeFindings = () =>
+  Object.entries(INFO_PROBE_STATES)
     .filter(([, state]) => state !== "populated")
     .map(([field, state]) => (state === "missing" ? ["info", INFO_MESSAGES.missing(field)] : [`info.${field}`, INFO_MESSAGES.empty(field)]));
 
 const TAG_DEFAULT_FIELDS = ["name", "description"];
-const TAG_FIXED_FIELDS = ["name", "description", "externalDocs"];
-const TAG_FULL_FIELDS = [...TAG_FIXED_FIELDS, "x-owner"];
 const tagTarget = (name) => ({ $ref: `#/components/x-tags/${name}` });
 const tagList = (name) => ({ $ref: `#/components/x-tag-lists/${name}` });
 const DOCS = { description: "Tag handbook.", url: "https://docs.example.io/tags" };
@@ -1845,48 +1819,48 @@ const TAG_PROBE = [
 ];
 
 const TAG_PROBE_STATES = [
-  ["fleet-telemetry", { name: "populated", description: "empty", "x-owner": "populated", "x-review": "empty" }],
-  [undefined, { description: "populated", externalDocs: "populated", "x-team.owner_id": "empty" }],
-  [undefined, { name: "empty", description: "empty", externalDocs: "empty", "x-lifecycle": "populated", "x-review": "populated" }],
-  ["maintenance", { name: "populated", description: "populated", externalDocs: "empty", "x-owner": "empty" }],
+  ["fleet-telemetry", { name: "populated", description: "empty" }],
+  [undefined, { description: "populated" }],
+  [undefined, { name: "empty", description: "empty" }],
+  ["maintenance", { name: "populated", description: "populated" }],
 ];
 
 const TAG_OPTION_CASES = [
-  ["the shipped default list", "name,description", TAG_DEFAULT_FIELDS],
-  ["an empty string", "", TAG_DEFAULT_FIELDS],
-  ["a blank string", "  \t ", TAG_DEFAULT_FIELDS],
-  ["only commas and spaces", " , ,, ", TAG_DEFAULT_FIELDS],
-  ["only the name", "name", ["name"]],
-  ["only the description", "description", ["description"]],
-  ["only the externalDocs", "externalDocs", ["externalDocs"]],
-  ["two padded names in another order", "  description ,  name ", ["description", "name"]],
-  ["duplicated names", "name,NAME,description,name", ["name", "description"]],
-  ["empty entries between names", ",name,,description,", ["name", "description"]],
-  ["fixed fields in any case", "Name,DESCRIPTION,externaldocs", TAG_FIXED_FIELDS],
-  ["every Tag object field", "name,description,externalDocs", TAG_FIXED_FIELDS],
-  ["one extension", "x-owner", ["x-owner"]],
-  ["several extensions", "x-owner,x-review,x-lifecycle", ["x-owner", "x-review", "x-lifecycle"]],
-  ["an extension with dots and underscores", "x-team.owner_id", ["x-team.owner_id"]],
-  ["every field and extension", "name,description,externalDocs,x-owner,x-review,x-lifecycle,x-team.owner_id", [...TAG_FIXED_FIELDS, "x-owner", "x-review", "x-lifecycle", "x-team.owner_id"]],
-  ["padded extensions and fields", "  x-owner  ,  externalDocs ", ["x-owner", "externalDocs"]],
-  ["an extension written in another case is matched as written", "x-Owner", ["x-Owner"]],
-  ["an extension with an upper-case prefix", "X-Owner", TAG_DEFAULT_FIELDS],
-  ["a bare extension prefix", "x-", TAG_DEFAULT_FIELDS],
-  ["an extension with a forbidden character", "x-owner!", TAG_DEFAULT_FIELDS],
-  ["nested paths and prefixed names", "externalDocs.url,tags.name,$.tags.description,info.title", TAG_DEFAULT_FIELDS],
-  ["fields a Tag object does not define", "title,summary,url,version,id,tags", TAG_DEFAULT_FIELDS],
-  ["an unusable name next to a usable one", "owner,externalDocs", ["externalDocs"]],
-  ["names separated by spaces", "name description", TAG_DEFAULT_FIELDS],
-  ["names separated by semicolons", "name;description", TAG_DEFAULT_FIELDS],
-  ["an array of names", ["name", "externalDocs"], ["name", "externalDocs"]],
-  ["an array of comma-separated lists", ["name, description", "x-owner"], ["name", "description", "x-owner"]],
-  ["an array with non-string items", [null, 7, "externalDocs", {}, ["name"], true], ["externalDocs"]],
-  ["an array of blanks", ["", "  "], TAG_DEFAULT_FIELDS],
-  ["an empty array", [], TAG_DEFAULT_FIELDS],
-  ["null", null, TAG_DEFAULT_FIELDS],
-  ["a number", 42, TAG_DEFAULT_FIELDS],
-  ["true", true, TAG_DEFAULT_FIELDS],
-  ["an object", { name: true }, TAG_DEFAULT_FIELDS],
+  ["the former default list", "name,description"],
+  ["an empty string", ""],
+  ["a blank string", "  \t "],
+  ["only commas and spaces", " , ,, "],
+  ["only the name", "name"],
+  ["only the description", "description"],
+  ["only the externalDocs", "externalDocs"],
+  ["two padded names in another order", "  description ,  name "],
+  ["duplicated names", "name,NAME,description,name"],
+  ["empty entries between names", ",name,,description,"],
+  ["fixed fields in any case", "Name,DESCRIPTION,externaldocs"],
+  ["every Tag object field", "name,description,externalDocs"],
+  ["one extension", "x-owner"],
+  ["several extensions", "x-owner,x-review,x-lifecycle"],
+  ["an extension with dots and underscores", "x-team.owner_id"],
+  ["every field and extension", "name,description,externalDocs,x-owner,x-review,x-lifecycle,x-team.owner_id"],
+  ["padded extensions and fields", "  x-owner  ,  externalDocs "],
+  ["an extension written in another case is matched as written", "x-Owner"],
+  ["an extension with an upper-case prefix", "X-Owner"],
+  ["a bare extension prefix", "x-"],
+  ["an extension with a forbidden character", "x-owner!"],
+  ["nested paths and prefixed names", "externalDocs.url,tags.name,$.tags.description,info.title"],
+  ["fields a Tag object does not define", "title,summary,url,version,id,tags"],
+  ["an unusable name next to a usable one", "owner,externalDocs"],
+  ["names separated by spaces", "name description"],
+  ["names separated by semicolons", "name;description"],
+  ["an array of names", ["name", "externalDocs"]],
+  ["an array of comma-separated lists", ["name, description", "x-owner"]],
+  ["an array with non-string items", [null, 7, "externalDocs", {}, ["name"], true]],
+  ["an array of blanks", ["", "  "]],
+  ["an empty array", []],
+  ["null", null],
+  ["a number", 42],
+  ["true", true],
+  ["an object", { name: true }],
 ];
 
 const quoteRef = (value) => (typeof value === "string" ? `'${value}'` : JSON.stringify(value));
@@ -1894,29 +1868,190 @@ const quoteRef = (value) => (typeof value === "string" ? `'${value}'` : JSON.str
 const TAG_MESSAGES = {
   missing: (field, name) => `AAR076: ${name === undefined ? "The tag" : `Tag '${name}'`} must declare the mandatory field '${field}'.`,
   empty: (field, name) => `AAR076: The mandatory field '${field}' of ${name === undefined ? "the tag" : `tag '${name}'`} must not be empty.`,
-  invalid: (fields = TAG_DEFAULT_FIELDS) => `AAR076: The tag must be a Tag object with the mandatory fields ${quotedList(fields)}.`,
-  named: (name, fields = TAG_DEFAULT_FIELDS) => `AAR076: Tag '${name}' must be a Tag object with the mandatory fields ${quotedList(fields)}.`,
-  reference: (ref, fields = TAG_DEFAULT_FIELDS) => `AAR076: The tag reference ${quoteRef(ref)} must resolve to a Tag object with the mandatory fields ${quotedList(fields)}.`,
+  invalid: () => `AAR076: The tag must be a Tag object with the mandatory fields ${quotedList(TAG_DEFAULT_FIELDS)}.`,
+  named: (name) => `AAR076: Tag '${name}' must be a Tag object with the mandatory fields ${quotedList(TAG_DEFAULT_FIELDS)}.`,
+  reference: (ref) => `AAR076: The tag reference ${quoteRef(ref)} must resolve to a Tag object with the mandatory fields ${quotedList(TAG_DEFAULT_FIELDS)}.`,
 };
 
-const tagFinding = (base, [path, kind, detail, name], fields) => {
+const tagFinding = (base, [path, kind, detail, name]) => {
   const at = path === "" ? base : /^\d+$/.test(path) || ["name", "description"].includes(path) ? `${base}.${path}` : path;
   if (kind === "missing") return [at, TAG_MESSAGES.missing(detail, name)];
   if (kind === "empty") return [at, TAG_MESSAGES.empty(detail, name)];
-  if (kind === "invalid") return [at, TAG_MESSAGES.invalid(fields)];
-  return [at, TAG_MESSAGES[kind](detail, fields)];
+  return [at, TAG_MESSAGES[kind](detail)];
 };
 
-const tagFindings = (tags, invalid = [], fields = TAG_DEFAULT_FIELDS) => [
+const tagFindings = (tags, invalid = []) => [
   ...tags.flatMap(([path, name, states]) =>
-    fields
+    TAG_DEFAULT_FIELDS
       .filter((field) => states[field] !== "populated")
       .map((field) => (states[field] === "empty" ? [`${path}.${field}`, TAG_MESSAGES.empty(field, name)] : [path, TAG_MESSAGES.missing(field, name)]))
   ),
-  ...invalid.map(([path, kind, detail]) => [path, kind === "invalid" ? TAG_MESSAGES.invalid(fields) : TAG_MESSAGES[kind](detail, fields)]),
+  ...invalid.map(([path, kind, detail]) => [path, TAG_MESSAGES[kind](detail)]),
 ];
 
-const tagProbeFindings = (base, fields) => tagFindings(TAG_PROBE_STATES.map(([name, states], index) => [`${base}.${index}`, name, states]), [], fields);
+const tagProbeFindings = (base) => tagFindings(TAG_PROBE_STATES.map(([name, states], index) => [`${base}.${index}`, name, states]));
+
+const CONTACT_FIELDS = ["name", "email"];
+const contactTarget = (name) => ({ $ref: `#/components/x-contacts/${name}` });
+const CONTACT_COMPLETE = { name: "Commerce Integration", url: "https://commerce.example.io/integration", email: "integration@commerce.example.io" };
+const CONTACT_MINIMAL = { name: "Commerce Integration", email: "integration@commerce.example.io" };
+
+const CONTACT_COMPONENTS = {
+  ...INFO_COMPONENTS,
+  "x-contacts": {
+    complete: CONTACT_COMPLETE,
+    minimal: CONTACT_MINIMAL,
+    alias: contactTarget("complete"),
+    aliasTwice: contactTarget("alias"),
+    sparse: { url: "https://commerce.example.io/integration", email: " \t " },
+    sparseAlias: contactTarget("sparse"),
+    empty: {},
+    extensionsOnly: { url: "https://commerce.example.io/integration", "x-slack": "#commerce-integration" },
+    caseKeys: { Name: "Commerce Integration", EMAIL: "integration@commerce.example.io" },
+    cycleA: contactTarget("cycleB"),
+    cycleB: contactTarget("cycleA"),
+    self: contactTarget("self"),
+    list: [CONTACT_COMPLETE],
+    text: "Commerce Integration",
+    nothing: null,
+    external: { $ref: "./shared/contacts.yaml#/integration" },
+    "a/b": CONTACT_COMPLETE,
+    "with space": CONTACT_MINIMAL,
+  },
+  "x-info": {
+    ...INFO_COMPONENTS["x-info"],
+    withContact: { title: "Commerce Events", version: "4.2.0", contact: contactTarget("complete") },
+    withContactAlias: infoTarget("withContact"),
+    withSparseContact: { title: "Commerce Events", version: "4.2.0", contact: { name: "", url: "https://commerce.example.io/integration" } },
+  },
+};
+
+const CONTACT_VALUE_CASES = [
+  ...INFO_VALUE_CASES,
+  ["an email address", "integration@commerce.example.io", true],
+  ["a pointer to a field of another contact", { $ref: "#/components/x-contacts/complete/email" }, true],
+  ["a pointer through a chained contact, which Spectral cannot resolve either", { $ref: "#/components/x-contacts/alias/email" }, false],
+  ["a pointer to an empty field of another contact", { $ref: "#/components/x-contacts/sparse/email" }, false],
+];
+
+const bothMissing = (path) => CONTACT_FIELDS.map((field) => [path, "missing", field]);
+
+const CONTACT_OBJECT_CASES = [
+  ["an inline contact with name, url and email", CONTACT_COMPLETE, []],
+  ["an inline contact with only name and email", CONTACT_MINIMAL, []],
+  ["an inline contact with an empty url and empty extensions", { ...CONTACT_MINIMAL, url: "", "x-slack": null, "x-team": {} }, []],
+  ["an empty contact object", {}, bothMissing("info.contact")],
+  ["a contact with only a url", { url: "https://commerce.example.io/integration" }, bothMissing("info.contact")],
+  ["a contact with only extensions", { "x-slack": "#commerce", "x-owner": "platform-team" }, bothMissing("info.contact")],
+  ["a contact without name", { url: "https://commerce.example.io/integration", email: "integration@commerce.example.io" }, [["info.contact", "missing", "name"]]],
+  ["a contact without email", { name: "Commerce Integration", url: "https://commerce.example.io/integration" }, [["info.contact", "missing", "email"]]],
+  ["a contact whose keys differ in case", { Name: "Commerce Integration", NAME: "Commerce", Email: "a@commerce.example.io", EMAIL: "b@commerce.example.io" }, bothMissing("info.contact")],
+  ["a contact with look-alike keys", { "contact-name": "Commerce", fullName: "Commerce Integration", mail: "a@commerce.example.io", "e-mail": "b@commerce.example.io", emailAddress: "c@commerce.example.io" }, bothMissing("info.contact")],
+  ["a contact with a blank name and a null email", { name: "  ", email: null }, [["info.contact.name", "empty", "name"], ["info.contact.email", "empty", "email"]]],
+  ["a reference to a complete contact", contactTarget("complete"), []],
+  ["a reference to a contact with only name and email", contactTarget("minimal"), []],
+  ["a chained reference", contactTarget("alias"), []],
+  ["a reference chained twice", contactTarget("aliasTwice"), []],
+  ["a reference with siblings, which are ignored", { ...contactTarget("complete"), name: "", email: null }, []],
+  ["a reference to an empty contact with populated siblings, which are ignored", { $ref: "#/components/x-contacts/empty", ...CONTACT_MINIMAL }, bothMissing("components.x-contacts.empty")],
+  ["a pointer into an array item", { $ref: "#/components/x-contacts/list/0" }, []],
+  ["an escaped pointer", { $ref: "#/components/x-contacts/a~1b" }, []],
+  ["a percent-encoded pointer", { $ref: "#/components/x-contacts/with%20space" }, []],
+  ["an external reference", { $ref: "./shared/contacts.yaml#/integration" }, []],
+  ["an external whole-file reference", { $ref: "https://specs.example.io/commerce/contact.yaml" }, []],
+  ["a local alias of an external contact", contactTarget("external"), []],
+  ["a reference to a sparse contact", contactTarget("sparse"), [["components.x-contacts.sparse", "missing", "name"], ["components.x-contacts.sparse.email", "empty", "email"]]],
+  ["a chained reference to a sparse contact", contactTarget("sparseAlias"), [["components.x-contacts.sparse", "missing", "name"], ["components.x-contacts.sparse.email", "empty", "email"]]],
+  ["a reference to an empty contact", contactTarget("empty"), bothMissing("components.x-contacts.empty")],
+  ["a reference to a contact with only a url and extensions", contactTarget("extensionsOnly"), bothMissing("components.x-contacts.extensionsOnly")],
+  ["a reference to a contact whose keys differ in case", contactTarget("caseKeys"), bothMissing("components.x-contacts.caseKeys")],
+  ["a null contact", null, [["info.contact", "noContact"]]],
+  ["an empty string", "", [["info.contact", "noContact"]]],
+  ["a name instead of an object", "Commerce Integration", [["info.contact", "noContact"]]],
+  ["an email instead of an object", "integration@commerce.example.io", [["info.contact", "noContact"]]],
+  ["zero", 0, [["info.contact", "noContact"]]],
+  ["a number", 42, [["info.contact", "noContact"]]],
+  ["true", true, [["info.contact", "noContact"]]],
+  ["false", false, [["info.contact", "noContact"]]],
+  ["an empty list", [], [["info.contact", "noContact"]]],
+  ["a list holding a contact", [CONTACT_COMPLETE], [["info.contact", "noContact"]]],
+  ["a dangling reference", contactTarget("missing"), [["info.contact", "noContact"]]],
+  ["a pointer past the end of an array", { $ref: "#/components/x-contacts/list/3" }, [["info.contact", "noContact"]]],
+  ["a reference to the info contact itself", { $ref: "#/info/contact" }, [["info.contact", "noContact"]]],
+  ["a cyclic reference", contactTarget("cycleA"), [["info.contact", "noContact"]]],
+  ["a self reference", contactTarget("self"), [["info.contact", "noContact"]]],
+  ["a reference to the document root", { $ref: "#" }, [["info.contact", "noContact"]]],
+  ["an empty reference, which points to the document itself", { $ref: "" }, [["info.contact", "noContact"]]],
+  ["a reference to a list", contactTarget("list"), [["info.contact", "noContact"]]],
+  ["a reference to a string", contactTarget("text"), [["info.contact", "noContact"]]],
+  ["a reference to null", contactTarget("nothing"), [["info.contact", "noContact"]]],
+  ["a pointer without a leading slash", { $ref: "#components/x-contacts/complete" }, [["info.contact", "noContact"]]],
+  ["a malformed percent-encoded pointer", { $ref: "#/components/x-contacts/%E0%A4%A" }, [["info.contact", "noContact"]]],
+  ["a non-string reference", { $ref: 42 }, [["info.contact", "noContact"]]],
+  ["a null reference", { $ref: null }, [["info.contact", "noContact"]]],
+];
+
+const CONTACT_INFO_CASES = [
+  ["an inline info object with a complete contact", { title: "Commerce Events", version: "4.2.0", contact: CONTACT_COMPLETE }, []],
+  ["an info object with only a contact", { contact: CONTACT_MINIMAL }, []],
+  ["an info object without contact", { title: "Commerce Events", version: "4.2.0", description: "Order events." }, [["info", "noContact"]]],
+  ["an empty info object", {}, [["info", "noContact"]]],
+  ["an info object whose contact key differs in case", { title: "Commerce Events", Contact: CONTACT_COMPLETE, CONTACT: CONTACT_MINIMAL }, [["info", "noContact"]]],
+  ["an info object with contact look-alikes", { title: "Commerce Events", "x-contact": CONTACT_COMPLETE, contacts: [CONTACT_COMPLETE], owner: CONTACT_MINIMAL }, [["info", "noContact"]]],
+  ["a reference to an info object with a referenced contact", infoTarget("withContact"), []],
+  ["a chained reference to that info object", infoTarget("withContactAlias"), []],
+  ["a reference with siblings, which are ignored", { ...infoTarget("withContact"), contact: null }, []],
+  ["a reference to an info object with a sparse contact", infoTarget("withSparseContact"), [["components.x-info.withSparseContact.contact", "missing", "email"], ["components.x-info.withSparseContact.contact.name", "empty", "name"]]],
+  ["a reference to an info object without contact", infoTarget("complete"), [["components.x-info.complete", "noContact"]]],
+  ["a chained reference to an info object without contact", infoTarget("alias"), [["components.x-info.complete", "noContact"]]],
+  ["a reference to an empty info object", infoTarget("empty"), [["components.x-info.empty", "noContact"]]],
+  ["an external reference", { $ref: "./shared/info.yaml#/info" }, []],
+  ["an external whole-file reference", { $ref: "https://specs.example.io/commerce/info.yaml" }, []],
+  ["a null info", null, [["info", "noInfo"]]],
+  ["an empty string", "", [["info", "noInfo"]]],
+  ["a title instead of an object", "Commerce Events", [["info", "noInfo"]]],
+  ["zero", 0, [["info", "noInfo"]]],
+  ["a number", 42, [["info", "noInfo"]]],
+  ["true", true, [["info", "noInfo"]]],
+  ["false", false, [["info", "noInfo"]]],
+  ["an empty list", [], [["info", "noInfo"]]],
+  ["a list holding an info object with a contact", [{ title: "Commerce Events", contact: CONTACT_COMPLETE }], [["info", "noInfo"]]],
+  ["a dangling reference", infoTarget("missing"), [["info", "noInfo"]]],
+  ["a cyclic reference", infoTarget("cycleA"), [["info", "noInfo"]]],
+  ["a reference to the document root", { $ref: "#" }, [["info", "noInfo"]]],
+  ["an empty reference", { $ref: "" }, [["info", "noInfo"]]],
+  ["a reference to a list", infoTarget("list"), [["info", "noInfo"]]],
+  ["a reference to a string", infoTarget("text"), [["info", "noInfo"]]],
+  ["a reference to null", infoTarget("nothing"), [["info", "noInfo"]]],
+  ["a pointer without a leading slash", { $ref: "#components/x-info/withContact" }, [["info", "noInfo"]]],
+  ["a malformed percent-encoded pointer", { $ref: "#/components/x-info/%E0%A4%A" }, [["info", "noInfo"]]],
+  ["a non-string reference", { $ref: 42 }, [["info", "noInfo"]]],
+  ["a null reference", { $ref: null }, [["info", "noInfo"]]],
+];
+
+const CONTACT_IGNORED_OPTIONS = [
+  ["an empty object", {}],
+  ["fields-to-apply with only the url", { "fields-to-apply": "url" }],
+  ["fields-to-apply with only the name", { "fields-to-apply": "name" }],
+  ["fields-to-apply with every contact field and an extension", { "fields-to-apply": "name,url,email,x-slack" }],
+  ["an empty fields-to-apply", { "fields-to-apply": "" }],
+  ["a properties list like the core truthy description", { properties: ["url"] }],
+  ["a fields array", { fields: ["url", "x-slack"] }],
+  ["a required list", { required: ["url"] }],
+  ["a field option like core truthy", { field: "url" }],
+  ["a pattern", { pattern: "^x-" }],
+  ["null values", { "fields-to-apply": null, properties: null }],
+  ["non-string values", { "fields-to-apply": 42, properties: true, required: "url" }],
+];
+
+const CONTACT_MESSAGES = {
+  missing: (field) => `AAR077: The 'contact' object must declare the mandatory field '${field}'.`,
+  empty: (field) => `AAR077: The mandatory 'contact' field '${field}' must not be empty.`,
+  noContact: () => "AAR077: The 'info' object must declare a 'contact' object with the mandatory fields 'name' and 'email'.",
+  noInfo: () => "AAR077: The document must declare an 'info' object whose 'contact' object populates the mandatory fields 'name' and 'email'.",
+};
+
+const contactFindings = (expected) => expected.map(([path, kind, field]) => [path, CONTACT_MESSAGES[kind](field)]).sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]));
 
 module.exports.linterForRule = linterForRule;
 module.exports.CASING_TYPES = CASING_TYPES;
@@ -1944,7 +2079,6 @@ module.exports.EXAMPLE_SCHEMA_FORMAT_CASES = EXAMPLE_SCHEMA_FORMAT_CASES;
 module.exports.TRAIT_BASE_MESSAGE = TRAIT_BASE_MESSAGE;
 module.exports.EXAMPLE_SCHEMA_TRAIT_COMPONENTS = EXAMPLE_SCHEMA_TRAIT_COMPONENTS;
 module.exports.EXAMPLE_SCHEMA_TRAIT_CASES = EXAMPLE_SCHEMA_TRAIT_CASES;
-module.exports.REQUIRED_TRAIT_NAMES = REQUIRED_TRAIT_NAMES;
 module.exports.REQUIRED_TRAIT_COMPONENTS = REQUIRED_TRAIT_COMPONENTS;
 module.exports.REQUIRED_TRAIT_CASES = REQUIRED_TRAIT_CASES;
 module.exports.REQUIRED_TRAIT_MESSAGES = REQUIRED_TRAIT_MESSAGES;
@@ -1959,19 +2093,13 @@ module.exports.PROPERTY_FORMAT_PAYLOADS = PROPERTY_FORMAT_PAYLOADS;
 module.exports.PROPERTY_FORMAT_FINDINGS = PROPERTY_FORMAT_FINDINGS;
 module.exports.AVRO_TEXT_SCHEMA = AVRO_TEXT_SCHEMA;
 module.exports.INFO_DEFAULT_FIELDS = INFO_DEFAULT_FIELDS;
-module.exports.INFO_V2_FIELDS = INFO_V2_FIELDS;
-module.exports.INFO_V3_FIELDS = INFO_V3_FIELDS;
 module.exports.INFO_COMPONENTS = INFO_COMPONENTS;
 module.exports.INFO_VALUE_CASES = INFO_VALUE_CASES;
 module.exports.INFO_OBJECT_CASES = INFO_OBJECT_CASES;
 module.exports.INFO_PROBE = INFO_PROBE;
 module.exports.INFO_OPTION_CASES = INFO_OPTION_CASES;
 module.exports.INFO_MESSAGES = INFO_MESSAGES;
-module.exports.infoFieldsFor = infoFieldsFor;
 module.exports.infoProbeFindings = infoProbeFindings;
-module.exports.TAG_DEFAULT_FIELDS = TAG_DEFAULT_FIELDS;
-module.exports.TAG_FIXED_FIELDS = TAG_FIXED_FIELDS;
-module.exports.TAG_FULL_FIELDS = TAG_FULL_FIELDS;
 module.exports.TAG_COMPONENTS = TAG_COMPONENTS;
 module.exports.TAG_ITEM_CASES = TAG_ITEM_CASES;
 module.exports.TAG_LIST_CASES = TAG_LIST_CASES;
@@ -1981,3 +2109,14 @@ module.exports.TAG_MESSAGES = TAG_MESSAGES;
 module.exports.tagFinding = tagFinding;
 module.exports.tagFindings = tagFindings;
 module.exports.tagProbeFindings = tagProbeFindings;
+module.exports.CONTACT_FIELDS = CONTACT_FIELDS;
+module.exports.CONTACT_COMPLETE = CONTACT_COMPLETE;
+module.exports.CONTACT_MINIMAL = CONTACT_MINIMAL;
+module.exports.CONTACT_COMPONENTS = CONTACT_COMPONENTS;
+module.exports.CONTACT_VALUE_CASES = CONTACT_VALUE_CASES;
+module.exports.CONTACT_OBJECT_CASES = CONTACT_OBJECT_CASES;
+module.exports.CONTACT_INFO_CASES = CONTACT_INFO_CASES;
+module.exports.CONTACT_IGNORED_OPTIONS = CONTACT_IGNORED_OPTIONS;
+module.exports.CONTACT_MESSAGES = CONTACT_MESSAGES;
+module.exports.contactTarget = contactTarget;
+module.exports.contactFindings = contactFindings;

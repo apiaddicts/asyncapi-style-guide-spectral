@@ -1,29 +1,17 @@
 /**
  * @param {object} document - The whole AsyncAPI document (given: "$", resolved: false)
- * @param {object} options - Function options
- * @param {string|string[]} options\["fields-to-apply"] - Comma-separated list (or array) of the info fields every document
- *   must populate. Fixed field names are matched case-insensitively, tags and externalDocs only apply to AsyncAPI 3.x and
- *   x- extensions are matched as written; any other entry is ignored, and title, version and description are required
- *   when no entry is usable.
+ * @param {object} _options - Unused: the mandatory info fields are always title, version and description
  * @param {import('@stoplight/spectral-core').RulesetFunctionContext} context
  * @returns {Array} Array of error objects
  */
 const UNKNOWN = Symbol("unknown");
-const DEFAULT_FIELDS = ["title", "version", "description"];
-const FIXED_FIELDS = ["title", "version", "description", "termsOfService", "contact", "license", "tags", "externalDocs"];
-const V3_ONLY_FIELDS = new Set(["tags", "externalDocs"]);
-const EXTENSION = /^x-[\w.-]+$/;
+const FIELDS = ["title", "version", "description"];
 const INVISIBLE = /[\u200b-\u200d\u2060\ufeff]/g;
+const NO_INFO = "The document must declare an 'info' object with the mandatory fields 'title', 'version' and 'description'.";
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
 const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
-
-const isVersion3Plus = (raw) => {
-  if (typeof raw !== "string" && typeof raw !== "number") return false;
-  const match = /^\s*(\d+)/.exec(String(raw));
-  return match !== null && Number(match[1]) >= 3;
-};
 
 const unescapeToken = (token) => token.replace(/~1/g, "/").replace(/~0/g, "~");
 
@@ -39,37 +27,9 @@ const pointerPath = (ref) => {
   return fragment.slice(1).split("/").map(unescapeToken);
 };
 
-const canonicalOf = (entry) => {
-  if (EXTENSION.test(entry)) return entry;
-  const lower = entry.toLowerCase();
-  return FIXED_FIELDS.find((field) => field.toLowerCase() === lower);
-};
-
-const parseFields = (raw) => {
-  let candidates = [];
-  if (typeof raw === "string") {
-    candidates = raw.split(",");
-  } else if (Array.isArray(raw)) {
-    candidates = raw.filter((item) => typeof item === "string").flatMap((item) => item.split(","));
-  }
-  const fields = candidates.map((entry) => canonicalOf(entry.trim())).filter((field) => field !== undefined);
-  return fields.length === 0 ? DEFAULT_FIELDS : [...new Set(fields)];
-};
-
-const listOf = (fields) => {
-  const quoted = fields.map((field) => `'${field}'`);
-  return quoted.length === 1 ? quoted[0] : `${quoted.slice(0, -1).join(", ")} and ${quoted[quoted.length - 1]}`;
-};
-
-module.exports = (document, options, context) => {
+module.exports = (document, _options, context) => {
   const errors = [];
   if (!isObject(document) || !has(document, "asyncapi")) {
-    return errors;
-  }
-
-  const isV3 = isVersion3Plus(document.asyncapi);
-  const fields = parseFields(isObject(options) ? options["fields-to-apply"] : undefined).filter((field) => isV3 || !V3_ONLY_FIELDS.has(field));
-  if (fields.length === 0) {
     return errors;
   }
 
@@ -120,7 +80,7 @@ module.exports = (document, options, context) => {
   };
 
   if (!has(document, "info")) {
-    report(`The document must declare an 'info' object with the mandatory fields ${listOf(fields)}.`, []);
+    report(NO_INFO, []);
     return errors;
   }
 
@@ -129,11 +89,11 @@ module.exports = (document, options, context) => {
     return errors;
   }
   if (!isObject(info.node) || info.node === document) {
-    report(`The document must declare an 'info' object with the mandatory fields ${listOf(fields)}.`, ["info"]);
+    report(NO_INFO, ["info"]);
     return errors;
   }
 
-  for (const field of fields) {
+  for (const field of FIELDS) {
     if (!has(info.node, field)) {
       report(`The 'info' object must declare the mandatory field '${field}'.`, info.path);
     } else if (!populated(info.node[field])) {
