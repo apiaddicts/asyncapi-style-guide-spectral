@@ -51,6 +51,7 @@ functions:
   - asa-message-traits-required
   - asa-properties-object-format
   - asa-info-attributes-required
+  - asa-tag-properties-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -874,3 +875,15 @@ rules:
       function: asa-info-attributes-required
       functionOptions:
         fields-to-apply: "title,version,description"
+
+  asa:AAR076:
+    description: "Every Tag object must populate every mandatory field listed in fields-to-apply (default: name and description); a field that is missing, null, blank or empty is reported."
+    message: "AAR076: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar076"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-tag-properties-required
+      functionOptions:
+        fields-to-apply: "name,description"

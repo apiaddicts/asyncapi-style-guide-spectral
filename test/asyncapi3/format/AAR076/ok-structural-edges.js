@@ -1,0 +1,105 @@
+const incomplete = { name: "Not_Evaluated" };
+const complete = { name: "complete", description: "Complete tag.", externalDocs: { url: "https://docs.building.example.com/tags" }, "x-owner": "building-platform" };
+
+module.exports = {
+  asyncapi: "3.0.0",
+  info: {
+    title: "Smart Building Sensors",
+    version: "1.2.0",
+    description: "Degenerate structures around tags and locations AsyncAPI 3.x does not define; nothing here is a Tag object to check.",
+    tags: [],
+  },
+  tags: [incomplete],
+  servers: {
+    nullServer: null,
+    scalarServer: "notAServer",
+    refServer: { $ref: "#/components/servers/complete", tags: [incomplete] },
+    externalServer: { $ref: "./servers.yaml#/components/servers/mqtt" },
+    danglingServer: { $ref: "#/components/servers/missing" },
+    nullTags: { host: "mqtt.building.example.com", protocol: "mqtt", tags: null },
+    objectTags: { host: "mqtt.building.example.com", protocol: "mqtt", tags: incomplete },
+    externalTags: { host: "mqtt.building.example.com", protocol: "mqtt", tags: { $ref: "./tags.yaml#/serverTags" } },
+  },
+  channels: {
+    nullChannel: null,
+    scalarChannel: "notAChannel",
+    externalChannel: { $ref: "./channels.yaml#/components/channels/hvac" },
+    danglingChannel: { $ref: "#/components/channels/missing" },
+    refWithSiblings: { $ref: "#/components/channels/complete", tags: [incomplete] },
+    legacyOperations: {
+      address: "buildings/{buildingId}/legacy",
+      publish: { tags: [incomplete], message: { tags: [incomplete] } },
+      subscribe: { traits: [{ tags: [incomplete] }] },
+      messages: {
+        nullMessage: null,
+        scalarMessage: "notAMessage",
+        externalMessage: { $ref: "./messages.yaml#/components/messages/legacy" },
+        danglingMessage: { $ref: "#/components/messages/missing" },
+        refWithSiblings: { $ref: "#/components/messages/complete", tags: [incomplete] },
+        oneOfMembers: { oneOf: [{ tags: [incomplete] }, { $ref: "#/components/x-messages/legacy" }] },
+        degenerateTraits: { traits: [null, "notATrait", { $ref: "./traits.yaml#/headers" }, { $ref: "#/components/messageTraits/missing", tags: [incomplete] }, []] },
+        objectTraits: { traits: { tags: [incomplete] } },
+      },
+      servers: [{ $ref: "./servers.yaml#/components/servers/legacy" }, { $ref: "#/servers/missing" }, "notAReference", null],
+    },
+    arrayMessages: { address: null, messages: [{ tags: [incomplete] }] },
+    payloadTags: {
+      address: "buildings/{buildingId}/occupancy",
+      parameters: { buildingId: { description: "Building code.", tags: [incomplete] } },
+      messages: {
+        occupancyChanged: {
+          name: "occupancyChanged",
+          payload: {
+            schemaFormat: "application/schema+json;version=draft-07",
+            schema: { type: "object", properties: { tags: { type: ["array", "null"], items: { type: "object", properties: { name: { type: "string" } } }, default: [incomplete] } } },
+          },
+          headers: { type: "object", properties: { tags: { type: "string" } } },
+          examples: [{ name: "withTags", payload: { tags: [incomplete] } }],
+          bindings: { mqtt: { tags: [incomplete], bindingVersion: "0.2.0" } },
+          externalDocs: { url: "https://docs.building.example.com", tags: [incomplete] },
+          correlationId: { location: "$message.header#/correlationId", tags: [incomplete] },
+        },
+        avroOccupancy: {
+          name: "avroOccupancy",
+          payload: {
+            schemaFormat: "application/vnd.apache.avro;version=1.9.0",
+            schema: { type: "record", name: "Tag", fields: [{ name: "name", type: "string" }, { name: "tags", type: ["null", { type: "array", items: "string" }], default: null }] },
+          },
+        },
+      },
+      bindings: { ws: { tags: [incomplete], bindingVersion: "0.1.0" } },
+    },
+  },
+  operations: {
+    nullOperation: null,
+    scalarOperation: "notAnOperation",
+    externalOperation: { $ref: "./operations.yaml#/components/operations/send" },
+    refWithSiblings: { $ref: "#/components/operations/complete", tags: [incomplete] },
+    degenerate: {
+      action: "send",
+      channel: { $ref: "./channels.yaml#/components/channels/hvac" },
+      messages: [{ $ref: "./messages.yaml#/components/messages/hvac" }, { $ref: "#/channels/missing/messages/missing" }, null],
+      tags: "notAList",
+      traits: { tags: [incomplete] },
+      reply: { $ref: "./replies.yaml#/components/replies/ack" },
+    },
+    nullReply: { action: "receive", channel: { $ref: "#/channels/payloadTags" }, reply: null },
+    scalarReply: { action: "receive", channel: { $ref: "#/channels/payloadTags" }, reply: "notAReply" },
+  },
+  "x-tags": [incomplete],
+  components: {
+    servers: { nullServer: null, complete: { host: "mqtt.building.example.com", protocol: "mqtt", tags: [complete] } },
+    channels: { nullChannel: null, complete: { address: "complete", tags: [complete] } },
+    operations: { nullOperation: null, complete: { action: "send", tags: [complete] } },
+    messages: { nullMessage: null, external: { $ref: "./messages.yaml#/components/messages/door" }, complete: { name: "complete", tags: [complete] } },
+    operationTraits: { nullTrait: null, noTags: { description: "No tags." }, emptyTags: { tags: [] } },
+    messageTraits: { refTrait: { $ref: "#/components/messageTraits/missing", tags: [incomplete] }, externalTrait: { $ref: "./traits.yaml#/headers" } },
+    replies: { nullReply: null, externalReply: { $ref: "./replies.yaml#/components/replies/ack" } },
+    tags: { external: { $ref: "./tags.yaml#/components/tags/external" }, complete },
+    schemas: {
+      Tag: { type: "object", required: ["name"], properties: { name: { type: "string" }, description: { type: ["string", "null"] } } },
+      Tagged: { type: "object", properties: { tags: { type: "array", items: { $ref: "#/components/schemas/Tag" } } }, examples: [{ tags: [incomplete] }] },
+    },
+    "x-messages": { legacy: { tags: [incomplete] } },
+  },
+};

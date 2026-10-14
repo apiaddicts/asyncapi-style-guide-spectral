@@ -119,6 +119,7 @@ spectral lint your-asyncapi.yaml
 | **AAR071** | `warn` | Every message must provide at least one example with a `payload` in its `examples` array; a header-only example (non-empty `headers`) counts only for messages without a payload. Traits are merged as each version specifies (2.x: traits override the message; 3.x: the message overrides its traits), and each message is checked once, where it is defined. |
 | **AAR073** | `warn` | Every message must apply message traits in `traits`: at least one by default, or every trait listed in `required-traits` (comma-separated). |
 | **AAR075** | `error` | The `info` object must populate every field listed in `fields-to-apply` (comma-separated; default `title,version,description`): a missing, null, blank or empty value is reported. |
+| **AAR076** | `error` | Every Tag object must populate every field listed in `fields-to-apply` (comma-separated; default `name,description`; `externalDocs` and `x-` extensions can also be listed). |
 
 ### Schema Rules
 
@@ -149,7 +150,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 36 custom Spectral functions for complex validation logic:
+The ruleset includes 37 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -189,6 +190,7 @@ The ruleset includes 36 custom Spectral functions for complex validation logic:
 | `asa-message-traits-required` | AAR073 | Validates that every message applies at least one message trait, or every trait listed in `required-traits` |
 | `asa-properties-object-format` | AAR074 | Checks the casing of schema property names and Avro record field names |
 | `asa-info-attributes-required` | AAR075 | Validates that the `info` object populates every field listed in `fields-to-apply` |
+| `asa-tag-properties-required` | AAR076 | Validates that every Tag object populates every field listed in `fields-to-apply` |
 
 ---
 

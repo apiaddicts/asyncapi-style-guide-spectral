@@ -1719,6 +1719,205 @@ const infoProbeFindings = (fields, isV3) =>
     .filter(([, state]) => state !== "populated")
     .map(([field, state]) => (state === "missing" ? ["info", INFO_MESSAGES.missing(field)] : [`info.${field}`, INFO_MESSAGES.empty(field)]));
 
+const TAG_DEFAULT_FIELDS = ["name", "description"];
+const TAG_FIXED_FIELDS = ["name", "description", "externalDocs"];
+const TAG_FULL_FIELDS = [...TAG_FIXED_FIELDS, "x-owner"];
+const tagTarget = (name) => ({ $ref: `#/components/x-tags/${name}` });
+const tagList = (name) => ({ $ref: `#/components/x-tag-lists/${name}` });
+const DOCS = { description: "Tag handbook.", url: "https://docs.example.io/tags" };
+
+const TAG_COMPONENTS = {
+  "x-tags": {
+    complete: { name: "orders", description: "Order lifecycle events.", externalDocs: DOCS, "x-owner": "commerce-platform" },
+    sparse: { name: "payments", description: "" },
+    nameless: { description: "Shipment events." },
+    empty: {},
+    alias: tagTarget("complete"),
+    indirect: tagTarget("alias"),
+    sparseAlias: tagTarget("sparse"),
+    cycleA: tagTarget("cycleB"),
+    cycleB: tagTarget("cycleA"),
+    self: tagTarget("self"),
+    list: [{ name: "orders", description: "Listed tag." }],
+    text: "orders",
+    nothing: null,
+    external: { $ref: "./shared/tags.yaml#/orders" },
+    "a/b": { name: "escaped", description: "Escaped pointer." },
+    "with space": { name: "spaced", description: "Percent-encoded pointer." },
+  },
+  "x-tag-lists": {
+    complete: [{ name: "invoices", description: "Invoice events." }, tagTarget("complete")],
+    sparse: [{ name: "refunds" }, { name: "chargebacks", description: "Card chargebacks." }],
+    alias: tagList("complete"),
+    sparseAlias: tagList("sparse"),
+    external: { $ref: "./shared/tags.yaml#/list" },
+    notAList: { name: "orders" },
+  },
+  "x-messages": {
+    intermediate: { $ref: "#/components/x-messages/target" },
+    target: { tags: [{ name: "via-intermediate", description: "Reached through another reference." }] },
+  },
+};
+
+const TAG_ITEM_CASES = [
+  ["an inline tag with every default field", { name: "orders", description: "Order events." }, []],
+  ["an inline tag with an extra externalDocs", { name: "orders", description: "Order events.", externalDocs: DOCS }, []],
+  ["an empty tag object", {}, [["", "missing", "name"], ["", "missing", "description"]]],
+  ["a tag without description", { name: "orders" }, [["", "missing", "description", "orders"]]],
+  ["a tag without name", { description: "Order events." }, [["", "missing", "name"]]],
+  ["a tag with only an externalDocs", { externalDocs: DOCS }, [["", "missing", "name"], ["", "missing", "description"]]],
+  ["a tag whose keys differ in case", { Name: "orders", DESCRIPTION: "Order events." }, [["", "missing", "name"], ["", "missing", "description"]]],
+  ["a tag with an empty name", { name: "", description: "Order events." }, [["name", "empty", "name"]]],
+  ["a tag with a blank name and no description", { name: " \t" }, [["name", "empty", "name"], ["", "missing", "description"]]],
+  ["a tag with a null description", { name: "orders", description: null }, [["description", "empty", "description", "orders"]]],
+  ["a tag with both fields empty", { name: null, description: "" }, [["name", "empty", "name"], ["description", "empty", "description"]]],
+  ["a tag with a numeric name", { name: 2024, description: "" }, [["description", "empty", "description"]]],
+  ["a tag whose name is a reference to a text", { name: { $ref: "#/components/x-texts/summary" }, description: "" }, [["description", "empty", "description", "Order lifecycle events published by the commerce platform."]]],
+  ["a reference to a complete tag", tagTarget("complete"), []],
+  ["a chained reference to a complete tag", tagTarget("alias"), []],
+  ["a reference chained twice", tagTarget("indirect"), []],
+  ["a reference with siblings, which are ignored", { ...tagTarget("complete"), description: "" }, []],
+  ["an escaped pointer", { $ref: "#/components/x-tags/a~1b" }, []],
+  ["a percent-encoded pointer", { $ref: "#/components/x-tags/with%20space" }, []],
+  ["a pointer into a list item", { $ref: "#/components/x-tag-lists/complete/0" }, []],
+  ["an external reference", { $ref: "./shared/tags.yaml#/orders" }, []],
+  ["an external whole-file reference", { $ref: "https://specs.example.io/tags/orders.yaml" }, []],
+  ["a local alias of an external tag", tagTarget("external"), []],
+  ["a reference to a sparse tag", tagTarget("sparse"), [["components.x-tags.sparse.description", "empty", "description", "payments"]]],
+  ["a chained reference to a sparse tag", tagTarget("sparseAlias"), [["components.x-tags.sparse.description", "empty", "description", "payments"]]],
+  ["a sparse tag whose siblings would complete it", { ...tagTarget("sparse"), description: "Ignored sibling." }, [["components.x-tags.sparse.description", "empty", "description", "payments"]]],
+  ["a reference to a nameless tag", tagTarget("nameless"), [["components.x-tags.nameless", "missing", "name"]]],
+  ["a reference to an empty object", tagTarget("empty"), [["components.x-tags.empty", "missing", "name"], ["components.x-tags.empty", "missing", "description"]]],
+  ["a pointer into a sparse list item", { $ref: "#/components/x-tag-lists/sparse/0" }, [["components.x-tag-lists.sparse.0", "missing", "description", "refunds"]]],
+  ["null", null, [["", "invalid"]]],
+  ["an empty string", "", [["", "invalid"]]],
+  ["a blank string", " \t ", [["", "invalid"]]],
+  ["a tag name instead of an object", "orders", [["", "named", "orders"]]],
+  ["zero", 0, [["", "invalid"]]],
+  ["a number", 42, [["", "invalid"]]],
+  ["true", true, [["", "invalid"]]],
+  ["false", false, [["", "invalid"]]],
+  ["an empty list", [], [["", "invalid"]]],
+  ["a list holding a tag", [{ name: "orders", description: "Order events." }], [["", "invalid"]]],
+  ["a dangling reference", tagTarget("missing"), [["", "reference", "#/components/x-tags/missing"]]],
+  ["a cyclic reference", tagTarget("cycleA"), [["", "reference", "#/components/x-tags/cycleA"]]],
+  ["a self reference", tagTarget("self"), [["", "reference", "#/components/x-tags/self"]]],
+  ["a reference to the document root", { $ref: "#" }, [["", "reference", "#"]]],
+  ["an empty reference, which points to the document itself", { $ref: "" }, [["", "reference", ""]]],
+  ["a reference to a list", tagTarget("list"), [["", "reference", "#/components/x-tags/list"]]],
+  ["a reference to a string", tagTarget("text"), [["", "reference", "#/components/x-tags/text"]]],
+  ["a reference to null", tagTarget("nothing"), [["", "reference", "#/components/x-tags/nothing"]]],
+  ["a pointer past the end of a list", { $ref: "#/components/x-tag-lists/complete/5" }, [["", "reference", "#/components/x-tag-lists/complete/5"]]],
+  ["a pointer through another reference, which Spectral does not resolve either", { $ref: "#/components/x-messages/intermediate/tags/0" }, [["", "reference", "#/components/x-messages/intermediate/tags/0"]]],
+  ["a pointer without a leading slash", { $ref: "#components/x-tags/complete" }, [["", "reference", "#components/x-tags/complete"]]],
+  ["a malformed percent-encoded pointer", { $ref: "#/components/x-tags/%E0%A4%A" }, [["", "reference", "#/components/x-tags/%E0%A4%A"]]],
+  ["a non-string reference", { $ref: 42 }, [["", "reference", 42]]],
+  ["a null reference", { $ref: null }, [["", "reference", null]]],
+];
+
+const TAG_LIST_CASES = [
+  ["absent", undefined, []],
+  ["null", null, []],
+  ["an empty list", [], []],
+  ["an object instead of a list", { name: "orders" }, []],
+  ["a string instead of a list", "orders", []],
+  ["a reference to a complete list", tagList("complete"), []],
+  ["a chained reference to a complete list", tagList("alias"), []],
+  ["an external reference", tagList("external"), []],
+  ["a dangling reference", tagList("missing"), []],
+  ["a reference to something that is not a list", tagList("notAList"), []],
+  ["a reference to a sparse list", tagList("sparse"), [["components.x-tag-lists.sparse.0", "missing", "description", "refunds"]]],
+  ["a chained reference to a sparse list", tagList("sparseAlias"), [["components.x-tag-lists.sparse.0", "missing", "description", "refunds"]]],
+  [
+    "two identical incomplete tags",
+    [{ name: "orders" }, { name: "orders" }],
+    [["0", "missing", "description", "orders"], ["1", "missing", "description", "orders"]],
+  ],
+  ["two references to the same sparse tag", [tagTarget("sparse"), tagTarget("sparseAlias")], [["components.x-tags.sparse.description", "empty", "description", "payments"]]],
+  ["a complete tag next to null and a tag name", [{ name: "orders", description: "Order events." }, null, "payments"], [["1", "invalid"], ["2", "named", "payments"]]],
+];
+
+const TAG_PROBE = [
+  { name: "fleet-telemetry", description: "  ", "x-owner": "fleet-team", "x-review": "" },
+  { description: "Vehicle positions.", externalDocs: DOCS, "x-team.owner_id": null },
+  { name: "", description: null, externalDocs: {}, "x-lifecycle": "ga", "x-review": "approved" },
+  { name: "maintenance", description: "Workshop events.", externalDocs: { $ref: "#/components/x-texts/emptyObject" }, "x-owner": [] },
+];
+
+const TAG_PROBE_STATES = [
+  ["fleet-telemetry", { name: "populated", description: "empty", "x-owner": "populated", "x-review": "empty" }],
+  [undefined, { description: "populated", externalDocs: "populated", "x-team.owner_id": "empty" }],
+  [undefined, { name: "empty", description: "empty", externalDocs: "empty", "x-lifecycle": "populated", "x-review": "populated" }],
+  ["maintenance", { name: "populated", description: "populated", externalDocs: "empty", "x-owner": "empty" }],
+];
+
+const TAG_OPTION_CASES = [
+  ["the shipped default list", "name,description", TAG_DEFAULT_FIELDS],
+  ["an empty string", "", TAG_DEFAULT_FIELDS],
+  ["a blank string", "  \t ", TAG_DEFAULT_FIELDS],
+  ["only commas and spaces", " , ,, ", TAG_DEFAULT_FIELDS],
+  ["only the name", "name", ["name"]],
+  ["only the description", "description", ["description"]],
+  ["only the externalDocs", "externalDocs", ["externalDocs"]],
+  ["two padded names in another order", "  description ,  name ", ["description", "name"]],
+  ["duplicated names", "name,NAME,description,name", ["name", "description"]],
+  ["empty entries between names", ",name,,description,", ["name", "description"]],
+  ["fixed fields in any case", "Name,DESCRIPTION,externaldocs", TAG_FIXED_FIELDS],
+  ["every Tag object field", "name,description,externalDocs", TAG_FIXED_FIELDS],
+  ["one extension", "x-owner", ["x-owner"]],
+  ["several extensions", "x-owner,x-review,x-lifecycle", ["x-owner", "x-review", "x-lifecycle"]],
+  ["an extension with dots and underscores", "x-team.owner_id", ["x-team.owner_id"]],
+  ["every field and extension", "name,description,externalDocs,x-owner,x-review,x-lifecycle,x-team.owner_id", [...TAG_FIXED_FIELDS, "x-owner", "x-review", "x-lifecycle", "x-team.owner_id"]],
+  ["padded extensions and fields", "  x-owner  ,  externalDocs ", ["x-owner", "externalDocs"]],
+  ["an extension written in another case is matched as written", "x-Owner", ["x-Owner"]],
+  ["an extension with an upper-case prefix", "X-Owner", TAG_DEFAULT_FIELDS],
+  ["a bare extension prefix", "x-", TAG_DEFAULT_FIELDS],
+  ["an extension with a forbidden character", "x-owner!", TAG_DEFAULT_FIELDS],
+  ["nested paths and prefixed names", "externalDocs.url,tags.name,$.tags.description,info.title", TAG_DEFAULT_FIELDS],
+  ["fields a Tag object does not define", "title,summary,url,version,id,tags", TAG_DEFAULT_FIELDS],
+  ["an unusable name next to a usable one", "owner,externalDocs", ["externalDocs"]],
+  ["names separated by spaces", "name description", TAG_DEFAULT_FIELDS],
+  ["names separated by semicolons", "name;description", TAG_DEFAULT_FIELDS],
+  ["an array of names", ["name", "externalDocs"], ["name", "externalDocs"]],
+  ["an array of comma-separated lists", ["name, description", "x-owner"], ["name", "description", "x-owner"]],
+  ["an array with non-string items", [null, 7, "externalDocs", {}, ["name"], true], ["externalDocs"]],
+  ["an array of blanks", ["", "  "], TAG_DEFAULT_FIELDS],
+  ["an empty array", [], TAG_DEFAULT_FIELDS],
+  ["null", null, TAG_DEFAULT_FIELDS],
+  ["a number", 42, TAG_DEFAULT_FIELDS],
+  ["true", true, TAG_DEFAULT_FIELDS],
+  ["an object", { name: true }, TAG_DEFAULT_FIELDS],
+];
+
+const quoteRef = (value) => (typeof value === "string" ? `'${value}'` : JSON.stringify(value));
+
+const TAG_MESSAGES = {
+  missing: (field, name) => `AAR076: ${name === undefined ? "The tag" : `Tag '${name}'`} must declare the mandatory field '${field}'.`,
+  empty: (field, name) => `AAR076: The mandatory field '${field}' of ${name === undefined ? "the tag" : `tag '${name}'`} must not be empty.`,
+  invalid: (fields = TAG_DEFAULT_FIELDS) => `AAR076: The tag must be a Tag object with the mandatory fields ${quotedList(fields)}.`,
+  named: (name, fields = TAG_DEFAULT_FIELDS) => `AAR076: Tag '${name}' must be a Tag object with the mandatory fields ${quotedList(fields)}.`,
+  reference: (ref, fields = TAG_DEFAULT_FIELDS) => `AAR076: The tag reference ${quoteRef(ref)} must resolve to a Tag object with the mandatory fields ${quotedList(fields)}.`,
+};
+
+const tagFinding = (base, [path, kind, detail, name], fields) => {
+  const at = path === "" ? base : /^\d+$/.test(path) || ["name", "description"].includes(path) ? `${base}.${path}` : path;
+  if (kind === "missing") return [at, TAG_MESSAGES.missing(detail, name)];
+  if (kind === "empty") return [at, TAG_MESSAGES.empty(detail, name)];
+  if (kind === "invalid") return [at, TAG_MESSAGES.invalid(fields)];
+  return [at, TAG_MESSAGES[kind](detail, fields)];
+};
+
+const tagFindings = (tags, invalid = [], fields = TAG_DEFAULT_FIELDS) => [
+  ...tags.flatMap(([path, name, states]) =>
+    fields
+      .filter((field) => states[field] !== "populated")
+      .map((field) => (states[field] === "empty" ? [`${path}.${field}`, TAG_MESSAGES.empty(field, name)] : [path, TAG_MESSAGES.missing(field, name)]))
+  ),
+  ...invalid.map(([path, kind, detail]) => [path, kind === "invalid" ? TAG_MESSAGES.invalid(fields) : TAG_MESSAGES[kind](detail, fields)]),
+];
+
+const tagProbeFindings = (base, fields) => tagFindings(TAG_PROBE_STATES.map(([name, states], index) => [`${base}.${index}`, name, states]), [], fields);
+
 module.exports.linterForRule = linterForRule;
 module.exports.CASING_TYPES = CASING_TYPES;
 module.exports.CASING_VALUES = CASING_VALUES;
@@ -1770,3 +1969,15 @@ module.exports.INFO_OPTION_CASES = INFO_OPTION_CASES;
 module.exports.INFO_MESSAGES = INFO_MESSAGES;
 module.exports.infoFieldsFor = infoFieldsFor;
 module.exports.infoProbeFindings = infoProbeFindings;
+module.exports.TAG_DEFAULT_FIELDS = TAG_DEFAULT_FIELDS;
+module.exports.TAG_FIXED_FIELDS = TAG_FIXED_FIELDS;
+module.exports.TAG_FULL_FIELDS = TAG_FULL_FIELDS;
+module.exports.TAG_COMPONENTS = TAG_COMPONENTS;
+module.exports.TAG_ITEM_CASES = TAG_ITEM_CASES;
+module.exports.TAG_LIST_CASES = TAG_LIST_CASES;
+module.exports.TAG_PROBE = TAG_PROBE;
+module.exports.TAG_OPTION_CASES = TAG_OPTION_CASES;
+module.exports.TAG_MESSAGES = TAG_MESSAGES;
+module.exports.tagFinding = tagFinding;
+module.exports.tagFindings = tagFindings;
+module.exports.tagProbeFindings = tagProbeFindings;
