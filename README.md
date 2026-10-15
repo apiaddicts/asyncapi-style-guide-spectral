@@ -122,7 +122,8 @@ spectral lint your-asyncapi.yaml
 | **AAR076** | `error` | Every Tag object must populate the mandatory fields `name` and `description`: a tag that is not a Tag object, an unresolvable reference, and a missing, null, blank or empty value, are reported. |
 | **AAR077** | `error` | The `info` object must declare a `contact` object that populates the mandatory fields `name` and `email`: a missing or unusable `contact` or `info` object, and a missing, null, blank or empty `name` or `email`, are reported. |
 | **AAR078** | `error` | The `info` object must declare a `license` object that populates the mandatory fields `name` and `url`: a missing or unusable `license` or `info` object, and a missing, null, blank or empty `name` or `url`, are reported. |
-| **AAR079** | `error` | Every External Documentation object (`externalDocs`) must populate the mandatory fields `description` and `url`: root `externalDocs` in 2.x, `info.externalDocs`, servers, channels and `components.externalDocs` in 3.x, and operations, operation and message traits, messages, Tag objects and Schema objects. |
+| **AAR079** | `error` | Every External Documentation object must populate the mandatory fields `description` and `url`: root `externalDocs` in 2.x, `info.externalDocs`, servers, channels and `components.externalDocs` in 3.x, and operations, operation and message traits, messages, Tag objects and Schema objects. |
+| **AAR080** | `error` | The `info.license` `name` must be a standard SPDX license identifier (e.g. `Apache-2.0`, `MIT`) written exactly as in the [SPDX License List](https://spdx.org/licenses/) 3.29.0. Free-text names, wrong case or surrounding spaces, compound expressions, `LicenseRef-` identifiers and non-string values are reported. |
 
 ### Schema Rules
 
@@ -153,7 +154,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 40 custom Spectral functions for complex validation logic:
+The ruleset includes 41 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -197,6 +198,7 @@ The ruleset includes 40 custom Spectral functions for complex validation logic:
 | `asa-contact-attributes-required` | AAR077 | Validates that the `info.contact` object populates its mandatory `name` and `email` fields |
 | `asa-license-attributes-required` | AAR078 | Validates that the `info.license` object populates its mandatory `name` and `url` fields |
 | `asa-external-docs-attributes-required` | AAR079 | Validates that every External Documentation object populates its mandatory `description` and `url` fields |
+| `asa-license-valid-values` | AAR080 | Validates that the `info.license` `name` is an identifier of the SPDX License List |
 
 ---
 

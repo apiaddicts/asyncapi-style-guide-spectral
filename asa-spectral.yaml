@@ -55,6 +55,7 @@ functions:
   - asa-contact-attributes-required
   - asa-license-attributes-required
   - asa-external-docs-attributes-required
+  - asa-license-valid-values
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -914,3 +915,13 @@ rules:
     given: "$"
     then:
       function: asa-external-docs-attributes-required
+
+  asa:AAR080:
+    description: "The license name must be a standard SPDX license identifier, written exactly as in the SPDX License List; compound expressions and LicenseRef- identifiers are not accepted."
+    message: "AAR080: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar080"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-license-valid-values
