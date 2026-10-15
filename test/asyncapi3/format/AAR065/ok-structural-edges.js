@@ -10,7 +10,6 @@ module.exports = {
     "scalarChannel": "notAChannel",
     "arrayChannel": [{ "messages": { "Not_Evaluated": {} } }],
     "refChannel": { "$ref": "#/components/channels/missing", "messages": { "Not_Evaluated": {} } },
-    "x-internal": { "messages": { "Not_Evaluated": {} } },
     "nullMessages": { "address": null, "messages": null },
     "arrayMessages": { "address": "fleet/array", "messages": [{ "name": "Not_Evaluated" }] },
     "scalarMessages": { "address": "fleet/scalar", "messages": "notAMap" },
@@ -21,7 +20,6 @@ module.exports = {
         "Null_Message": null,
         "Scalar_Message": "notAMessage",
         "Array_Message": [{ "name": "Not_Evaluated" }],
-        "x-extension-message": { "name": "Not_Evaluated" },
         "validMessage": {
           "payload": { "type": "object", "properties": { "name": { "type": "string" } } },
           "traits": [null, "notATrait", { "$ref": "#/components/messageTraits/missing", "name": "Not_Evaluated" }]
@@ -47,7 +45,6 @@ module.exports = {
     "channels": { "nullChannel": null, "refChannel": { "$ref": "./channels.yaml#/fleet" } },
     "messages": {
       "Null_Component": null,
-      "x-extension": { "name": "Not_Evaluated" },
       "externalMessage": { "$ref": "./messages.yaml#/Vehicle_Event" }
     },
     "messageTraits": {

@@ -67,7 +67,7 @@ module.exports = (document, options, context) => {
       if (typeof version !== "string") {
         errors.push({ message: `${kind} binding '${key}' bindingVersion must be a string matching '${pattern.source}'.`, path: at });
       } else if (!matches(version)) {
-        errors.push({ message: `${kind} binding '${key}' bindingVersion '${printable(version)}' does not match '${pattern.source}'.`, path: at });
+        errors.push({ message: `${kind} binding '${key}' bindingVersion '${printable(version)}' must match '${pattern.source}'.`, path: at });
       }
     }
   };

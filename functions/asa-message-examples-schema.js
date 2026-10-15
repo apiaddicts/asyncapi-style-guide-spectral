@@ -8,7 +8,8 @@ const UNKNOWN = Symbol("unknown");
 const MAX_DEPTH = 100;
 const MAX_LISTED = 10;
 
-const JSON_TYPES = new Set(["null", "boolean", "object", "array", "number", "integer", "string"]);
+const JSON_TYPE_NAMES = { null: "null", boolean: "a boolean", object: "an object", array: "an array", number: "a number", integer: "an integer", string: "a string" };
+const JSON_TYPES = new Set(Object.keys(JSON_TYPE_NAMES));
 const AVRO_PRIMITIVES = new Set(["null", "boolean", "int", "long", "float", "double", "bytes", "string"]);
 const AVRO_NAMED = new Set(["record", "error", "enum", "fixed"]);
 const INT_MIN = -(2 ** 31);
@@ -188,6 +189,16 @@ const pickBranch = (results, at) => {
   const discriminated = plausible.filter((errors) => !errors.some((error) => error.kind === "value" && error.trail.length === depth + 1));
   return discriminated.length === 1 ? discriminated[0] : null;
 };
+const discriminatedBranch = (schema, data) => {
+  const discriminator = schema.discriminator;
+  if (!isObject(discriminator) || typeof discriminator.propertyName !== "string" || !isObject(data)) return undefined;
+  const value = has(data, discriminator.propertyName) ? data[discriminator.propertyName] : undefined;
+  if (typeof value !== "string") return undefined;
+  const mapping = isObject(discriminator.mapping) ? discriminator.mapping : {};
+  const target = has(mapping, value) && typeof mapping[value] === "string" ? mapping[value] : value;
+  const options = Array.isArray(schema.oneOf) ? schema.oneOf : Array.isArray(schema.anyOf) ? schema.anyOf : [];
+  return options.find((option) => isDataRef(option) && (option.$ref === target || option.$ref.endsWith(`/${target}`)));
+};
 
 module.exports = (document, _options, context) => {
   const results = [];
@@ -265,7 +276,7 @@ module.exports = (document, _options, context) => {
 
     const types = typeof schema.type === "string" ? [schema.type] : Array.isArray(schema.type) ? schema.type : [];
     if (types.length > 0 && types.every((type) => JSON_TYPES.has(type)) && !types.some((type) => matchesType(type, data))) {
-      errors.push(problem(at, `must be ${types.join(" or ")}`, "type"));
+      errors.push(problem(at, `must be ${types.map((type) => JSON_TYPE_NAMES[type]).join(" or ")}`, "type"));
       active.delete(schema);
       return errors;
     }
@@ -280,7 +291,7 @@ module.exports = (document, _options, context) => {
       if (typeof schema.multipleOf === "number" && schema.multipleOf > 0) {
         const quotient = data / schema.multipleOf;
         if (Number.isFinite(quotient) && Math.abs(quotient - Math.round(quotient)) > 1e-9 * Math.max(1, Math.abs(quotient))) {
-          errors.push(problem(at, `must be multiple of ${schema.multipleOf}`));
+          errors.push(problem(at, `must be a multiple of ${schema.multipleOf}`));
         }
       }
       if (typeof schema.maximum === "number") {
@@ -429,19 +440,24 @@ module.exports = (document, _options, context) => {
     if (Array.isArray(schema.allOf)) {
       schema.allOf.forEach((sub) => errors.push(...same(sub)));
     }
-    if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
-      const branches = schema.anyOf.map(same);
-      if (!branches.some((branch) => branch.length === 0)) {
-        errors.push(...(pickBranch(branches, at) || [problem(at, "must match a schema in anyOf")]));
+    const chosen = nullable ? discriminatedBranch(schema, data) : undefined;
+    if (chosen !== undefined) {
+      errors.push(...same(chosen));
+    } else {
+      if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
+        const branches = schema.anyOf.map(same);
+        if (!branches.some((branch) => branch.length === 0)) {
+          errors.push(...(pickBranch(branches, at) || [problem(at, "must match a schema in anyOf")]));
+        }
       }
-    }
-    if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
-      const branches = schema.oneOf.map(same);
-      const passing = branches.map((branch, index) => (branch.length === 0 ? index : -1)).filter((index) => index >= 0);
-      if (passing.length === 0) {
-        errors.push(...(pickBranch(branches, at) || [problem(at, "must match exactly one schema in oneOf")]));
-      } else if (passing.length > 1) {
-        errors.push(problem(at, `must match exactly one schema in oneOf, but matches oneOf[${passing[0]}] and oneOf[${passing[1]}]`));
+      if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
+        const branches = schema.oneOf.map(same);
+        const passing = branches.map((branch, index) => (branch.length === 0 ? index : -1)).filter((index) => index >= 0);
+        if (passing.length === 0) {
+          errors.push(...(pickBranch(branches, at) || [problem(at, "must match exactly one schema in oneOf")]));
+        } else if (passing.length > 1) {
+          errors.push(problem(at, `must match exactly one schema in oneOf, but matches oneOf[${passing[0]}] and oneOf[${passing[1]}]`));
+        }
       }
     }
     if (has(schema, "not") && (isObject(schema.not) || typeof schema.not === "boolean") && same(schema.not).length === 0) {
@@ -533,7 +549,7 @@ module.exports = (document, _options, context) => {
       case "null":
         return data === null ? [] : [problem(at, "must be null", "type")];
       case "boolean":
-        return typeof data === "boolean" ? [] : [problem(at, "must be boolean", "type")];
+        return typeof data === "boolean" ? [] : [problem(at, "must be a boolean", "type")];
       case "int":
         if (!Number.isInteger(data)) return [problem(at, "must be an int", "type")];
         return data >= INT_MIN && data <= INT_MAX ? [] : [problem(at, `must be an int between ${INT_MIN} and ${INT_MAX}`)];

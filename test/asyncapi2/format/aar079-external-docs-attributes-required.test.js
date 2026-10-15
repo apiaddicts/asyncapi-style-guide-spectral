@@ -1,7 +1,7 @@
 const { Document } = require("@stoplight/spectral-core");
 const Parsers = require("@stoplight/spectral-parsers");
+const { linterForRule } = require("../../helpers/utils");
 const {
-  linterForRule,
   DOCS_FIELDS,
   DOCS_MINIMAL,
   DOCS_URL_ONLY,
@@ -15,7 +15,7 @@ const {
   DOCS_MESSAGES: MSG,
   docsTarget,
   docsFindings,
-} = require("../../helpers/utils");
+} = require("../../helpers/rules/aar079-external-docs-attributes-required");
 const okExample = require("./AAR079/ok-example");
 const failExample = require("./AAR079/fail-example");
 const failSharedRef = require("./AAR079/fail-shared-ref");
@@ -277,11 +277,11 @@ describe("AAR079 (AsyncAPI 2.x): every External Documentation object must popula
 
   test("words each kind of finding exactly", async () => {
     const byKey = Object.fromEntries(only(await linter.run(failExample)).map((r) => [`${r.path.join(".")}|${r.message.includes("'url'") ? "url" : "other"}`, r.message]));
-    expect(byKey["externalDocs|other"]).toBe("AAR079: The 'externalDocs' object must declare the mandatory field 'description'.");
-    expect(byKey["tags.0.externalDocs.url|url"]).toBe("AAR079: The mandatory 'externalDocs' field 'url' must not be empty.");
-    expect(byKey["tags.3.externalDocs|url"]).toBe("AAR079: The 'externalDocs' value must be an External Documentation object with the mandatory fields 'description' and 'url'.");
+    expect(byKey["externalDocs|other"]).toBe("AAR079: The 'externalDocs' object must declare 'description'.");
+    expect(byKey["tags.0.externalDocs.url|url"]).toBe("AAR079: The 'url' of the 'externalDocs' object must not be empty.");
+    expect(byKey["tags.3.externalDocs|url"]).toBe("AAR079: The 'externalDocs' value must be an object with 'description' and 'url'.");
     expect(byKey[`${S}.subscribe.externalDocs|url`]).toBe(
-      "AAR079: The 'externalDocs' reference '#/components/x-docs/missing' must resolve to an External Documentation object with the mandatory fields 'description' and 'url'."
+      "AAR079: The 'externalDocs' reference '#/components/x-docs/missing' must resolve to an object with 'description' and 'url'."
     );
   });
 
@@ -343,6 +343,21 @@ describe("AAR079 (AsyncAPI 2.x): every External Documentation object must popula
       const built = publishMessage({ traits: [{ schemaFormat: AVRO }, { $ref: "#/components/x-traits/json" }], payload });
       built.components["x-traits"] = { json: { schemaFormat: ASYNCAPI } };
       expect(findingsOf(await linter.run(built))).toEqual(path);
+    });
+
+    test("a schemaFormat set by a trait shared by several messages applies to every one of them", async () => {
+      const avroMessage = (name) => ({ traits: [{ $ref: "#/components/messageTraits/avro" }], payload: { type: "record", name, fields: [], externalDocs: D } });
+      const jsonMessage = { traits: [{ $ref: "#/components/messageTraits/json" }], payload: { $ref: "#/components/schemas/Order" } };
+      const built = doc(
+        {
+          channels: {
+            "orders/placed": { publish: { message: avroMessage("OrderPlaced") }, subscribe: { message: jsonMessage } },
+            "orders/cancelled": { publish: { message: avroMessage("OrderCancelled") }, subscribe: { message: jsonMessage } },
+          },
+        },
+        { messageTraits: { avro: { schemaFormat: AVRO }, json: { schemaFormat: ASYNCAPI } }, schemas: { Order: { type: "object", externalDocs: D } } }
+      );
+      expect(findingsOf(await linter.run(built))).toEqual(MISSING("components.schemas.Order.externalDocs"));
     });
 
     test("a schema shared by several payloads, headers and properties is reported once, at its definition", async () => {

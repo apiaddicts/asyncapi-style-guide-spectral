@@ -6,7 +6,6 @@
  * @returns {Array} Array of error objects
  */
 const DEFAULT_CONVENTION = "kebab";
-const EXTENSION_PREFIX = "x-";
 
 const CASES = {
   camel: "[a-z][a-z0-9]*(?:[A-Z0-9](?:[a-z0-9]+|$))*",
@@ -27,7 +26,6 @@ const LABELS = {
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
 const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
-const format = (value) => (typeof value === "string" ? `'${value}'` : JSON.stringify(value));
 
 const resolveConvention = (value) => {
   if (typeof value !== "string") return DEFAULT_CONVENTION;
@@ -42,10 +40,7 @@ const isVersion3Plus = (raw) => {
   return match !== null && Number(match[1]) >= 3;
 };
 
-const entriesOf = (map) =>
-  isObject(map)
-    ? Object.entries(map).filter(([key, value]) => isObject(value) && !isRef(value) && !key.startsWith(EXTENSION_PREFIX))
-    : [];
+const entriesOf = (map) => (isObject(map) ? Object.entries(map).filter(([, value]) => isObject(value) && !isRef(value)) : []);
 
 module.exports = (document, options, context) => {
   const errors = [];
@@ -57,12 +52,21 @@ module.exports = (document, options, context) => {
   const pattern = new RegExp(`^${CASES[convention]}$`);
   const isV3 = isVersion3Plus(document.asyncapi);
 
+  const locatable = (path) => {
+    const source = context.document;
+    if (!source || typeof source.getRangeForJsonPath !== "function") return path;
+    for (let length = path.length; length > 0; length--) {
+      if (source.getRangeForJsonPath(path.slice(0, length), false) !== undefined) return path.slice(0, length);
+    }
+    return path;
+  };
+
   const check = (value, path) => {
     if (value === undefined || value === null) return;
     if (typeof value === "string" && pattern.test(value)) return;
     errors.push({
-      message: `Tag name ${format(value)} must be ${LABELS[convention]}.`,
-      path: [...context.path, ...path],
+      message: typeof value === "string" ? `Tag name '${value}' must be ${LABELS[convention]}.` : `Tag name must be a ${LABELS[convention]} string.`,
+      path: locatable([...context.path, ...path]),
     });
   };
 
@@ -79,11 +83,13 @@ module.exports = (document, options, context) => {
     tags.forEach((tag, index) => checkTag(tag, [...path, index]));
   };
 
-  const checkTaggable = (node, path) => {
+  const checkTaggable = (node, path, tupleTraits) => {
     checkTags(node.tags, [...path, "tags"]);
     if (Array.isArray(node.traits)) {
-      node.traits.forEach((trait, index) => {
-        if (isObject(trait) && !isRef(trait)) checkTags(trait.tags, [...path, "traits", index, "tags"]);
+      node.traits.forEach((entry, index) => {
+        const tuple = tupleTraits && Array.isArray(entry);
+        const trait = tuple ? entry[0] : entry;
+        if (isObject(trait) && !isRef(trait)) checkTags(trait.tags, [...path, "traits", index, ...(tuple ? [0] : []), "tags"]);
       });
     }
   };
@@ -94,7 +100,7 @@ module.exports = (document, options, context) => {
       message.oneOf.forEach((member, index) => checkMessage(member, [...path, "oneOf", index]));
       return;
     }
-    checkTaggable(message, path);
+    checkTaggable(message, path, true);
   };
 
   const checkServers = (servers, path) => {

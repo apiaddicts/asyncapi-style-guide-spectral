@@ -1,4 +1,5 @@
-const { linterForRule, CASING_TYPES, CASING_VALUES, isValidCasing } = require("../../helpers/utils");
+const { linterForRule } = require("../../helpers/utils");
+const { CASING_TYPES, CASING_VALUES, isValidCasing } = require("../../helpers/casing");
 const okExample = require("./AAR066/ok-example");
 const failExample = require("./AAR066/fail-example");
 const failNonString = require("./AAR066/fail-non-string");
@@ -77,7 +78,7 @@ describe("AAR066 (AsyncAPI 2.x): tag names must follow the configured casing", (
         ["tags.0.name", "tags.1.name", "tags.2.name", "tags.3.name", "tags.4.name", "tags.7"].sort()
       );
       const messages = results.map((r) => r.message);
-      expect(messages).toContain("AAR066: Tag name 2024 must be kebab-case.");
+      expect(messages).toContain("AAR066: Tag name must be a kebab-case string.");
       expect(messages).toContain(
         "AAR066: Tag name 'Plain String Tag' must be kebab-case."
       );
@@ -170,5 +171,50 @@ describe("AAR066 (AsyncAPI 2.x): tag names must follow the configured casing", (
         ].sort()
       );
     });
+  });
+});
+
+describe("AAR066 (AsyncAPI 2.x): x- keys and YAML aliases", () => {
+  let linter;
+
+  beforeAll(async () => {
+    linter = await linterForRule(RULE);
+  });
+
+  test("checks servers, channels and component messages whose keys start with x-, which are names and not extensions", async () => {
+    const doc = {
+      asyncapi: "2.6.0",
+      info: { title: "Payments", version: "1.0.0" },
+      servers: { "x-legacy-broker": { url: "kafka:9092", protocol: "kafka", tags: [{ name: "Legacy_Broker" }] } },
+      channels: { "x-internal": { publish: { tags: [{ name: "Internal_Only" }], message: { tags: [{ name: "internal-message" }] } } } },
+      components: { messages: { "x-legacy": { tags: [{ name: "legacyMessage" }] } } },
+    };
+    expect(pathsOf(await linter.run(doc))).toEqual([
+      "channels.x-internal.publish.tags.0.name",
+      "components.messages.x-legacy.tags.0.name",
+      "servers.x-legacy-broker.tags.0.name",
+    ]);
+  });
+
+  test("reports a tag reached through a YAML alias on the alias line, not on the first line", async () => {
+    const yaml = [
+      "asyncapi: 2.6.0",
+      "info:",
+      "  title: Payments",
+      "  version: 1.0.0",
+      "channels:",
+      "  payments/authorized:",
+      "    publish:",
+      "      tags: &tags",
+      "        - name: Payments_Authorized",
+      "    subscribe:",
+      "      tags: *tags",
+      "",
+    ].join("\n");
+    const results = only(await linter.run(yaml)).map((r) => [r.path.join("."), r.range.start.line + 1]);
+    expect(results.sort((a, b) => a[1] - b[1])).toEqual([
+      ["channels.payments/authorized.publish.tags.0.name", 9],
+      ["channels.payments/authorized.subscribe.tags", 11],
+    ]);
   });
 });

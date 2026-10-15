@@ -1,5 +1,5 @@
+const { linterForRule } = require("../../helpers/utils");
 const {
-  linterForRule,
   EXAMPLE_SCHEMA_COMPONENTS,
   EXAMPLE_JSON_SCHEMA_CASES,
   EXAMPLE_OPENAPI_SCHEMA_CASES,
@@ -14,7 +14,7 @@ const {
   TRAIT_BASE_MESSAGE,
   EXAMPLE_SCHEMA_TRAIT_COMPONENTS,
   EXAMPLE_SCHEMA_TRAIT_CASES,
-} = require("../../helpers/utils");
+} = require("../../helpers/rules/aar072-message-examples-schema");
 const okExample = require("./AAR072/ok-example");
 const failExample = require("./AAR072/fail-example");
 const failSharedRef = require("./AAR072/fail-shared-ref");
@@ -49,25 +49,25 @@ const FAIL_EXAMPLE_FINDINGS = [
   [`${E}.meterReading.examples.0.payload.kwh`, messageOf(0, "payload", ["kwh"], "must be >= 0")],
   [`${E}.meterReading.examples.0.payload.readAt`, messageOf(0, "payload", ["readAt"], 'must match format "date-time"')],
   [`${E}.meterReading.examples.1.headers`, messageOf(1, "headers", [], "must have required property 'meterId'")],
-  [`${E}.meterReading.examples.1.payload.phase`, messageOf(1, "payload", ["phase"], "must be integer or null")],
+  [`${E}.meterReading.examples.1.payload.phase`, messageOf(1, "payload", ["phase"], "must be an integer or null")],
   [`${E}.meterReadingAvro.examples.0.payload.voltage`, messageOf(0, "payload", ["voltage"], "must be a double")],
   [`${E}.meterReadingAvro.examples.0.payload.quality`, messageOf(0, "payload", ["quality"], "must be a symbol of enum 'Quality': GOOD, ESTIMATED, MISSING")],
   [`${E}.meterReadingAvro.examples.0.payload`, messageOf(0, "payload", [], "must have field 'meterId' of record 'MeterReading'")],
   [`${E}.meterReadingAvro.examples.1.headers.partition`, messageOf(1, "headers", ["partition"], "must be an int")],
-  [`${O}.outageDetected.examples.0.payload.affectedCustomers`, messageOf(0, "payload", ["affectedCustomers"], "must be integer")],
+  [`${O}.outageDetected.examples.0.payload.affectedCustomers`, messageOf(0, "payload", ["affectedCustomers"], "must be an integer")],
   [`${O}.outageDetected.examples.0.payload.feeder`, messageOf(0, "payload", ["feeder"], "must have required property 'feederId'")],
   [`${O}.outageCleared.examples.0.payload.durationMinutes`, messageOf(0, "payload", ["durationMinutes"], "must be > 0")],
   [`${O}.outageCleared.examples.0.payload.cause`, messageOf(0, "payload", ["cause"], "must match exactly one schema in oneOf")],
   [`${B}.breakerTrip.examples.0.payload.breakerId`, messageOf(0, "payload", ["breakerId"], 'must match pattern "^BRK-[0-9]{4}$"')],
-  [`${B}.breakerTrip.examples.0.headers.priority`, messageOf(0, "headers", ["priority"], "must be integer")],
-  [`${B}.breakerReset.traits.0`, messageOf(0, "payload", ["operator"], "must be string", 0)],
+  [`${B}.breakerTrip.examples.0.headers.priority`, messageOf(0, "headers", ["priority"], "must be an integer")],
+  [`${B}.breakerReset.traits.0`, messageOf(0, "payload", ["operator"], "must be a string", 0)],
   [`${B}.breakerResetConfirmed.examples.0.payload.resetAt`, messageOf(0, "payload", ["resetAt"], 'must match format "date-time"')],
-  ["components.channels.gridAudit.messages.auditLogged.examples.0.payload.actor", messageOf(0, "payload", ["actor"], "must be string")],
-  ["components.messages.tariffChanged.examples.0.payload.rates.1.pricePerKwh", messageOf(0, "payload", ["rates", 1, "pricePerKwh"], "must be multiple of 0.0001")],
+  ["components.channels.gridAudit.messages.auditLogged.examples.0.payload.actor", messageOf(0, "payload", ["actor"], "must be a string")],
+  ["components.messages.tariffChanged.examples.0.payload.rates.1.pricePerKwh", messageOf(0, "payload", ["rates", 1, "pricePerKwh"], "must be a multiple of 0.0001")],
   ["components.messages.tariffChanged.examples.0.payload.rates", messageOf(0, "payload", ["rates"], "must not have duplicate items: items 0 and 2 are identical")],
   ["components.messages.demandForecast.examples.0.payload.horizon", messageOf(0, "payload", ["horizon"], 'must match format "duration"')],
   ["components.messages.demandForecast.examples.0.payload.points.0", messageOf(0, "payload", ["points", 0], "must not have more than 2 items")],
-  ["components.messages.x-legacy-reading.examples.0.payload", messageOf(0, "payload", [], "must be object")],
+  ["components.messages.x-legacy-reading.examples.0.payload", messageOf(0, "payload", [], "must be an object")],
   ["components.messages.loadShed.examples.0.payload.zones.0", messageOf(0, "payload", ["zones", 0], "must be a string")],
 ];
 
@@ -136,7 +136,7 @@ describe.each(["3.0.0", "3.1.0"])("AAR072 (AsyncAPI %s): message examples must c
   });
 
   test.each(LOCATIONS)("checks a %s", async (_, path, extra) => {
-    expect(findingsOf(await run(base(extra)))).toEqual([[`${path}.examples.0.payload.orderId`, messageOf(0, "payload", ["orderId"], "must be string")]]);
+    expect(findingsOf(await run(base(extra)))).toEqual([[`${path}.examples.0.payload.orderId`, messageOf(0, "payload", ["orderId"], "must be a string")]]);
   });
 
   describe("JSON Schema keywords", () => {
@@ -153,7 +153,7 @@ describe.each(["3.0.0", "3.1.0"])("AAR072 (AsyncAPI %s): message examples must c
       expect(findingsOf(await run(matrixDoc(schema, [1, "x"], { part })))).toEqual([]);
       expect(findingsOf(await run(matrixDoc({ $ref: "#/components/schemas/Missing", type: "object" }, [1], { part })))).toEqual([]);
       const wrapped = findingsOf(await run(matrixDoc(schema, [1], { part, format: "application/schema+json;version=draft-07" })));
-      expect(wrapped).toEqual([[`components.messages.case0.examples.0.${part}`, messageOf(0, part, [], "must be object")]]);
+      expect(wrapped).toEqual([[`components.messages.case0.examples.0.${part}`, messageOf(0, part, [], "must be an object")]]);
     });
 
     test.each(EXAMPLE_JSON_SCHEMA_CASES)("multi-format JSON Schema payload: %s", async (...testCase) => {
@@ -181,6 +181,12 @@ describe.each(["3.0.0", "3.1.0"])("AAR072 (AsyncAPI %s): message examples must c
     test.each(EXAMPLE_OPENAPI_SCHEMA_CASES)("headers: %s", async (...testCase) => {
       await runMatrix(testCase, { part: "headers", format: OPENAPI });
     });
+
+    test("ignores the discriminator outside the OpenAPI format", async () => {
+      const [, schema, okValues] = EXAMPLE_OPENAPI_SCHEMA_CASES.find(([label]) => label === "discriminator by schema name");
+      const ambiguous = messageOf(0, "payload", [], "must match exactly one schema in oneOf, but matches oneOf[0] and oneOf[1]");
+      expect(findingsOf(await run(matrixDoc(schema, okValues)))).toEqual(sorted(okValues.map((_, index) => [`components.messages.case${index}.examples.0.payload`, ambiguous])));
+    });
   });
 
   describe("Avro schemas", () => {
@@ -205,7 +211,7 @@ describe.each(["3.0.0", "3.1.0"])("AAR072 (AsyncAPI %s): message examples must c
       expect(findingsOf(await run(base({ components: { messages: { m: message } } })))).toEqual(
         sorted([
           ["components.messages.m.examples.0.payload", messageOf(0, "payload", [], "must have required property 'id'")],
-          ["components.messages.m.examples.1.payload.id", messageOf(1, "payload", ["id"], "must be string")],
+          ["components.messages.m.examples.1.payload.id", messageOf(1, "payload", ["id"], "must be a string")],
         ])
       );
     });

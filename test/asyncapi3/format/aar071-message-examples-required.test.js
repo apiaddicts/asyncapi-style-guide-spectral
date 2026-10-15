@@ -1,4 +1,5 @@
-const { linterForRule, MESSAGE_EXAMPLE_CASES, EXAMPLE_TRAIT_COMPONENTS, EXAMPLE_TRAIT_MERGE_CASES } = require("../../helpers/utils");
+const { linterForRule } = require("../../helpers/utils");
+const { MESSAGE_EXAMPLE_CASES, EXAMPLE_TRAIT_COMPONENTS, EXAMPLE_TRAIT_MERGE_CASES } = require("../../helpers/rules/aar071-message-examples-required");
 const okExample = require("./AAR071/ok-example");
 const failExample = require("./AAR071/fail-example");
 const failSharedRef = require("./AAR071/fail-shared-ref");
@@ -15,12 +16,12 @@ const ANY = "a 'payload' or non-empty 'headers'";
 const only = (results) => results.filter((r) => r.code === RULE);
 const pathsOf = (results) => only(results).map((r) => r.path.join(".")).sort();
 const withVersion = (doc, version) => ({ ...doc, asyncapi: version });
-const labelOf = (suffix, index = suffix.split(".")[1]) => (suffix === "examples" ? "Message 'examples'" : `Message 'examples' set by traits[${index}]`);
+const labelOf = (suffix, index = suffix.split(".")[1]) => (suffix === "examples" ? "Message 'examples'" : `Message 'examples' from traits[${index}]`);
 const MESSAGES = {
-  missing: (_, sample = SAMPLE) => `AAR071: Message must provide at least one example with ${sample} in 'examples'.`,
-  empty: (label, sample = SAMPLE) => `AAR071: ${label} is empty; provide at least one example with ${sample}.`,
-  notArray: (label, sample = SAMPLE) => `AAR071: ${label} must be an array; provide at least one example with ${sample}.`,
-  noSample: (label, sample = SAMPLE) => `AAR071: ${label} has no example with ${sample}.`,
+  missing: (_, sample = SAMPLE) => `AAR071: Message must provide at least one example with ${sample}.`,
+  empty: (label, sample = SAMPLE) => `AAR071: ${label} must contain at least one example with ${sample}.`,
+  notArray: (label, sample = SAMPLE) => `AAR071: ${label} must be an array containing at least one example with ${sample}.`,
+  noSample: (label, sample = SAMPLE) => `AAR071: ${label} must contain at least one example with ${sample}.`,
 };
 const expectedFinding = (base, [suffix, kind, index], sample = SAMPLE) => [
   suffix === "" ? base : `${base}.${suffix}`,
@@ -104,7 +105,7 @@ describe.each(["3.0.0", "3.1.0"])("AAR071 (AsyncAPI %s): every message must prov
     expect(byPath[`${O}.outageDetected.examples`]).toBe(MESSAGES.noSample("Message 'examples'"));
     expect(byPath[`${O}.outageCleared.examples`]).toBe(MESSAGES.noSample("Message 'examples'"));
     expect(byPath[`${B}.breakerOpened.examples`]).toBe(MESSAGES.empty("Message 'examples'"));
-    expect(byPath[`${B}.breakerClosed.traits.1`]).toBe(MESSAGES.empty("Message 'examples' set by traits[1]"));
+    expect(byPath[`${B}.breakerClosed.traits.1`]).toBe(MESSAGES.empty("Message 'examples' from traits[1]"));
     expect(byPath[`${B}.breakerHeartbeat`]).toBe(MESSAGES.missing(null, ANY));
     expect(byPath["components.messages.demandResponse.examples"]).toBe(MESSAGES.empty("Message 'examples'"));
     expect(byPath["components.messages.meterPing.examples"]).toBe(MESSAGES.noSample("Message 'examples'", ANY));
@@ -217,7 +218,7 @@ describe.each(["3.0.0", "3.1.0"])("AAR071 (AsyncAPI %s): every message must prov
     test("lets the message override its traits and, among traits, the last one that sets examples", async () => {
       const traits = [{ examples: [{ payload: { orderId: "ord-1" } }] }, { examples: [{ name: "label only" }] }, { headers: { type: "object" } }];
       const withoutOwn = only(await run(traitDoc({ traits })));
-      expect(withoutOwn.map((r) => [r.path.join("."), r.message])).toEqual([["components.messages.m.traits.1", MESSAGES.noSample("Message 'examples' set by traits[1]")]]);
+      expect(withoutOwn.map((r) => [r.path.join("."), r.message])).toEqual([["components.messages.m.traits.1", MESSAGES.noSample("Message 'examples' from traits[1]")]]);
       expect(pathsOf(await run(traitDoc({ examples: [{ payload: { orderId: "ord-0" } }], traits })))).toEqual([]);
     });
 

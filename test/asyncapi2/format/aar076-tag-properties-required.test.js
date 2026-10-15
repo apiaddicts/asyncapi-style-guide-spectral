@@ -1,7 +1,6 @@
+const { linterForRule } = require("../../helpers/utils");
+const { INFO_COMPONENTS, INFO_VALUE_CASES } = require("../../helpers/required-fields");
 const {
-  linterForRule,
-  INFO_COMPONENTS,
-  INFO_VALUE_CASES,
   TAG_COMPONENTS,
   TAG_ITEM_CASES,
   TAG_LIST_CASES,
@@ -11,7 +10,7 @@ const {
   tagFinding,
   tagFindings,
   tagProbeFindings,
-} = require("../../helpers/utils");
+} = require("../../helpers/rules/aar076-tag-properties-required");
 const okExample = require("./AAR076/ok-example");
 const failExample = require("./AAR076/fail-example");
 const failSharedRef = require("./AAR076/fail-shared-ref");
@@ -230,13 +229,13 @@ describe("AAR076 (AsyncAPI 2.x): every Tag object must populate its mandatory fi
 
   test("names the tag in the message when it has a name, and falls back to 'the tag' when it does not", async () => {
     const byPath = Object.fromEntries(only(await linter.run(failExample)).map((r) => [r.path.join("."), r.message]));
-    expect(byPath["tags.1"]).toBe("AAR076: Tag 'vessels' must declare the mandatory field 'description'.");
-    expect(byPath["tags.2.description"]).toBe("AAR076: The mandatory field 'description' of tag 'yard' must not be empty.");
-    expect(byPath["tags.3"]).toBe("AAR076: The tag must declare the mandatory field 'name'.");
-    expect(byPath["servers.rabbitGates.tags.0.name"]).toBe("AAR076: The mandatory field 'name' of the tag must not be empty.");
-    expect(byPath[`${G}.publish.tags.1`]).toBe("AAR076: Tag 'gate-automation' must be a Tag object with the mandatory fields 'name' and 'description'.");
-    expect(byPath[`${G}.publish.message.tags.1`]).toBe("AAR076: The tag must be a Tag object with the mandatory fields 'name' and 'description'.");
-    expect(byPath[`${V}.subscribe.tags.0`]).toBe("AAR076: The tag reference '#/components/x-tag-library/missing' must resolve to a Tag object with the mandatory fields 'name' and 'description'.");
+    expect(byPath["tags.1"]).toBe("AAR076: Tag 'vessels' must declare 'description'.");
+    expect(byPath["tags.2.description"]).toBe("AAR076: The 'description' of tag 'yard' must not be empty.");
+    expect(byPath["tags.3"]).toBe("AAR076: The tag must declare 'name'.");
+    expect(byPath["servers.rabbitGates.tags.0.name"]).toBe("AAR076: The 'name' of the tag must not be empty.");
+    expect(byPath[`${G}.publish.tags.1`]).toBe("AAR076: Tag 'gate-automation' must be a Tag object with 'name' and 'description'.");
+    expect(byPath[`${G}.publish.message.tags.1`]).toBe("AAR076: The tag must be a Tag object with 'name' and 'description'.");
+    expect(byPath[`${V}.subscribe.tags.0`]).toBe("AAR076: The tag reference '#/components/x-tag-library/missing' must resolve to a Tag object with 'name' and 'description'.");
   });
 
   test("reports a tag shared through $ref once, at its definition, and skips external tags", async () => {

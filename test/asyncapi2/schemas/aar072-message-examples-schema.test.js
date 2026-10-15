@@ -1,5 +1,5 @@
+const { linterForRule } = require("../../helpers/utils");
 const {
-  linterForRule,
   EXAMPLE_SCHEMA_COMPONENTS,
   EXAMPLE_JSON_SCHEMA_CASES,
   EXAMPLE_OPENAPI_SCHEMA_CASES,
@@ -14,7 +14,7 @@ const {
   TRAIT_BASE_MESSAGE,
   EXAMPLE_SCHEMA_TRAIT_COMPONENTS,
   EXAMPLE_SCHEMA_TRAIT_CASES,
-} = require("../../helpers/utils");
+} = require("../../helpers/rules/aar072-message-examples-schema");
 const okExample = require("./AAR072/ok-example");
 const failExample = require("./AAR072/fail-example");
 const failSharedRef = require("./AAR072/fail-shared-ref");
@@ -69,29 +69,29 @@ const B = "channels.fleet.sys.billing.invoices.v1";
 
 const FAIL_EXAMPLE_FINDINGS = [
   [`${W}.publish.message.examples.0.payload.speedKmh`, messageOf(0, "payload", ["speedKmh"], "must be <= 300")],
-  [`${W}.publish.message.examples.0.payload.position.lat`, messageOf(0, "payload", ["position", "lat"], "must be number")],
+  [`${W}.publish.message.examples.0.payload.position.lat`, messageOf(0, "payload", ["position", "lat"], "must be a number")],
   [`${W}.publish.message.examples.1.payload`, messageOf(1, "payload", [], "must have required property 'vehicleId'")],
   [`${W}.publish.message.examples.1.headers.traceId`, messageOf(1, "headers", ["traceId"], 'must match format "uuid"')],
   [`${W}.subscribe.message.oneOf.1.examples.0.payload.recordedAt`, messageOf(0, "payload", ["recordedAt"], "must be a long")],
   [`${W}.subscribe.message.oneOf.1.examples.0.payload.source`, messageOf(0, "payload", ["source"], "must be a symbol of enum 'Source': GPS, GLONASS, GALILEO")],
   [`${W}.subscribe.message.oneOf.1.examples.0.payload.firmware`, messageOf(0, "payload", ["firmware"], "is not a field of record 'PositionReported'")],
-  [`${W}.subscribe.message.oneOf.2.examples.0.payload`, messageOf(0, "payload", [], "must be object or null")],
+  [`${W}.subscribe.message.oneOf.2.examples.0.payload`, messageOf(0, "payload", [], "must be an object or null")],
   [`${D}.publish.message.examples.0.payload.stops.1.eta`, messageOf(0, "payload", ["stops", 1, "eta"], 'must match format "date-time"')],
   [`${D}.publish.message.examples.0.payload.priority`, messageOf(0, "payload", ["priority"], 'must be one of: "LOW", "NORMAL", "URGENT"')],
   [`${D}.publish.message.examples.0.payload.stops`, messageOf(0, "payload", ["stops"], "must not have duplicate items: items 0 and 2 are identical")],
   [`${D}.subscribe.message.examples.0.payload.driver`, messageOf(0, "payload", ["driver"], "must have required property 'licenseId'")],
   [`${D}.subscribe.message.examples.0.payload.notes`, messageOf(0, "payload", ["notes"], "must not have more than 140 characters")],
-  [`${M}.publish.message.traits.1`, messageOf(0, "payload", ["workshopId"], "must be string", 1)],
+  [`${M}.publish.message.traits.1`, messageOf(0, "payload", ["workshopId"], "must be a string", 1)],
   [`${M}.subscribe.message.examples.0.headers`, messageOf(0, "headers", [], "must have required property 'tenant'")],
-  [`${M}.subscribe.message.examples.0.headers.priority`, messageOf(0, "headers", ["priority"], "must be integer")],
-  [`${B}.publish.message.examples.0.payload.lines.0.amount`, messageOf(0, "payload", ["lines", 0, "amount"], "must be multiple of 0.01")],
+  [`${M}.subscribe.message.examples.0.headers.priority`, messageOf(0, "headers", ["priority"], "must be an integer")],
+  [`${B}.publish.message.examples.0.payload.lines.0.amount`, messageOf(0, "payload", ["lines", 0, "amount"], "must be a multiple of 0.01")],
   [`${B}.publish.message.examples.0.payload.currency`, messageOf(0, "payload", ["currency"], 'must match pattern "^[A-Z]{3}$"')],
   [`${B}.publish.message.examples.0.payload.x-legacy-ref`, messageOf(0, "payload", ["x-legacy-ref"], "is not allowed by additionalProperties")],
   [`${B}.subscribe.message.examples.0.payload.total`, messageOf(0, "payload", ["total"], "must be a string of bytes")],
-  ["components.channels.fleet.sys.audit.v1.subscribe.message.examples.0.payload.actor", messageOf(0, "payload", ["actor"], "must be string")],
+  ["components.channels.fleet.sys.audit.v1.subscribe.message.examples.0.payload.actor", messageOf(0, "payload", ["actor"], "must be a string")],
   ["components.messages.vehicleRegistered.examples.0.payload.vin", messageOf(0, "payload", ["vin"], "must not have fewer than 17 characters")],
   ["components.messages.vehicleRegistered.examples.1.payload.registeredOn", messageOf(1, "payload", ["registeredOn"], 'must match format "date"')],
-  ["components.messages.driverShiftEnded.examples.0.payload", messageOf(0, "payload", [], "must be object")],
+  ["components.messages.driverShiftEnded.examples.0.payload", messageOf(0, "payload", [], "must be an object")],
   ["components.messages.geofenceBreached.examples.0.payload.zone", messageOf(0, "payload", ["zone"], "must match exactly one schema in oneOf")],
   ["components.messages.geofenceBreached.examples.1.payload.zone.radiusMeters", messageOf(1, "payload", ["zone", "radiusMeters"], "must be > 0")],
   ["components.messages.x-legacy-ping.examples.0.payload", messageOf(0, "payload", [], "must equal \"ping\"")],
@@ -147,7 +147,7 @@ describe("AAR072 (AsyncAPI 2.x): message examples must comply with the payload a
 
   test.each(LOCATIONS)("checks a %s", async (_, path, extra) => {
     const results = await linter.run(base(placeMessage(extra)));
-    expect(findingsOf(results)).toEqual([[`${path}.examples.0.payload.orderId`, messageOf(0, "payload", ["orderId"], "must be string")]]);
+    expect(findingsOf(results)).toEqual([[`${path}.examples.0.payload.orderId`, messageOf(0, "payload", ["orderId"], "must be a string")]]);
   });
 
   describe("JSON Schema keywords", () => {
@@ -186,6 +186,12 @@ describe("AAR072 (AsyncAPI 2.x): message examples must comply with the payload a
       const results = only(await linter.run(matrixDoc(schema, [null])));
       expect(results.length).toBeGreaterThan(0);
     });
+
+    test("ignores the discriminator outside the OpenAPI format", async () => {
+      const [, schema, okValues] = EXAMPLE_OPENAPI_SCHEMA_CASES.find(([label]) => label === "discriminator by schema name");
+      const ambiguous = messageOf(0, "payload", [], "must match exactly one schema in oneOf, but matches oneOf[0] and oneOf[1]");
+      expect(findingsOf(await linter.run(matrixDoc(schema, okValues)))).toEqual(sorted(okValues.map((_, index) => [`components.messages.case${index}.examples.0.payload`, ambiguous])));
+    });
   });
 
   describe("Avro schemas", () => {
@@ -209,7 +215,7 @@ describe("AAR072 (AsyncAPI 2.x): message examples must comply with the payload a
       expect(findingsOf(await linter.run(doc))).toEqual(
         sorted([
           ["components.messages.m.examples.0.payload.at", messageOf(0, "payload", ["at"], "must be a long")],
-          ["components.messages.m.examples.0.headers.at", messageOf(0, "headers", ["at"], "must be integer")],
+          ["components.messages.m.examples.0.headers.at", messageOf(0, "headers", ["at"], "must be an integer")],
         ])
       );
     });
@@ -288,7 +294,7 @@ describe("AAR072 (AsyncAPI 2.x): message examples must comply with the payload a
     expect(findingsOf(await linter.run(doc))).toEqual(
       sorted([
         ["components.messages.bulk.examples.0.payload.lines", messageOf(0, "payload", ["lines"], "must not have duplicate items: items 0 and 4999 are identical")],
-        ["components.messages.bulk.examples.0.payload.lines.3456.quantity", messageOf(0, "payload", ["lines", 3456, "quantity"], "must be integer")],
+        ["components.messages.bulk.examples.0.payload.lines.3456.quantity", messageOf(0, "payload", ["lines", 3456, "quantity"], "must be an integer")],
       ])
     );
   }, 60000);

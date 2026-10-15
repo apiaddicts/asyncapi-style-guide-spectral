@@ -261,9 +261,9 @@ module.exports = (document, options, context) => {
   };
 
   const objectRun = (candidates) => {
-    const present = candidates.filter((candidate) => candidate.value !== undefined && candidate.value !== null);
     const run = [];
-    for (const candidate of present) {
+    for (const candidate of candidates) {
+      if (candidate.value === undefined) continue;
       if (!isObject(candidate.value)) break;
       if (isRef(candidate.value)) return null;
       run.push(candidate);
@@ -284,7 +284,7 @@ module.exports = (document, options, context) => {
   const checkRequirement = (kind, protocol, parts, requirement, depth, steps) => {
     if (depth === requirement.path.length) {
       const winners = requirement.alternatives
-        .map((name) => parts.find((part) => has(part.value, name) && part.value[name] !== null && part.value[name] !== undefined))
+        .map((name) => parts.find((part) => has(part.value, name) && part.value[name] !== undefined))
         .map((part, index) => (part === undefined ? null : { part, value: part.value[requirement.alternatives[index]] }));
       if (winners.some((winner) => winner !== null && isPresent(winner.value))) return;
       const blanks = winners.filter((winner) => winner !== null).map((winner) => winner.part);
@@ -293,8 +293,8 @@ module.exports = (document, options, context) => {
     }
     const name = requirement.path[depth];
     const children = parts.filter((part) => has(part.value, name)).map((part) => ({ owner: part.owner, value: part.value[name] }));
-    const winner = children.find((child) => child.value !== undefined && child.value !== null);
-    if (winner === undefined || isRef(winner.value)) return;
+    const winner = children.find((child) => child.value !== undefined);
+    if (winner === undefined || winner.value === null || isRef(winner.value)) return;
     if (isObject(winner.value)) {
       const run = objectRun(children);
       if (run !== null) checkRequirement(kind, protocol, run, requirement, depth + 1, [...steps, name]);
@@ -321,7 +321,7 @@ module.exports = (document, options, context) => {
         .filter((contributor) => has(contributor.bindings, protocol))
         .map((contributor) => {
           const value = contributor.bindings[protocol];
-          return { owner: contributor, value: value === null ? {} : value };
+          return { owner: contributor, value: value === null && contributor.rank === 0 ? {} : value };
         });
       if (candidates.some((candidate) => isRef(candidate.value))) continue;
       const run = objectRun(candidates);

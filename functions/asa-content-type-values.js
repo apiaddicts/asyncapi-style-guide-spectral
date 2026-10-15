@@ -36,7 +36,6 @@ const ENTRY = /^[a-z0-9*][a-z0-9!#$&^_.+*-]*\/[a-z0-9*][a-z0-9!#$&^_.+*-]*$/;
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
 const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
-const format = (value) => (typeof value === "string" ? `'${value}'` : JSON.stringify(value));
 
 const isVersion3Plus = (raw) => {
   if (typeof raw !== "string" && typeof raw !== "number") return false;
@@ -72,21 +71,30 @@ module.exports = (document, options, context) => {
   const matchers = allowed.map(toMatcher);
   const isV3 = isVersion3Plus(document.asyncapi);
 
+  const locatable = (path) => {
+    const source = context.document;
+    if (!source || typeof source.getRangeForJsonPath !== "function") return path;
+    for (let length = path.length; length > 0; length--) {
+      if (source.getRangeForJsonPath(path.slice(0, length), false) !== undefined) return path.slice(0, length);
+    }
+    return path;
+  };
+
   const check = (value, label, path) => {
     if (value === undefined || value === null) return;
     const match = typeof value === "string" ? MEDIA_TYPE.exec(value) : null;
     if (match === null) {
       errors.push({
-        message: `${label} ${format(value)} is not a valid MIME type.`,
-        path: [...context.path, ...path],
+        message: typeof value === "string" ? `${label} '${value}' is not a valid MIME type.` : `${label} must be a MIME type string.`,
+        path: locatable([...context.path, ...path]),
       });
       return;
     }
     const mediaType = `${match[1]}/${match[2]}`.toLowerCase();
     if (!matchers.some((matcher) => matcher.test(mediaType))) {
       errors.push({
-        message: `${label} ${format(value)} is not an allowed MIME type.`,
-        path: [...context.path, ...path],
+        message: `${label} '${value}' is not an allowed MIME type.`,
+        path: locatable([...context.path, ...path]),
       });
     }
   };

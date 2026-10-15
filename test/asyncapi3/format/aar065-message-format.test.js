@@ -1,4 +1,5 @@
-const { linterForRule, CASING_TYPES, CASING_VALUES, isValidCasing } = require("../../helpers/utils");
+const { linterForRule } = require("../../helpers/utils");
+const { CASING_TYPES, CASING_VALUES, isValidCasing } = require("../../helpers/casing");
 const okExample = require("./AAR065/ok-example");
 const failExample = require("./AAR065/fail-example");
 const failNonString = require("./AAR065/fail-non-string");
@@ -78,7 +79,7 @@ describe.each(["3.0.0", "3.1.0"])("AAR065 (AsyncAPI %s): message key and name mu
         [`${e}.`, `${e}.booleanName.name`, `${e}.emptyName.name`, `${e}.numericName.name`, `${e}.objectName.name`].sort()
       );
       expect(results.map((r) => r.message)).toContain(
-        "AAR065: Message name {\"en\":\"vehicleEvent\"} must be camelCase."
+        "AAR065: Message name must be a camelCase string."
       );
     });
 
@@ -149,5 +150,68 @@ describe("AAR065 (AsyncAPI 3.x): version detection", () => {
   test.each([3, "3", "3.0", " 3.1.0 ", "3.2.0", "4.0.0"])("treats %p as 3.x", async (version) => {
     const linter = await linterForRule(RULE);
     expect(pathsOf(await linter.run(withVersion(failExample, version)))).toEqual(FAIL_EXAMPLE_PATHS);
+  });
+});
+
+describe.each(["3.0.0", "3.1.0"])("AAR065 (AsyncAPI %s): x- keys, tuple traits and YAML aliases", (version) => {
+  let linter;
+
+  beforeAll(async () => {
+    linter = await linterForRule(RULE);
+  });
+
+  test("checks channel, message and component keys that start with x-, which are names and not extensions", async () => {
+    const doc = {
+      asyncapi: version,
+      info: { title: "Fleet Telemetry Service", version: "1.0.0" },
+      channels: {
+        "x-internal": { address: "fleet/internal", messages: { Vehicle_Parked: { name: "vehicleParked" } } },
+        fleet: { address: "fleet", messages: { "x-legacy-event": { name: "legacy_event" } } },
+      },
+      components: { messages: { "x-archived": { name: "vehicleArchived" } } },
+    };
+    expect(pathsOf(await linter.run(doc))).toEqual([
+      "channels.fleet.messages.x-legacy-event",
+      "channels.fleet.messages.x-legacy-event.name",
+      "channels.x-internal.messages.Vehicle_Parked",
+      "components.messages.x-archived",
+    ]);
+  });
+
+  test("checks the trait of a [trait, object] tuple", async () => {
+    const doc = {
+      asyncapi: version,
+      info: { title: "Fleet Telemetry Service", version: "1.0.0" },
+      channels: {
+        fleet: { address: "fleet", messages: { vehicleParked: { traits: [[{ name: "Vehicle_Parked" }, { env: "prod" }], [{ name: "vehicleParked" }, {}]] } } },
+      },
+      components: { messages: { vehicleMoved: { traits: [[{ name: "vehicle_moved" }, {}]] } } },
+    };
+    expect(pathsOf(await linter.run(doc))).toEqual(["channels.fleet.messages.vehicleParked.traits.0.0.name", "components.messages.vehicleMoved.traits.0.0.name"]);
+  });
+
+  test("reports a message reached through a YAML alias on the alias line, not on the first line", async () => {
+    const yaml = [
+      `asyncapi: ${version}`,
+      "info:",
+      "  title: Fleet Telemetry Service",
+      "  version: 1.0.0",
+      "channels:",
+      "  parked:",
+      "    address: fleet/parked",
+      "    messages:",
+      "      vehicleParked: &parked",
+      "        name: Vehicle_Parked",
+      "  parkedCopy:",
+      "    address: fleet/parked-copy",
+      "    messages:",
+      "      vehicleParked: *parked",
+      "",
+    ].join("\n");
+    const results = only(await linter.run(yaml)).map((r) => [r.path.join("."), r.range.start.line + 1, r.message]);
+    expect(results.sort((a, b) => a[1] - b[1])).toEqual([
+      ["channels.parked.messages.vehicleParked.name", 10, "AAR065: Message name 'Vehicle_Parked' must be camelCase."],
+      ["channels.parkedCopy.messages.vehicleParked", 14, "AAR065: Message name 'Vehicle_Parked' must be camelCase."],
+    ]);
   });
 });

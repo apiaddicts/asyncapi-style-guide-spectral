@@ -1,4 +1,6 @@
-const { linterForRule, BINDING_KEY_CASES, REQUIRED_BINDING_CASES } = require("../../helpers/utils");
+const { linterForRule } = require("../../helpers/utils");
+const { BINDING_KEY_CASES } = require("../../helpers/rules/aar068-binding-types");
+const { REQUIRED_BINDING_CASES } = require("../../helpers/rules/aar069-binding-required-properties");
 const okExample = require("./AAR069/ok-example");
 const failExample = require("./AAR069/fail-example");
 const failTraitsMerge = require("./AAR069/fail-traits-merge");
@@ -491,5 +493,31 @@ describe("AAR069 (AsyncAPI 3.x): protocol bindings must declare their required f
         ].sort()
       );
     });
+  });
+});
+
+describe.each(["3.0.0", "3.1.0"])("AAR069 (AsyncAPI %s): the operation overrides its traits, nulls included", (version) => {
+  let linter;
+
+  beforeAll(async () => {
+    linter = await linterForRule(RULE);
+  });
+
+  const operation = (bindings, traits) =>
+    base({ channels: { c: { address: "c" } }, operations: { o: { action: "send", channel: { $ref: "#/channels/c" }, bindings, traits } } }, version);
+
+  test("an operation field set to null removes the value its trait declares", async () => {
+    const doc = operation({ ros2: { role: "publisher", node: null } }, [{ bindings: { ros2: { node: "/fleet/telemetry" } } }]);
+    expect(findings(await linter.run(doc))).toEqual([finding("operations.o.bindings.ros2", "Operation", "ros2", "node")]);
+  });
+
+  test("a null set by a trait never removes a value the operation declares", async () => {
+    const doc = operation({ ros2: { role: "publisher", node: "/fleet/telemetry" } }, [{ bindings: { ros2: { node: null } } }]);
+    expect(findings(await linter.run(doc))).toEqual([]);
+  });
+
+  test("a trait that sets a whole binding to null leaves the operation binding in place", async () => {
+    const doc = operation({ ros2: { role: "publisher" } }, [{ bindings: { ros2: null } }]);
+    expect(findings(await linter.run(doc))).toEqual([finding("operations.o.bindings.ros2", "Operation", "ros2", "node")]);
   });
 });

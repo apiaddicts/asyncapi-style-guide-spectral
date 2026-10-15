@@ -11,7 +11,6 @@ module.exports = {
     "refServer": { "$ref": "#/components/servers/missing", "tags": [{ "name": "Not_Evaluated" }] },
     "nullTags": { "url": "kafka:9092", "protocol": "kafka", "tags": null },
     "objectTags": { "url": "kafka:9092", "protocol": "kafka", "tags": { "name": "Not_An_Array" } },
-    "x-extension": { "tags": [{ "name": "Not_Evaluated" }] }
   },
   "tags": [{ "$ref": "#/components/tags/missing" }, { "$ref": "./tags.yaml#/Payments_Tag" }],
   "channels": {

@@ -131,12 +131,6 @@ const suggestionFor = (value) => {
   return CANONICAL.get(cleaned) || CANONICAL.get(cleaned.replace(/\s+/g, "-"));
 };
 
-const kindOf = (value) => {
-  if (Array.isArray(value)) return "an array";
-  if (isObject(value)) return "an object";
-  return typeof value === "boolean" ? "a boolean" : "a number";
-};
-
 const isEmpty = (value) => {
   if (value === undefined || value === null) return true;
   if (typeof value === "string") return value.replace(INVISIBLE, "").trim() === "";
@@ -146,14 +140,14 @@ const isEmpty = (value) => {
 
 const problemOf = (value) => {
   if (typeof value !== "string") {
-    return `The license name must be a string holding a standard SPDX license identifier ${SUCH_AS}; found ${kindOf(value)}.`;
+    return `The license name must be a string with an SPDX license identifier, ${SUCH_AS}.`;
   }
   if (ALLOWED.has(value)) return undefined;
   const suggestion = suggestionFor(value);
   if (suggestion !== undefined) {
-    return `The license name '${shown(value)}' must be a standard SPDX license identifier: use '${suggestion}'.`;
+    return `The license name '${shown(value)}' must be the SPDX license identifier '${suggestion}'.`;
   }
-  return `The license name '${shown(value)}' must be a standard SPDX license identifier ${SUCH_AS}.`;
+  return `The license name '${shown(value)}' must be an SPDX license identifier, ${SUCH_AS}.`;
 };
 
 module.exports = (document, _options, context) => {

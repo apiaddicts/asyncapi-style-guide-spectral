@@ -7,7 +7,7 @@
 const UNKNOWN = Symbol("unknown");
 const FIELDS = ["title", "version", "description"];
 const INVISIBLE = /[\u200b-\u200d\u2060\ufeff]/g;
-const NO_INFO = "The document must declare an 'info' object with the mandatory fields 'title', 'version' and 'description'.";
+const NO_INFO = "The document must declare an 'info' object with 'title', 'version' and 'description'.";
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
@@ -95,9 +95,9 @@ module.exports = (document, _options, context) => {
 
   for (const field of FIELDS) {
     if (!has(info.node, field)) {
-      report(`The 'info' object must declare the mandatory field '${field}'.`, info.path);
+      report(`The 'info' object must declare '${field}'.`, info.path);
     } else if (!populated(info.node[field])) {
-      report(`The mandatory 'info' field '${field}' must not be empty.`, [...info.path, field]);
+      report(`The '${field}' of the 'info' object must not be empty.`, [...info.path, field]);
     }
   }
 

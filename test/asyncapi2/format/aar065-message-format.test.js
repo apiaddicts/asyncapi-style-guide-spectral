@@ -1,4 +1,5 @@
-const { linterForRule, CASING_TYPES, CASING_VALUES, isValidCasing } = require("../../helpers/utils");
+const { linterForRule } = require("../../helpers/utils");
+const { CASING_TYPES, CASING_VALUES, isValidCasing } = require("../../helpers/casing");
 const okExample = require("./AAR065/ok-example");
 const failExample = require("./AAR065/fail-example");
 const failNonString = require("./AAR065/fail-non-string");
@@ -98,14 +99,14 @@ describe("AAR065 (AsyncAPI 2.x): messageId and message name must follow the conf
         ].sort()
       );
       const messages = results.map((r) => r.message);
-      expect(messages).toContain("AAR065: messageId 1001 must be camelCase.");
-      expect(messages).toContain("AAR065: Message name true must be camelCase.");
+      expect(messages).toContain("AAR065: messageId must be a camelCase string.");
+      expect(messages).toContain("AAR065: Message name must be a camelCase string.");
       expect(messages).toContain("AAR065: messageId '' must be camelCase.");
       expect(messages).toContain(
-        "AAR065: messageId {\"value\":\"stockAdjusted\"} must be camelCase."
+        "AAR065: messageId must be a camelCase string."
       );
       expect(messages).toContain(
-        "AAR065: Message name [\"stockAdjusted\"] must be camelCase."
+        "AAR065: Message name must be a camelCase string."
       );
     });
 
@@ -240,5 +241,45 @@ describe("AAR065 (AsyncAPI 2.x): messageId and message name must follow the conf
         ].sort()
       );
     });
+  });
+});
+
+describe("AAR065 (AsyncAPI 2.x): x- keys and YAML aliases", () => {
+  let linter;
+
+  beforeAll(async () => {
+    linter = await linterForRule(RULE);
+  });
+
+  test("checks channels and component messages whose keys start with x-, which are names and not extensions", async () => {
+    const doc = {
+      asyncapi: "2.6.0",
+      info: { title: "Inventory Events", version: "1.0.0" },
+      channels: { "x-internal-channel": { publish: { message: { messageId: "Stock_Adjusted", name: "stockAdjusted" } } } },
+      components: { messages: { "x-legacy": { messageId: "legacyStock", name: "legacy_stock" } } },
+    };
+    expect(pathsOf(await linter.run(doc))).toEqual(["channels.x-internal-channel.publish.message.messageId", "components.messages.x-legacy.name"]);
+  });
+
+  test("reports a message reached through a YAML alias on the alias line, not on the first line", async () => {
+    const yaml = [
+      "asyncapi: 2.6.0",
+      "info:",
+      "  title: Inventory Events",
+      "  version: 1.0.0",
+      "channels:",
+      "  stock/adjusted:",
+      "    publish:",
+      "      message: &stock",
+      "        messageId: stock_adjusted",
+      "    subscribe:",
+      "      message: *stock",
+      "",
+    ].join("\n");
+    const results = only(await linter.run(yaml)).map((r) => [r.path.join("."), r.range.start.line + 1, r.message]);
+    expect(results.sort((a, b) => a[1] - b[1])).toEqual([
+      ["channels.stock/adjusted.publish.message.messageId", 9, "AAR065: messageId 'stock_adjusted' must be camelCase."],
+      ["channels.stock/adjusted.subscribe.message", 11, "AAR065: messageId 'stock_adjusted' must be camelCase."],
+    ]);
   });
 });

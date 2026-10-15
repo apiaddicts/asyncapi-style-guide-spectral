@@ -7,8 +7,8 @@
 const UNKNOWN = Symbol("unknown");
 const FIELDS = ["name", "url"];
 const INVISIBLE = /[\u200b-\u200d\u2060\ufeff]/g;
-const NO_INFO = "The document must declare an 'info' object whose 'license' object populates the mandatory fields 'name' and 'url'.";
-const NO_LICENSE = "The 'info' object must declare a 'license' object with the mandatory fields 'name' and 'url'.";
+const NO_INFO = "The document must declare 'info.license' with 'name' and 'url'.";
+const NO_LICENSE = "The 'info' object must declare a 'license' object with 'name' and 'url'.";
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
@@ -111,9 +111,9 @@ module.exports = (document, _options, context) => {
 
   for (const field of FIELDS) {
     if (!has(license.node, field)) {
-      report(`The 'license' object must declare the mandatory field '${field}'.`, license.path);
+      report(`The 'license' object must declare '${field}'.`, license.path);
     } else if (!populated(license.node[field])) {
-      report(`The mandatory 'license' field '${field}' must not be empty.`, [...license.path, field]);
+      report(`The '${field}' of the 'license' object must not be empty.`, [...license.path, field]);
     }
   }
 

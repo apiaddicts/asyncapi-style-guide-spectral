@@ -1,4 +1,5 @@
-const { linterForRule, BINDING_KEY_CASES } = require("../../helpers/utils");
+const { linterForRule } = require("../../helpers/utils");
+const { BINDING_KEY_CASES } = require("../../helpers/rules/aar068-binding-types");
 const okExample = require("./AAR068/ok-example");
 const failExample = require("./AAR068/fail-example");
 const failSharedRef = require("./AAR068/fail-shared-ref");

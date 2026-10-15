@@ -7,7 +7,7 @@
 const UNKNOWN = Symbol("unknown");
 const FIELDS = ["name", "description"];
 const INVISIBLE = /[\u200b-\u200d\u2060\ufeff]/g;
-const TAG_OBJECT = "a Tag object with the mandatory fields 'name' and 'description'";
+const TAG_OBJECT = "a Tag object with 'name' and 'description'";
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
@@ -124,9 +124,9 @@ module.exports = (document, _options, context) => {
     const name = nameOf(target.node);
     for (const field of FIELDS) {
       if (!has(target.node, field)) {
-        report(`${name === undefined ? "The tag" : `Tag '${name}'`} must declare the mandatory field '${field}'.`, target.path);
+        report(`${name === undefined ? "The tag" : `Tag '${name}'`} must declare '${field}'.`, target.path);
       } else if (!populated(target.node[field])) {
-        report(`The mandatory field '${field}' of ${name === undefined ? "the tag" : `tag '${name}'`} must not be empty.`, [...target.path, field]);
+        report(`The '${field}' of ${name === undefined ? "the tag" : `tag '${name}'`} must not be empty.`, [...target.path, field]);
       }
     }
   };

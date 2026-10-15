@@ -1,5 +1,5 @@
+const { linterForRule } = require("../../helpers/utils");
 const {
-  linterForRule,
   SPDX_URL,
   SPDX_MINIMAL,
   SPDX_INFO,
@@ -12,7 +12,7 @@ const {
   SPDX_INFO_CASES,
   SPDX_IGNORED_OPTIONS,
   spdxFindings,
-} = require("../../helpers/utils");
+} = require("../../helpers/rules/aar080-license-valid-values");
 const okExample = require("./AAR080/ok-example");
 const failExample = require("./AAR080/fail-example");
 const failSharedRef = require("./AAR080/fail-shared-ref");

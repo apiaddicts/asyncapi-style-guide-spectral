@@ -1,4 +1,5 @@
-const { linterForRule, MESSAGE_EXAMPLE_CASES, EXAMPLE_TRAIT_COMPONENTS, EXAMPLE_TRAIT_MERGE_CASES } = require("../../helpers/utils");
+const { linterForRule } = require("../../helpers/utils");
+const { MESSAGE_EXAMPLE_CASES, EXAMPLE_TRAIT_COMPONENTS, EXAMPLE_TRAIT_MERGE_CASES } = require("../../helpers/rules/aar071-message-examples-required");
 const okExample = require("./AAR071/ok-example");
 const failExample = require("./AAR071/fail-example");
 const failSharedRef = require("./AAR071/fail-shared-ref");
@@ -16,12 +17,12 @@ const ANY = "a 'payload' or non-empty 'headers'";
 const only = (results) => results.filter((r) => r.code === RULE);
 const pathsOf = (results) => only(results).map((r) => r.path.join(".")).sort();
 const withVersion = (doc, version) => ({ ...doc, asyncapi: version });
-const labelOf = (suffix, index = suffix.split(".")[1]) => (suffix === "examples" ? "Message 'examples'" : `Message 'examples' set by traits[${index}]`);
+const labelOf = (suffix, index = suffix.split(".")[1]) => (suffix === "examples" ? "Message 'examples'" : `Message 'examples' from traits[${index}]`);
 const MESSAGES = {
-  missing: (_, sample = SAMPLE) => `AAR071: Message must provide at least one example with ${sample} in 'examples'.`,
-  empty: (label, sample = SAMPLE) => `AAR071: ${label} is empty; provide at least one example with ${sample}.`,
-  notArray: (label, sample = SAMPLE) => `AAR071: ${label} must be an array; provide at least one example with ${sample}.`,
-  noSample: (label, sample = SAMPLE) => `AAR071: ${label} has no example with ${sample}.`,
+  missing: (_, sample = SAMPLE) => `AAR071: Message must provide at least one example with ${sample}.`,
+  empty: (label, sample = SAMPLE) => `AAR071: ${label} must contain at least one example with ${sample}.`,
+  notArray: (label, sample = SAMPLE) => `AAR071: ${label} must be an array containing at least one example with ${sample}.`,
+  noSample: (label, sample = SAMPLE) => `AAR071: ${label} must contain at least one example with ${sample}.`,
 };
 const expectedFinding = (base, [suffix, kind, index], sample = SAMPLE) => [
   suffix === "" ? base : `${base}.${suffix}`,
@@ -112,12 +113,12 @@ describe("AAR071 (AsyncAPI 2.x): every message must provide at least one sample 
     expect(byPath[`${D}.subscribe.message.examples`]).toBe(MESSAGES.noSample("Message 'examples'"));
     expect(byPath[`${S}.publish.message.examples`]).toBe(MESSAGES.empty("Message 'examples'"));
     expect(byPath[`${S}.subscribe.message.examples`]).toBe(MESSAGES.notArray("Message 'examples'"));
-    expect(byPath[`${C}.subscribe.message.traits.1`]).toBe(MESSAGES.empty("Message 'examples' set by traits[1]"));
+    expect(byPath[`${C}.subscribe.message.traits.1`]).toBe(MESSAGES.empty("Message 'examples' from traits[1]"));
     expect(byPath[`${C}.publish.message`]).toBe(MESSAGES.missing(null, ANY));
     expect(byPath["components.messages.signalHeartbeat.examples"]).toBe(MESSAGES.noSample("Message 'examples'", ANY));
     expect(byPath["components.messages.signalReset"]).toBe(MESSAGES.missing(null, ANY));
     expect(byPath["components.messages.trackClosure.examples"]).toBe(MESSAGES.empty("Message 'examples'"));
-    expect(byPath["components.messages.crewAssigned.traits.0"]).toBe(MESSAGES.noSample("Message 'examples' set by traits[0]"));
+    expect(byPath["components.messages.crewAssigned.traits.0"]).toBe(MESSAGES.noSample("Message 'examples' from traits[0]"));
     expect(byPath["components.messages.etaPredicted.examples"]).toBe(MESSAGES.noSample("Message 'examples'"));
     expect(results).toHaveLength(FAIL_EXAMPLE_PATHS.length);
     results.forEach((r) => expect(r.severity).toBe(1));
@@ -236,7 +237,7 @@ describe("AAR071 (AsyncAPI 2.x): every message must provide at least one sample 
     test("applies every trait over the message in order, so the last trait that sets examples decides", async () => {
       const traits = [{ examples: [] }, { examples: [{ payload: { orderId: "ord-1" } }] }, { headers: { type: "object" } }, { examples: [{ name: "label only" }] }];
       const results = only(await linter.run(traitDoc({ examples: [{ payload: { orderId: "ord-0" } }], traits })));
-      expect(results.map((r) => [r.path.join("."), r.message])).toEqual([["components.messages.m.traits.3", MESSAGES.noSample("Message 'examples' set by traits[3]")]]);
+      expect(results.map((r) => [r.path.join("."), r.message])).toEqual([["components.messages.m.traits.3", MESSAGES.noSample("Message 'examples' from traits[3]")]]);
     });
 
     test("does not report a trait on its own: traits are not messages", async () => {

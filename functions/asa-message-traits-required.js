@@ -95,7 +95,7 @@ module.exports = (document, _options, context) => {
       report("Message 'traits' must be an array.", traitsPath);
       return;
     }
-    if (!Array.isArray(list) || !list.some(applies)) report("Message 'traits' does not apply any valid trait.", traitsPath);
+    if (!Array.isArray(list) || !list.some(applies)) report("Message 'traits' must include at least one valid trait.", traitsPath);
   };
 
   const checkChannels = (channels, path) => {

@@ -1,5 +1,5 @@
+const { linterForRule } = require("../../helpers/utils");
 const {
-  linterForRule,
   DOCS_FIELDS,
   DOCS_MINIMAL,
   DOCS_URL_ONLY,
@@ -13,7 +13,7 @@ const {
   DOCS_MESSAGES: MSG,
   docsTarget,
   docsFindings,
-} = require("../../helpers/utils");
+} = require("../../helpers/rules/aar079-external-docs-attributes-required");
 const okExample = require("./AAR079/ok-example");
 const failExample = require("./AAR079/fail-example");
 const failSharedRef = require("./AAR079/fail-shared-ref");

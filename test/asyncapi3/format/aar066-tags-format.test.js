@@ -1,4 +1,5 @@
-const { linterForRule, CASING_TYPES, CASING_VALUES, isValidCasing } = require("../../helpers/utils");
+const { linterForRule } = require("../../helpers/utils");
+const { CASING_TYPES, CASING_VALUES, isValidCasing } = require("../../helpers/casing");
 const okExample = require("./AAR066/ok-example");
 const failExample = require("./AAR066/fail-example");
 const okStructuralEdges = require("./AAR066/ok-structural-edges");
@@ -130,5 +131,66 @@ describe("AAR066 (AsyncAPI 3.x): version detection", () => {
     const linter = await linterForRule(RULE);
     const paths = pathsOf(await linter.run(withVersion(failExample, "2.6.0")));
     expect(paths.some((p) => p.startsWith("info.") || p.startsWith("operations.") || p === `${R}.tags.1.name`)).toBe(false);
+  });
+});
+
+describe.each(["3.0.0", "3.1.0"])("AAR066 (AsyncAPI %s): x- keys, tuple traits and YAML aliases", (version) => {
+  let linter;
+
+  beforeAll(async () => {
+    linter = await linterForRule(RULE);
+  });
+
+  test("checks servers, channels, messages, operations and component tags whose keys start with x-", async () => {
+    const doc = {
+      asyncapi: version,
+      info: { title: "Building Sensors", version: "1.0.0" },
+      servers: { "x-edge": { host: "edge:9092", protocol: "kafka", tags: [{ name: "Edge_Broker" }] } },
+      channels: {
+        "x-internal": { address: "internal", tags: [{ name: "Internal_Channel" }], messages: { "x-raw": { tags: [{ name: "raw_reading" }] } } },
+      },
+      operations: { "x-replay": { action: "send", channel: { $ref: "#/channels/x-internal" }, tags: [{ name: "Replay_Operation" }] } },
+      components: { tags: { "x-deprecated": { name: "Deprecated_Tag" } } },
+    };
+    expect(pathsOf(await linter.run(doc))).toEqual([
+      "channels.x-internal.messages.x-raw.tags.0.name",
+      "channels.x-internal.tags.0.name",
+      "components.tags.x-deprecated.name",
+      "operations.x-replay.tags.0.name",
+      "servers.x-edge.tags.0.name",
+    ]);
+  });
+
+  test("checks the tags of the trait in a [trait, object] tuple", async () => {
+    const doc = {
+      asyncapi: version,
+      info: { title: "Building Sensors", version: "1.0.0" },
+      channels: { rooms: { address: "rooms", messages: { reading: { traits: [[{ tags: [{ name: "Room_Reading" }] }, { env: "prod" }]] } } } },
+      components: { messages: { alarm: { traits: [[{ tags: [{ name: "alarmRaised" }] }, {}]] } } },
+    };
+    expect(pathsOf(await linter.run(doc))).toEqual(["channels.rooms.messages.reading.traits.0.0.tags.0.name", "components.messages.alarm.traits.0.0.tags.0.name"]);
+  });
+
+  test("reports a tag reached through a YAML alias on the alias line, not on the first line", async () => {
+    const yaml = [
+      `asyncapi: ${version}`,
+      "info:",
+      "  title: Building Sensors",
+      "  version: 1.0.0",
+      "channels:",
+      "  temperature:",
+      "    address: rooms/temperature",
+      "    tags: &tags",
+      "      - name: Room_Temperature",
+      "  humidity:",
+      "    address: rooms/humidity",
+      "    tags: *tags",
+      "",
+    ].join("\n");
+    const results = only(await linter.run(yaml)).map((r) => [r.path.join("."), r.range.start.line + 1]);
+    expect(results.sort((a, b) => a[1] - b[1])).toEqual([
+      ["channels.temperature.tags.0.name", 9],
+      ["channels.humidity.tags", 12],
+    ]);
   });
 });

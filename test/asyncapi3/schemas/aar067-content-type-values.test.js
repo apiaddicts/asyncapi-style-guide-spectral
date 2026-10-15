@@ -1,4 +1,5 @@
-const { linterForRule, CONTENT_TYPE_CASES, NON_STRING_CONTENT_TYPES } = require("../../helpers/utils");
+const { linterForRule } = require("../../helpers/utils");
+const { CONTENT_TYPE_CASES, NON_STRING_CONTENT_TYPES } = require("../../helpers/rules/aar067-content-type-values");
 const okExample = require("./AAR067/ok-example");
 const failExample = require("./AAR067/fail-example");
 const failNonString = require("./AAR067/fail-non-string");
@@ -115,7 +116,7 @@ describe.each(["3.0.0", "3.1.0"])("AAR067 (AsyncAPI %s): contentType values must
 
     test.each(NON_STRING_CONTENT_TYPES.map((value) => [value]))("rejects the non-string contentType %p", async (value) => {
       const results = only(await linter.run(matrixDoc([value])));
-      expect(results.map((r) => r.message)).toEqual([`AAR067: contentType ${JSON.stringify(value)} is not a valid MIME type.`]);
+      expect(results.map((r) => r.message)).toEqual([`AAR067: contentType must be a MIME type string.`]);
     });
 
     test("reports non-string and empty values in messages, traits, tuple traits and defaultContentType, and skips null ones", async () => {
@@ -135,9 +136,9 @@ describe.each(["3.0.0", "3.1.0"])("AAR067 (AsyncAPI %s): contentType values must
         ].sort()
       );
       const messages = results.map((r) => r.message);
-      expect(messages).toContain("AAR067: defaultContentType 3.1 is not a valid MIME type.");
-      expect(messages).toContain("AAR067: contentType {\"mediaType\":\"application/json\"} is not a valid MIME type.");
-      expect(messages).toContain("AAR067: Message trait contentType [] is not a valid MIME type.");
+      expect(messages).toContain("AAR067: defaultContentType must be a MIME type string.");
+      expect(messages).toContain("AAR067: contentType must be a MIME type string.");
+      expect(messages).toContain("AAR067: Message trait contentType must be a MIME type string.");
     });
 
     test("validates shared messages, traits and channels once at their definition, and ignores external and dangling refs", async () => {
@@ -273,5 +274,33 @@ describe("AAR067 (AsyncAPI 3.x): version detection", () => {
         "components.messageTraits.legacyTrait.contentType",
       ].sort()
     );
+  });
+});
+
+describe.each(["3.0.0", "3.1.0"])("AAR067 (AsyncAPI %s): YAML aliases", (version) => {
+  test("reports a contentType reached through a YAML alias on the alias line, not on the first line", async () => {
+    const linter = await linterForRule(RULE);
+    const yaml = [
+      `asyncapi: ${version}`,
+      "info:",
+      "  title: Fleet Telemetry Service",
+      "  version: 1.0.0",
+      "channels:",
+      "  positions:",
+      "    address: fleet/positions",
+      "    messages:",
+      "      positionReported: &position",
+      "        contentType: text/html",
+      "  positionsCopy:",
+      "    address: fleet/positions-copy",
+      "    messages:",
+      "      positionReported: *position",
+      "",
+    ].join("\n");
+    const results = only(await linter.run(yaml)).map((r) => [r.path.join("."), r.range.start.line + 1, r.message]);
+    expect(results.sort((a, b) => a[1] - b[1])).toEqual([
+      ["channels.positions.messages.positionReported.contentType", 10, "AAR067: contentType 'text/html' is not an allowed MIME type."],
+      ["channels.positionsCopy.messages.positionReported", 14, "AAR067: contentType 'text/html' is not an allowed MIME type."],
+    ]);
   });
 });

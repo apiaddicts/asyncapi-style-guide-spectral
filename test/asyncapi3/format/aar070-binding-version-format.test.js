@@ -1,4 +1,5 @@
-const { linterForRule, BINDING_VERSION_CASES } = require("../../helpers/utils");
+const { linterForRule } = require("../../helpers/utils");
+const { BINDING_VERSION_CASES } = require("../../helpers/rules/aar070-binding-version-format");
 const okExample = require("./AAR070/ok-example");
 const failExample = require("./AAR070/fail-example");
 const failSharedRef = require("./AAR070/fail-shared-ref");
@@ -16,7 +17,7 @@ const only = (results) => results.filter((r) => r.code === RULE);
 const pathsOf = (results) => only(results).map((r) => r.path.join(".")).sort();
 const withVersion = (doc, version) => ({ ...doc, asyncapi: version });
 const withPattern = (value) => linterForRule(RULE, { functionOptions: { pattern: value } });
-const mismatch = (kind, key, value, pattern = DEFAULT) => `AAR070: ${kind} binding '${key}' bindingVersion '${value}' does not match '${pattern}'.`;
+const mismatch = (kind, key, value, pattern = DEFAULT) => `AAR070: ${kind} binding '${key}' bindingVersion '${value}' must match '${pattern}'.`;
 const notString = (kind, key, pattern = DEFAULT) => `AAR070: ${kind} binding '${key}' bindingVersion must be a string matching '${pattern}'.`;
 
 const FAIL_EXAMPLE_PATHS = [

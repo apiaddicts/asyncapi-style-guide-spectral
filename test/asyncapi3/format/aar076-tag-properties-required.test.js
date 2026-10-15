@@ -1,7 +1,6 @@
+const { linterForRule } = require("../../helpers/utils");
+const { INFO_COMPONENTS, INFO_VALUE_CASES } = require("../../helpers/required-fields");
 const {
-  linterForRule,
-  INFO_COMPONENTS,
-  INFO_VALUE_CASES,
   TAG_COMPONENTS,
   TAG_ITEM_CASES,
   TAG_LIST_CASES,
@@ -11,7 +10,7 @@ const {
   tagFinding,
   tagFindings,
   tagProbeFindings,
-} = require("../../helpers/utils");
+} = require("../../helpers/rules/aar076-tag-properties-required");
 const okExample = require("./AAR076/ok-example");
 const failExample = require("./AAR076/fail-example");
 const failSharedRef = require("./AAR076/fail-shared-ref");
@@ -258,12 +257,12 @@ describe.each(["3.0.0", "3.1.0"])("AAR076 (AsyncAPI %s): every Tag object must p
 
   test("names the tag in the message when it has a name, and falls back to 'the tag' when it does not", async () => {
     const byPath = Object.fromEntries(only(await linter.run(withVersion(failExample, version))).map((r) => [r.path.join("."), r.message]));
-    expect(byPath["info.tags.1"]).toBe("AAR076: Tag 'metering' must declare the mandatory field 'description'.");
-    expect(byPath["components.tags.demandResponse.description"]).toBe("AAR076: The mandatory field 'description' of tag 'demand-response' must not be empty.");
-    expect(byPath[`${R}.tags.0.name`]).toBe("AAR076: The mandatory field 'name' of the tag must not be empty.");
-    expect(byPath[`${M}.tags.1`]).toBe("AAR076: Tag 'telemetry' must be a Tag object with the mandatory fields 'name' and 'description'.");
-    expect(byPath["operations.reportReading.tags.1"]).toBe("AAR076: The tag must be a Tag object with the mandatory fields 'name' and 'description'.");
-    expect(byPath["info.tags.3"]).toBe("AAR076: The tag reference '#/components/tags/missing' must resolve to a Tag object with the mandatory fields 'name' and 'description'.");
+    expect(byPath["info.tags.1"]).toBe("AAR076: Tag 'metering' must declare 'description'.");
+    expect(byPath["components.tags.demandResponse.description"]).toBe("AAR076: The 'description' of tag 'demand-response' must not be empty.");
+    expect(byPath[`${R}.tags.0.name`]).toBe("AAR076: The 'name' of the tag must not be empty.");
+    expect(byPath[`${M}.tags.1`]).toBe("AAR076: Tag 'telemetry' must be a Tag object with 'name' and 'description'.");
+    expect(byPath["operations.reportReading.tags.1"]).toBe("AAR076: The tag must be a Tag object with 'name' and 'description'.");
+    expect(byPath["info.tags.3"]).toBe("AAR076: The tag reference '#/components/tags/missing' must resolve to a Tag object with 'name' and 'description'.");
   });
 
   test("reports a components.tags entry once, however many info, message and operation tags reference it, and skips external tags", async () => {

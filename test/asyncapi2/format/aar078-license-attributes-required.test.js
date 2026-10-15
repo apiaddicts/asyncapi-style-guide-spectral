@@ -1,5 +1,5 @@
+const { linterForRule } = require("../../helpers/utils");
 const {
-  linterForRule,
   LICENSE_FIELDS,
   LICENSE_COMPLETE,
   LICENSE_MINIMAL,
@@ -10,7 +10,7 @@ const {
   LICENSE_IGNORED_OPTIONS,
   LICENSE_MESSAGES: MSG,
   licenseFindings,
-} = require("../../helpers/utils");
+} = require("../../helpers/rules/aar078-license-attributes-required");
 const okExample = require("./AAR078/ok-example");
 const failExample = require("./AAR078/fail-example");
 const failSharedRef = require("./AAR078/fail-shared-ref");

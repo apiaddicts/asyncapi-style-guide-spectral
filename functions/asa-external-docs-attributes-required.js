@@ -7,7 +7,7 @@
 const UNKNOWN = Symbol("unknown");
 const FIELDS = ["description", "url"];
 const INVISIBLE = /[\u200b-\u200d\u2060\ufeff]/g;
-const DOCS_OBJECT = "an External Documentation object with the mandatory fields 'description' and 'url'";
+const DOCS_OBJECT = "an object with 'description' and 'url'";
 const MAX_DEPTH = 100;
 const SUBSCHEMA_KEYWORDS = ["additionalProperties", "unevaluatedProperties", "items", "additionalItems", "unevaluatedItems", "prefixItems", "contains", "propertyNames", "not", "if", "then", "else", "allOf", "anyOf", "oneOf"];
 const SCHEMA_MAP_KEYWORDS = ["properties", "patternProperties", "definitions", "$defs", "dependentSchemas", "dependencies"];
@@ -119,9 +119,9 @@ module.exports = (document, _options, context) => {
 
     for (const field of FIELDS) {
       if (!has(target.node, field)) {
-        report(`The 'externalDocs' object must declare the mandatory field '${field}'.`, target.path);
+        report(`The 'externalDocs' object must declare '${field}'.`, target.path);
       } else if (!populated(target.node[field])) {
-        report(`The mandatory 'externalDocs' field '${field}' must not be empty.`, [...target.path, field]);
+        report(`The '${field}' of the 'externalDocs' object must not be empty.`, [...target.path, field]);
       }
     }
   };
@@ -212,8 +212,10 @@ module.exports = (document, _options, context) => {
   const traitsOf = (kind, traits, path) => {
     const found = [];
     eachItem(traits, path, (trait, at) => {
-      const entered = Array.isArray(trait) ? enter(kind, trait[0], [...at, 0]) : enter(kind, trait, at);
-      if (entered) found.push(entered);
+      const [node, nodePath] = Array.isArray(trait) ? [trait[0], [...at, 0]] : [trait, at];
+      const target = follow(node, nodePath);
+      if (!isObject(target.node) || target.node === document) return;
+      found.push({ ...target, fresh: enter(kind, node, nodePath) !== undefined });
     });
     return found;
   };
@@ -242,7 +244,7 @@ module.exports = (document, _options, context) => {
     checkDocsOf(message);
     visitTags(msg.tags, [...at, "tags"]);
     const traits = traitsOf("messageTrait", msg.traits, [...at, "traits"]);
-    traits.forEach((trait) => visitTrait("messageTrait", trait));
+    traits.filter((trait) => trait.fresh).forEach((trait) => visitTrait("messageTrait", trait));
     if (has(msg, "headers")) visitMultiFormat(msg.headers, [...at, "headers"]);
     if (!has(msg, "payload")) return;
     if (isV3) {
@@ -273,7 +275,9 @@ module.exports = (document, _options, context) => {
     const { node: op, path: at } = operation;
     checkDocsOf(operation);
     visitTags(op.tags, [...at, "tags"]);
-    traitsOf("operationTrait", op.traits, [...at, "traits"]).forEach((trait) => visitTrait("operationTrait", trait));
+    traitsOf("operationTrait", op.traits, [...at, "traits"])
+      .filter((trait) => trait.fresh)
+      .forEach((trait) => visitTrait("operationTrait", trait));
     if (isV3) {
       visitChannel(op.channel, [...at, "channel"]);
       eachItem(op.messages, [...at, "messages"], visitMessage);

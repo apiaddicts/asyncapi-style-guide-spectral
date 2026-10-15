@@ -1,4 +1,5 @@
-const { linterForRule, CONTENT_TYPE_CASES, NON_STRING_CONTENT_TYPES } = require("../../helpers/utils");
+const { linterForRule } = require("../../helpers/utils");
+const { CONTENT_TYPE_CASES, NON_STRING_CONTENT_TYPES } = require("../../helpers/rules/aar067-content-type-values");
 const okExample = require("./AAR067/ok-example");
 const failExample = require("./AAR067/fail-example");
 const failNonString = require("./AAR067/fail-non-string");
@@ -119,7 +120,7 @@ describe("AAR067 (AsyncAPI 2.x): contentType values must be allowed MIME types",
 
     test.each(NON_STRING_CONTENT_TYPES.map((value) => [value]))("rejects the non-string contentType %p", async (value) => {
       const results = only(await linter.run(matrixDoc([value])));
-      expect(results.map((r) => r.message)).toEqual([`AAR067: contentType ${JSON.stringify(value)} is not a valid MIME type.`]);
+      expect(results.map((r) => r.message)).toEqual([`AAR067: contentType must be a MIME type string.`]);
     });
 
     test("reports non-string and empty values in oneOf members, traits and defaultContentType, and skips null ones", async () => {
@@ -139,10 +140,10 @@ describe("AAR067 (AsyncAPI 2.x): contentType values must be allowed MIME types",
         ].sort()
       );
       const messages = results.map((r) => r.message);
-      expect(messages).toContain("AAR067: defaultContentType 2.6 is not a valid MIME type.");
-      expect(messages).toContain("AAR067: contentType {\"value\":\"application/json\"} is not a valid MIME type.");
-      expect(messages).toContain("AAR067: contentType [\"application/json\"] is not a valid MIME type.");
-      expect(messages).toContain("AAR067: Message trait contentType 0 is not a valid MIME type.");
+      expect(messages).toContain("AAR067: defaultContentType must be a MIME type string.");
+      expect(messages).toContain("AAR067: contentType must be a MIME type string.");
+      expect(messages).toContain("AAR067: contentType must be a MIME type string.");
+      expect(messages).toContain("AAR067: Message trait contentType must be a MIME type string.");
     });
 
     test("validates a shared message, trait or channel once at its definition, and ignores external and dangling refs", async () => {
@@ -331,5 +332,30 @@ describe("AAR067 (AsyncAPI 2.x): contentType values must be allowed MIME types",
         ]);
       }
     );
+  });
+});
+
+describe("AAR067 (AsyncAPI 2.x): YAML aliases", () => {
+  test("reports a contentType reached through a YAML alias on the alias line, not on the first line", async () => {
+    const linter = await linterForRule(RULE);
+    const yaml = [
+      "asyncapi: 2.6.0",
+      "info:",
+      "  title: Retail Orders",
+      "  version: 1.0.0",
+      "channels:",
+      "  orders/placed:",
+      "    publish:",
+      "      message: &order",
+      "        contentType: text/html",
+      "    subscribe:",
+      "      message: *order",
+      "",
+    ].join("\n");
+    const results = only(await linter.run(yaml)).map((r) => [r.path.join("."), r.range.start.line + 1, r.message]);
+    expect(results.sort((a, b) => a[1] - b[1])).toEqual([
+      ["channels.orders/placed.publish.message.contentType", 9, "AAR067: contentType 'text/html' is not an allowed MIME type."],
+      ["channels.orders/placed.subscribe.message", 11, "AAR067: contentType 'text/html' is not an allowed MIME type."],
+    ]);
   });
 });

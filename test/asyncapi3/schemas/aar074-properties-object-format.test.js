@@ -1,15 +1,13 @@
+const { linterForRule } = require("../../helpers/utils");
+const { CASING_TYPES, CASING_VALUES, isValidCasing } = require("../../helpers/casing");
 const {
-  linterForRule,
-  CASING_TYPES,
-  CASING_VALUES,
-  isValidCasing,
   PROPERTY_KEYWORD_CASES,
   NON_STRING_AVRO_NAMES,
   PROPERTY_FORMAT_CASES,
   PROPERTY_FORMAT_PAYLOADS,
   PROPERTY_FORMAT_FINDINGS,
   AVRO_TEXT_SCHEMA,
-} = require("../../helpers/utils");
+} = require("../../helpers/rules/aar074-properties-object-format");
 const okExample = require("./AAR074/ok-example");
 const failExample = require("./AAR074/fail-example");
 const failSharedRef = require("./AAR074/fail-shared-ref");
@@ -147,9 +145,9 @@ describe("AAR074 (AsyncAPI 3.x): property names of message schemas must follow t
     test("reports the exact message, severity and path of each finding", async () => {
       const results = only(await linter.run(failExample));
       const byPath = Object.fromEntries(results.map((r) => [r.path.join("."), r]));
-      expect(byPath[`${O}.payload.properties.client_order_id`].message).toBe("AAR074: Property 'client_order_id' must be camelCase.");
-      expect(byPath["components.schemas.RiskHeaders.properties.Risk-Officer"].message).toBe("AAR074: Property 'Risk-Officer' must be camelCase.");
-      expect(byPath[`${E}.payload.schema.fields.2.type.1.fields.0.name`].message).toBe("AAR074: Avro field 'MIC' must be camelCase.");
+      expect(byPath[`${O}.payload.properties.client_order_id`].message).toBe("AAR074: Property name 'client_order_id' must be camelCase.");
+      expect(byPath["components.schemas.RiskHeaders.properties.Risk-Officer"].message).toBe("AAR074: Property name 'Risk-Officer' must be camelCase.");
+      expect(byPath[`${E}.payload.schema.fields.2.type.1.fields.0.name`].message).toBe("AAR074: Avro field name 'MIC' must be camelCase.");
       results.forEach((r) => expect(r.severity).toBe(1));
     });
 
@@ -222,8 +220,8 @@ describe("AAR074 (AsyncAPI 3.x): property names of message schemas must follow t
       });
       const results = only(await linter.run(doc));
       expect(results.map((r) => [r.path.join("."), r.message]).sort()).toEqual([
-        ["channels.orders.messages.avroText.payload.schema", "AAR074: Avro field 'Line_Count' must be camelCase."],
-        ["channels.orders.messages.avroText.payload.schema", "AAR074: Avro field 'order_id' must be camelCase."],
+        ["channels.orders.messages.avroText.payload.schema", "AAR074: Avro field name 'Line_Count' must be camelCase."],
+        ["channels.orders.messages.avroText.payload.schema", "AAR074: Avro field name 'order_id' must be camelCase."],
       ]);
     });
 
@@ -313,8 +311,8 @@ describe("AAR074 (AsyncAPI 3.x): property names of message schemas must follow t
       const configured = await linterForRule(RULE, { functionOptions: { "naming-convention": type } });
       const results = only(await configured.run(docWith([good, bad])));
       expect(results.map((r) => [r.path.join("."), r.message]).sort()).toEqual([
-        ["components.schemas.Avro.schema.fields.1.name", `AAR074: Avro field '${bad}' must be ${label}.`],
-        [`components.schemas.Json.properties.${bad}`, `AAR074: Property '${bad}' must be ${label}.`],
+        ["components.schemas.Avro.schema.fields.1.name", `AAR074: Avro field name '${bad}' must be ${label}.`],
+        [`components.schemas.Json.properties.${bad}`, `AAR074: Property name '${bad}' must be ${label}.`],
       ]);
     });
 

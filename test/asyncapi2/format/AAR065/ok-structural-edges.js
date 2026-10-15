@@ -10,7 +10,6 @@ module.exports = {
     "inventory/scalar-channel": "notAChannel",
     "inventory/array-channel": [{ "publish": { "message": { "messageId": "Not_Evaluated" } } }],
     "inventory/ref-channel": { "$ref": "#/components/channels/missing" },
-    "x-internal-channel": { "publish": { "message": { "messageId": "Not_Evaluated" } } },
     "inventory/null-operations": { "publish": null, "subscribe": "notAnOperation" },
     "inventory/ref-operation": { "publish": { "$ref": "#/components/operations/missing", "message": { "messageId": "Not_Evaluated" } } },
     "inventory/messages": {

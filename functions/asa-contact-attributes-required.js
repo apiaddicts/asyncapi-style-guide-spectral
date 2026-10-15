@@ -7,8 +7,8 @@
 const UNKNOWN = Symbol("unknown");
 const FIELDS = ["name", "email"];
 const INVISIBLE = /[\u200b-\u200d\u2060\ufeff]/g;
-const NO_INFO = "The document must declare an 'info' object whose 'contact' object populates the mandatory fields 'name' and 'email'.";
-const NO_CONTACT = "The 'info' object must declare a 'contact' object with the mandatory fields 'name' and 'email'.";
+const NO_INFO = "The document must declare 'info.contact' with 'name' and 'email'.";
+const NO_CONTACT = "The 'info' object must declare a 'contact' object with 'name' and 'email'.";
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
@@ -111,9 +111,9 @@ module.exports = (document, _options, context) => {
 
   for (const field of FIELDS) {
     if (!has(contact.node, field)) {
-      report(`The 'contact' object must declare the mandatory field '${field}'.`, contact.path);
+      report(`The 'contact' object must declare '${field}'.`, contact.path);
     } else if (!populated(contact.node[field])) {
-      report(`The mandatory 'contact' field '${field}' must not be empty.`, [...contact.path, field]);
+      report(`The '${field}' of the 'contact' object must not be empty.`, [...contact.path, field]);
     }
   }
 

@@ -1,4 +1,6 @@
-const { linterForRule, BINDING_KEY_CASES, REQUIRED_BINDING_CASES } = require("../../helpers/utils");
+const { linterForRule } = require("../../helpers/utils");
+const { BINDING_KEY_CASES } = require("../../helpers/rules/aar068-binding-types");
+const { REQUIRED_BINDING_CASES } = require("../../helpers/rules/aar069-binding-required-properties");
 const okExample = require("./AAR069/ok-example");
 const failExample = require("./AAR069/fail-example");
 const failTraitsMerge = require("./AAR069/fail-traits-merge");
@@ -607,5 +609,33 @@ describe("AAR069 (AsyncAPI 2.x): protocol bindings must declare their required f
         ].sort()
       );
     });
+  });
+});
+
+describe("AAR069 (AsyncAPI 2.x): a null set by a trait removes the value, as in JSON Merge Patch", () => {
+  let linter;
+
+  beforeAll(async () => {
+    linter = await linterForRule(RULE);
+  });
+
+  const operation = (bindings, traits) => base({ channels: { c: { publish: { bindings, traits } } } });
+
+  test("a trait that sets a required field to null removes the value the operation declares", async () => {
+    const doc = operation({ sqs: { queues: [{ name: "orders" }] } }, [{ bindings: { sqs: { queues: null } } }]);
+    expect(findings(await linter.run(doc))).toEqual([finding("channels.c.publish.traits.0.bindings.sqs", "Operation", "sqs", "queues")]);
+  });
+
+  test("a trait that sets a whole binding to null removes the binding the operation declares", async () => {
+    expect(findings(await linter.run(operation({ sqs: {} }, [{ bindings: { sqs: null } }])))).toEqual([]);
+  });
+
+  test("a later trait replaces the null set by an earlier one", async () => {
+    const doc = operation({ sqs: {} }, [{ bindings: { sqs: null } }, { bindings: { sqs: { queues: [{ name: "orders" }] } } }]);
+    expect(findings(await linter.run(doc))).toEqual([]);
+  });
+
+  test("an operation binding written as null is still an empty binding", async () => {
+    expect(findings(await linter.run(operation({ sqs: null })))).toEqual([finding("channels.c.publish.bindings.sqs", "Operation", "sqs", "queues")]);
   });
 });

@@ -15,7 +15,6 @@ module.exports = {
   "channels": {
     "nullChannel": null,
     "refChannel": { "$ref": "#/components/channels/missing", "tags": [{ "name": "Not_Evaluated" }] },
-    "x-extension": { "tags": [{ "name": "Not_Evaluated" }] },
     "degenerate": {
       "address": null,
       "tags": [null, { "$ref": "./tags.yaml#/External_Tag" }, { "description": "No name." }, { "name": null }],
@@ -41,7 +40,6 @@ module.exports = {
       "nullTag": null,
       "refTag": { "$ref": "#/components/tags/nullTag" },
       "scalarTag": "Not_A_Tag_Object",
-      "x-extension": { "name": "Not_Evaluated" }
     }
   }
 };

@@ -1,14 +1,13 @@
+const { linterForRule } = require("../../helpers/utils");
+const { INFO_COMPONENTS, INFO_VALUE_CASES } = require("../../helpers/required-fields");
 const {
-  linterForRule,
   INFO_DEFAULT_FIELDS,
-  INFO_COMPONENTS,
-  INFO_VALUE_CASES,
   INFO_OBJECT_CASES,
   INFO_PROBE,
   INFO_OPTION_CASES,
   INFO_MESSAGES: MSG,
   infoProbeFindings,
-} = require("../../helpers/utils");
+} = require("../../helpers/rules/aar075-info-attributes-required");
 const okExample = require("./AAR075/ok-example");
 const failExample = require("./AAR075/fail-example");
 const failSharedRef = require("./AAR075/fail-shared-ref");
@@ -18,7 +17,7 @@ const failLargeGenerated = require("./AAR075/fail-large-generated");
 const RULE = "asa:AAR075";
 const FULL = { "fields-to-apply": "title,version,description,termsOfService,contact,license,tags,externalDocs,x-audience,x-api-id" };
 const OPTIONAL_FIELDS = ["termsOfService", "contact", "license", "tags", "externalDocs", "x-audience", "x-api-id"];
-const NO_INFO = "AAR075: The document must declare an 'info' object with the mandatory fields 'title', 'version' and 'description'.";
+const NO_INFO = "AAR075: The document must declare an 'info' object with 'title', 'version' and 'description'.";
 const OMIT = Symbol("omit");
 
 const byPath = (a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]);

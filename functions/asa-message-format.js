@@ -6,7 +6,6 @@
  * @returns {Array} Array of error objects
  */
 const DEFAULT_CONVENTION = "camel";
-const EXTENSION_PREFIX = "x-";
 
 const CASES = {
   camel: "[a-z][a-z0-9]*(?:[A-Z0-9](?:[a-z0-9]+|$))*",
@@ -27,7 +26,6 @@ const LABELS = {
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
 const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
-const format = (value) => (typeof value === "string" ? `'${value}'` : JSON.stringify(value));
 
 const resolveConvention = (value) => {
   if (typeof value !== "string") return DEFAULT_CONVENTION;
@@ -52,12 +50,21 @@ module.exports = (document, options, context) => {
   const pattern = new RegExp(`^${CASES[convention]}$`);
   const isV3 = isVersion3Plus(document.asyncapi);
 
+  const locatable = (path) => {
+    const source = context.document;
+    if (!source || typeof source.getRangeForJsonPath !== "function") return path;
+    for (let length = path.length; length > 0; length--) {
+      if (source.getRangeForJsonPath(path.slice(0, length), false) !== undefined) return path.slice(0, length);
+    }
+    return path;
+  };
+
   const check = (value, label, path) => {
     if (value === undefined || value === null) return;
     if (typeof value === "string" && pattern.test(value)) return;
     errors.push({
-      message: `${label} ${format(value)} must be ${LABELS[convention]}.`,
-      path: [...context.path, ...path],
+      message: typeof value === "string" ? `${label} '${value}' must be ${LABELS[convention]}.` : `${label} must be a ${LABELS[convention]} string.`,
+      path: locatable([...context.path, ...path]),
     });
   };
 
@@ -77,14 +84,20 @@ module.exports = (document, options, context) => {
     }
     checkFields(message, "Message", path);
     if (Array.isArray(message.traits)) {
-      message.traits.forEach((trait, index) => checkFields(trait, "Message trait", [...path, "traits", index]));
+      message.traits.forEach((trait, index) => {
+        if (Array.isArray(trait)) {
+          checkFields(trait[0], "Message trait", [...path, "traits", index, 0]);
+        } else {
+          checkFields(trait, "Message trait", [...path, "traits", index]);
+        }
+      });
     }
   };
 
   const checkMessagesMap = (messages, path) => {
     if (!isObject(messages)) return;
     for (const [key, message] of Object.entries(messages)) {
-      if (!isObject(message) || key.startsWith(EXTENSION_PREFIX)) continue;
+      if (!isObject(message)) continue;
       check(key, "Message key", [...path, key]);
       checkMessage(message, [...path, key]);
     }
@@ -93,7 +106,7 @@ module.exports = (document, options, context) => {
   const checkChannels = (channels, path) => {
     if (!isObject(channels)) return;
     for (const [key, channel] of Object.entries(channels)) {
-      if (!isObject(channel) || isRef(channel) || key.startsWith(EXTENSION_PREFIX)) continue;
+      if (!isObject(channel) || isRef(channel)) continue;
       if (isV3) {
         checkMessagesMap(channel.messages, [...path, key, "messages"]);
         continue;

@@ -111,19 +111,19 @@ spectral lint your-asyncapi.yaml
 | **AAR050** | `error` | The `info.title` field must exist and not be empty. |
 | **AAR051** | `error` | Every operation's `operationId` must be present and follow camelCase naming convention. |
 | **AAR063** | `error` | The root `asyncapi` version must be one of the versions allowed by the organization (configurable via `allowedVersions`; default `2.6.0,3.0.0,3.1.0`). |
-| **AAR065** | `warn` | Message identifiers and names (`messageId` and `name` in 2.x, message key and `name` in 3.x) must follow the configured `naming-convention`: `camelCase` (default), `snake_case`, `kebab-case` or `PascalCase`. |
-| **AAR066** | `warn` | Tag names must follow the configured `naming-convention`: `kebab-case` (default), `camelCase`, `snake_case` or `PascalCase`. |
-| **AAR068** | `error` | Bindings object keys must be protocols listed in `allowed-bindings` (default: all AsyncAPI protocol bindings); `x-` extensions are ignored. |
-| **AAR069** | `error` | Protocol bindings must declare the fields required by `required_binding_props` (default: those mandatory in the AsyncAPI binding specifications). |
-| **AAR070** | `error` | The `bindingVersion` of every protocol binding must be a string matching `pattern` (default `^\d+\.\d+\.\d+$`, e.g. `0.4.0`, so `latest` fails); `x-` extensions are ignored and a missing or null version is left to AAR037. |
-| **AAR071** | `warn` | Every message must provide at least one example with a `payload` in its `examples` array; a header-only example (non-empty `headers`) counts only for messages without a payload. Traits are merged as each version specifies (2.x: traits override the message; 3.x: the message overrides its traits), and each message is checked once, where it is defined. |
-| **AAR073** | `warn` | Every message must apply at least one valid message trait in `traits`: a message without `traits`, a `traits` value that is not an array and a list without any valid trait are reported. |
-| **AAR075** | `error` | The `info` object must populate the mandatory fields `title`, `version` and `description`: a missing or unusable `info` object, and a missing, null, blank or empty value, are reported. |
-| **AAR076** | `error` | Every Tag object must populate the mandatory fields `name` and `description`: a tag that is not a Tag object, an unresolvable reference, and a missing, null, blank or empty value, are reported. |
-| **AAR077** | `error` | The `info` object must declare a `contact` object that populates the mandatory fields `name` and `email`: a missing or unusable `contact` or `info` object, and a missing, null, blank or empty `name` or `email`, are reported. |
-| **AAR078** | `error` | The `info` object must declare a `license` object that populates the mandatory fields `name` and `url`: a missing or unusable `license` or `info` object, and a missing, null, blank or empty `name` or `url`, are reported. |
-| **AAR079** | `error` | Every External Documentation object must populate the mandatory fields `description` and `url`: root `externalDocs` in 2.x, `info.externalDocs`, servers, channels and `components.externalDocs` in 3.x, and operations, operation and message traits, messages, Tag objects and Schema objects. |
-| **AAR080** | `error` | The `info.license` `name` must be a standard SPDX license identifier (e.g. `Apache-2.0`, `MIT`) written exactly as in the [SPDX License List](https://spdx.org/licenses/) 3.29.0. Free-text names, wrong case or surrounding spaces, compound expressions, `LicenseRef-` identifiers and non-string values are reported. |
+| **AAR065** | `warn` | Message identifiers (`messageId` in 2.x, message key in 3.x) and message names must follow the configured naming convention (default `camelCase`). |
+| **AAR066** | `warn` | Tag names must follow the configured naming convention (default `kebab-case`). |
+| **AAR068** | `error` | Binding keys must be protocols from the allowed list. |
+| **AAR069** | `error` | Protocol bindings must declare the fields required for their protocol. |
+| **AAR070** | `error` | Every `bindingVersion` must match the configured pattern (default: a semantic version such as `0.4.0`). |
+| **AAR071** | `warn` | Every message must provide at least one example with a `payload` (or `headers` when it has no payload). |
+| **AAR073** | `warn` | Every message must apply at least one message trait. |
+| **AAR075** | `error` | The `info` object must declare a non-empty `title`, `version` and `description`. |
+| **AAR076** | `error` | Every Tag object must declare a non-empty `name` and `description`. |
+| **AAR077** | `error` | The `info` object must declare a `contact` with a non-empty `name` and `email`. |
+| **AAR078** | `error` | The `info` object must declare a `license` with a non-empty `name` and `url`. |
+| **AAR079** | `error` | Every External Documentation object must declare a non-empty `description` and `url`. |
+| **AAR080** | `error` | The license `name` must be an [SPDX](https://spdx.org/licenses/) license identifier, such as `Apache-2.0` or `MIT`. |
 
 ### Schema Rules
 
@@ -137,9 +137,9 @@ spectral lint your-asyncapi.yaml
 | **AAR056** | `error` | When the payload uses Avro, `schemaFormat` must be exactly `application/vnd.apache.avro;version=1.9.0`. |
 | **AAR059** | `error` | The `name` field of every Avro record (including nested records) must be in CamelCase with an uppercase first letter. |
 | **AAR060** | `error` | A message's `contentType` (and the document-level `defaultContentType`) must match `application/*+avro`. |
-| **AAR067** | `error` | Each message and message trait `contentType`, and the `defaultContentType`, must be a valid MIME type matching an entry of `allowed-content-types`. |
-| **AAR072** | `error` | The `payload` and `headers` of every message example must strictly comply with the message schemas, read according to `schemaFormat`. |
-| **AAR074** | `warn` | Schema property names and Avro record field names must follow the configured `naming-convention`: `camelCase` (default), `snake_case`, `kebab-case` or `PascalCase`. |
+| **AAR067** | `error` | Message and message trait `contentType` values, and `defaultContentType`, must be valid MIME types from the allowed list. |
+| **AAR072** | `error` | Message example `payload` and `headers` must be valid against the message schemas. |
+| **AAR074** | `warn` | Schema property names and Avro field names must follow the configured naming convention (default `camelCase`). |
 
 ---
 
@@ -185,20 +185,20 @@ The ruleset includes 41 custom Spectral functions for complex validation logic:
 | `asa-kafka-protocol-required` | AAR064 | Validates that each server protocol is `kafka` or `kafka-ssl` |
 | `asa-message-format` | AAR065 | Checks the casing of message identifiers and names |
 | `asa-tags-format` | AAR066 | Checks the casing of tag names |
-| `asa-content-type-values` | AAR067 | Validates every message `contentType` and the `defaultContentType` against the allowed MIME types |
-| `asa-binding-types` | AAR068 | Validates that every bindings object key is an allowed protocol |
-| `asa-binding-required-properties` | AAR069 | Validates that protocol bindings declare their required fields |
-| `asa-binding-version-format` | AAR070 | Validates every binding `bindingVersion` against the configured pattern |
-| `asa-message-examples-required` | AAR071 | Validates that every message provides at least one sample payload example |
-| `asa-message-examples-schema` | AAR072 | Validates every message example `payload` and `headers` against their JSON Schema, OpenAPI or Avro schema |
-| `asa-message-traits-required` | AAR073 | Validates that every message applies at least one valid message trait |
-| `asa-properties-object-format` | AAR074 | Checks the casing of schema property names and Avro record field names |
-| `asa-info-attributes-required` | AAR075 | Validates that the `info` object populates its mandatory `title`, `version` and `description` fields |
-| `asa-tag-properties-required` | AAR076 | Validates that every Tag object populates its mandatory `name` and `description` fields |
-| `asa-contact-attributes-required` | AAR077 | Validates that the `info.contact` object populates its mandatory `name` and `email` fields |
-| `asa-license-attributes-required` | AAR078 | Validates that the `info.license` object populates its mandatory `name` and `url` fields |
-| `asa-external-docs-attributes-required` | AAR079 | Validates that every External Documentation object populates its mandatory `description` and `url` fields |
-| `asa-license-valid-values` | AAR080 | Validates that the `info.license` `name` is an identifier of the SPDX License List |
+| `asa-content-type-values` | AAR067 | Validates `contentType` values against the allowed MIME types |
+| `asa-binding-types` | AAR068 | Validates binding keys against the allowed protocols |
+| `asa-binding-required-properties` | AAR069 | Checks the required fields of protocol bindings |
+| `asa-binding-version-format` | AAR070 | Validates `bindingVersion` against the configured pattern |
+| `asa-message-examples-required` | AAR071 | Checks that every message has a payload example |
+| `asa-message-examples-schema` | AAR072 | Validates message examples against their schemas |
+| `asa-message-traits-required` | AAR073 | Checks that every message applies a trait |
+| `asa-properties-object-format` | AAR074 | Checks the casing of property and Avro field names |
+| `asa-info-attributes-required` | AAR075 | Checks the mandatory `info` fields |
+| `asa-tag-properties-required` | AAR076 | Checks the mandatory Tag object fields |
+| `asa-contact-attributes-required` | AAR077 | Checks the mandatory `info.contact` fields |
+| `asa-license-attributes-required` | AAR078 | Checks the mandatory `info.license` fields |
+| `asa-external-docs-attributes-required` | AAR079 | Checks the mandatory External Documentation fields |
+| `asa-license-valid-values` | AAR080 | Checks the license name against the SPDX License List |
 
 ---
 
@@ -228,7 +228,11 @@ apiaddicts-asyncapi-style-guide-spectral/
 │   ├── asa-x-payload-references-well-formed.js
 │   └── asa-retry-topic-naming-convention.js
 ├── test/
-│   ├── helpers/utils.js     # Test utilities
+│   ├── helpers/
+│   │   ├── utils.js            # linterForRule and small shared helpers
+│   │   ├── casing.js           # Casing fixtures shared by AAR065, AAR066 and AAR074
+│   │   ├── required-fields.js  # Fixtures shared by the required-field rules (AAR075-AAR080)
+│   │   └── rules/              # One fixture module per rule (aarNNN-<name>.js)
 │   ├── asyncapi2/           # AsyncAPI 2.x tests
 │   │   ├── security/        # Security rule tests
 │   │   ├── operations/      # Operations rule tests

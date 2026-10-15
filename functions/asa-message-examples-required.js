@@ -69,7 +69,7 @@ module.exports = (document, _options, context) => {
       traitLayers = traits.map((trait, index) => ({
         node: resolve(Array.isArray(trait) ? trait[0] : trait),
         path: listPath || [...path, "traits", index],
-        label: `Message 'examples' set by traits[${index}]`,
+        label: `Message 'examples' from traits[${index}]`,
       }));
     }
     return isV3 ? [...traitLayers, own] : [own, ...traitLayers];
@@ -110,22 +110,18 @@ module.exports = (document, _options, context) => {
     const layer = inForce(layersOf(message, path));
     if (layer === UNKNOWN) return;
     if (layer === null) {
-      report(`Message must provide at least one example with ${sample} in 'examples'.`, path);
+      report(`Message must provide at least one example with ${sample}.`, path);
       return;
     }
     const examples = resolve(layer.node.examples);
     if (examples === UNKNOWN) return;
-    if (examples === undefined || examples === null || (Array.isArray(examples) && examples.length === 0)) {
-      report(`${layer.label} is empty; provide at least one example with ${sample}.`, layer.path);
+    if (examples !== undefined && examples !== null && !Array.isArray(examples)) {
+      report(`${layer.label} must be an array containing at least one example with ${sample}.`, layer.path);
       return;
     }
-    if (!Array.isArray(examples)) {
-      report(`${layer.label} must be an array; provide at least one example with ${sample}.`, layer.path);
-      return;
-    }
-    const items = examples.map(resolve);
+    const items = Array.isArray(examples) ? examples.map(resolve) : [];
     if (items.some((item) => isSample(item, hasPayload)) || items.includes(UNKNOWN)) return;
-    report(`${layer.label} has no example with ${sample}.`, layer.path);
+    report(`${layer.label} must contain at least one example with ${sample}.`, layer.path);
   };
 
   const checkChannels = (channels, path) => {

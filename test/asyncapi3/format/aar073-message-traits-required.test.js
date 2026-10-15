@@ -1,5 +1,5 @@
+const { linterForRule } = require("../../helpers/utils");
 const {
-  linterForRule,
   REQUIRED_TRAIT_COMPONENTS,
   REQUIRED_TRAIT_CASES,
   REQUIRED_TRAIT_MESSAGES: MSG,
@@ -7,7 +7,7 @@ const {
   REQUIRED_TRAIT_OPTIONS,
   requiredTraitFindings,
   requiredTraitProbeFindings,
-} = require("../../helpers/utils");
+} = require("../../helpers/rules/aar073-message-traits-required");
 const okExample = require("./AAR073/ok-example");
 const failExample = require("./AAR073/fail-example");
 const failSharedRef = require("./AAR073/fail-shared-ref");

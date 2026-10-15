@@ -32,7 +32,6 @@ const isObject = (value) => value !== null && typeof value === "object" && !Arra
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
 const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 const entriesOf = (map) => (isObject(map) ? Object.entries(map) : []);
-const format = (value) => (typeof value === "string" ? `'${value}'` : JSON.stringify(value));
 
 const resolveConvention = (value) => {
   if (typeof value !== "string") return DEFAULT_CONVENTION;
@@ -124,7 +123,8 @@ module.exports = (document, options, context) => {
 
   const check = (label, value, at, key) => {
     if (typeof value === "string" && pattern.test(value)) return;
-    report(`${label} ${format(value)} must be ${LABELS[convention]}.`, at.frozen ? at.path : [...at.path, ...key]);
+    const message = typeof value === "string" ? `${label} '${value}' must be ${LABELS[convention]}.` : `${label} must be a ${LABELS[convention]} string.`;
+    report(message, at.frozen ? at.path : [...at.path, ...key]);
   };
 
   const visited = new Set();
@@ -153,13 +153,13 @@ module.exports = (document, options, context) => {
       const fieldsAt = child(at, "fields");
       node.fields.forEach((field, index) => {
         if (!isObject(field)) return;
-        if (field.name !== undefined && field.name !== null) check("Avro field", field.name, fieldsAt, [index, "name"]);
+        if (field.name !== undefined && field.name !== null) check("Avro field name", field.name, fieldsAt, [index, "name"]);
         walk(field.type, child(child(fieldsAt, index), "type"), depth + 1, stack);
       });
     }
     if (isObject(node.properties)) {
       Object.keys(node.properties).forEach((name) => {
-        check("Property", name, at, ["properties", name]);
+        check("Property name", name, at, ["properties", name]);
         walk(node.properties[name], child(child(at, "properties"), name), depth + 1, stack);
       });
     }

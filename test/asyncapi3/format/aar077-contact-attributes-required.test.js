@@ -1,5 +1,5 @@
+const { linterForRule } = require("../../helpers/utils");
 const {
-  linterForRule,
   CONTACT_FIELDS,
   CONTACT_COMPLETE,
   CONTACT_MINIMAL,
@@ -10,7 +10,7 @@ const {
   CONTACT_IGNORED_OPTIONS,
   CONTACT_MESSAGES: MSG,
   contactFindings,
-} = require("../../helpers/utils");
+} = require("../../helpers/rules/aar077-contact-attributes-required");
 const okExample = require("./AAR077/ok-example");
 const failExample = require("./AAR077/fail-example");
 const failSharedRef = require("./AAR077/fail-shared-ref");

@@ -93,7 +93,7 @@ for (let i = 0; i < CHANNEL_COUNT; i++) {
 for (let s = 0; s < SHARED_COUNT; s++) {
   messages[`shared${s}`] = { name: `shared${s}`, payload: { type: "object", properties: { n: { type: "integer" } } }, examples: [{ payload: { n: s === 2 ? 1.5 : s } }] };
 }
-expected.push(["components.messages.shared2.examples.0.payload.n", issue(0, "payload.n", "must be integer")]);
+expected.push(["components.messages.shared2.examples.0.payload.n", issue(0, "payload.n", "must be an integer")]);
 
 module.exports = {
   document: {
