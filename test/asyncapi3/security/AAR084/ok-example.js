@@ -1,0 +1,140 @@
+module.exports = {
+  asyncapi: "3.0.0",
+  id: "urn:es:quality:energy:smart-grid",
+  info: {
+    title: "Quality Smart Grid Operations",
+    version: "5.1.0",
+    description: "Meter readings, substation telemetry, demand response commands and billing events across every broker of the utility.",
+    contact: { name: "Grid Integration", email: "grid@quality.es", url: "https://grid.quality.es" },
+    license: { name: "Apache-2.0", url: "https://www.apache.org/licenses/LICENSE-2.0" },
+    "x-protocol": "rabbitmq",
+  },
+  defaultContentType: "application/json",
+  servers: {
+    meteringKafka: {
+      host: "kafka.quality.es:9092",
+      protocol: "kafka",
+      protocolVersion: "3.6.0",
+      title: "Metering cluster",
+      bindings: { kafka: { schemaRegistryUrl: "https://registry.quality.es", schemaRegistryVendor: "confluent", bindingVersion: "0.5.0" } },
+    },
+    meteringKafkaSecure: {
+      host: "kafka.quality.es:9093",
+      protocol: "kafka-secure",
+      security: [{ $ref: "#/components/securitySchemes/saslScram" }],
+      "x-protocol": "SASL_SSL",
+    },
+    substationMqtt: {
+      host: "mqtt.quality.es:{port}",
+      pathname: "/substations",
+      protocol: "mqtt",
+      protocolVersion: "3.1.1",
+      variables: { port: { enum: ["1883", "8883"], default: "1883" }, protocol: { enum: ["mqtts", "tcp"], default: "mqtts" } },
+      bindings: { mqtt: { clientId: "grid-gateway", cleanSession: true, keepAlive: 60, bindingVersion: "0.2.0" } },
+    },
+    substationMqttSecure: { host: "mqtt.quality.es:8883", protocol: "secure-mqtt", protocolVersion: "5" },
+    substationMqtt5: { host: "mqtt5.quality.es:1883", protocol: "mqtt5" },
+    dispatchAmqp: { host: "rabbit.quality.es:5672", pathname: "/dispatch", protocol: "amqp", protocolVersion: "0.9.1" },
+    dispatchAmqps: { host: "rabbit.quality.es:5671", pathname: "/dispatch", protocol: "amqps", security: [{ $ref: "#/components/securitySchemes/userPassword" }] },
+    serviceBus: { host: "grid.servicebus.windows.net", protocol: "amqp1", protocolVersion: "1.0" },
+    outageWebhooks: { host: "hooks.quality.es", pathname: "/outages", protocol: "http", protocolVersion: "1.1" },
+    outageWebhooksTls: { host: "hooks.quality.es", pathname: "/outages", protocol: "https", protocolVersion: "2" },
+    controlRoomWs: { host: "live.quality.es", pathname: "/stream", protocol: "ws" },
+    controlRoomWss: { host: "live.quality.es", pathname: "/stream", protocol: "wss", bindings: { ws: { method: "GET", bindingVersion: "0.1.0" } } },
+    billingMq: { host: "qm1.quality.es:1414", protocol: "ibmmq", bindings: { ibmmq: { groupId: "PRODCLSTR1", bindingVersion: "0.1.0" } } },
+    erpJms: { host: "erp-jms.quality.es:61616", protocol: "jms", bindings: { jms: { jmsConnectionFactory: "org.apache.activemq.ActiveMQConnectionFactory", bindingVersion: "0.0.1" } } },
+    tradingAnypoint: { host: "mq-eu-central-1.anypoint.mulesoft.com", pathname: "/api", protocol: "anypointmq", protocolVersion: "v1" },
+    marketSolace: { host: "market.messaging.solace.cloud:55443", protocol: "solace", bindings: { solace: { msgVpn: "market", bindingVersion: "0.4.0" } } },
+    legacyStomp: { host: "stomp.quality.es:61613", protocol: "stomp" },
+    legacyStomps: { host: "stomp.quality.es:61614", protocol: "stomps" },
+    liveMercure: { host: "mercure.quality.es", pathname: "/.well-known/mercure", protocol: "mercure" },
+    analyticsPubSub: { host: "pubsub.googleapis.com", protocol: "googlepubsub" },
+    archivePulsar: { host: "pulsar.quality.es:6651", protocol: "pulsar", bindings: { pulsar: { tenant: "grid", bindingVersion: "0.1.0" } } },
+    alertsSns: { host: "sns.eu-west-1.amazonaws.com", protocol: "sns" },
+    invoicesSqs: { host: "sqs.eu-west-1.amazonaws.com", pathname: "/123456789012", protocol: "sqs" },
+    routingNats: { host: "nats.quality.es:4222", protocol: "nats" },
+    cacheRedis: { host: "cache.quality.es:6379", protocol: "redis" },
+    inspectionRos2: { host: "robots.quality.es", protocol: "ros2" },
+    "x-dr": { host: "kafka-dr.quality.es:9093", protocol: "kafka-secure" },
+    shared: { $ref: "#/components/servers/regional" },
+    partnerExternal: { $ref: "./partner-servers.yaml#/servers/partner" },
+  },
+  channels: {
+    meterReadings: {
+      address: "grid.cdc.meter-readings.recorded.v1",
+      servers: [{ $ref: "#/servers/meteringKafka" }, { $ref: "#/servers/meteringKafkaSecure" }, { $ref: "#/components/servers/regional" }],
+      messages: { meterReadingRecorded: { $ref: "#/components/messages/meterReadingRecorded" } },
+      bindings: { kafka: { topic: "grid.cdc.meter-readings.recorded.v1", partitions: 12, bindingVersion: "0.5.0" } },
+    },
+    substationTelemetry: {
+      address: "substations/{substationId}/telemetry",
+      servers: [{ $ref: "#/servers/substationMqtt" }, { $ref: "#/servers/substationMqtt5" }],
+      parameters: { substationId: { description: "Substation code.", enum: ["tcp", "udp"], default: "tcp", location: "$message.header#/protocol" } },
+      messages: {
+        telemetry: {
+          name: "telemetry",
+          headers: { type: "object", properties: { protocol: { type: ["string", "null"], enum: ["mqtts", null] } } },
+          payload: {
+            schemaFormat: "application/vnd.apache.avro;version=1.9.0",
+            schema: { type: "record", name: "Telemetry", fields: [{ name: "protocol", type: ["null", "string"], default: null }] },
+          },
+          traits: [{ $ref: "#/components/messageTraits/routing" }],
+          correlationId: { location: "$message.header#/protocol" },
+        },
+      },
+    },
+    demandResponse: {
+      address: null,
+      servers: [{ $ref: "#/servers/alertsSns" }, { $ref: "#/servers/invoicesSqs" }],
+      messages: {
+        curtailmentRequested: {
+          payload: { $ref: "#/components/schemas/Endpoint" },
+          examples: [{ name: "smtp", payload: { protocol: "smtp", host: "mail.quality.es" } }],
+        },
+      },
+    },
+  },
+  operations: {
+    receiveMeterReading: {
+      action: "receive",
+      channel: { $ref: "#/channels/meterReadings" },
+      messages: [{ $ref: "#/channels/meterReadings/messages/meterReadingRecorded" }],
+      bindings: { kafka: { groupId: { type: "string", enum: ["grid-billing"] }, bindingVersion: "0.5.0" } },
+    },
+    sendTelemetry: { action: "send", channel: { $ref: "#/channels/substationTelemetry" }, "x-protocol": "coap" },
+    requestCurtailment: {
+      action: "send",
+      channel: { $ref: "#/channels/demandResponse" },
+      bindings: {
+        sns: {
+          consumers: [
+            { protocol: "sqs", endpoint: { name: "curtailment-queue" }, rawMessageDelivery: true },
+            { protocol: "email-json", endpoint: { url: "mailto:dispatch@quality.es" }, rawMessageDelivery: false },
+          ],
+          bindingVersion: "0.1.0",
+        },
+      },
+      reply: { address: { location: "$message.header#/replyTo" }, channel: { $ref: "#/channels/demandResponse" } },
+    },
+  },
+  components: {
+    servers: {
+      regional: { host: "kafka-regional.quality.es:9093", protocol: "kafka-secure" },
+      sandbox: { host: "localhost:5672", protocol: "amqp" },
+    },
+    schemas: {
+      Endpoint: { type: "object", properties: { protocol: { type: "string", default: "rabbitmq", enum: ["rabbitmq", "activemq", "smtp"] }, host: { type: "string" } } },
+    },
+    messages: {
+      meterReadingRecorded: {
+        name: "meterReadingRecorded",
+        payload: { schemaFormat: "application/vnd.aai.asyncapi+json;version=3.0.0", schema: { type: "object", properties: { protocol: { type: "string", examples: ["modbus"] } } } },
+      },
+    },
+    messageTraits: { routing: { headers: { type: "object", properties: { protocol: { type: "string", default: "grpc" } } } } },
+    replies: { ack: { address: { location: "$message.header#/protocol" } } },
+    securitySchemes: { saslScram: { type: "scramSha512" }, userPassword: { type: "userPassword" } },
+    "x-servers": { legacy: { host: "legacy.example.org", protocol: "tcp" } },
+  },
+  "x-servers": { rogue: { host: "rogue.example.org", protocol: "rabbitmq" } },
+};

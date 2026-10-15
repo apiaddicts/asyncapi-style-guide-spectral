@@ -74,6 +74,7 @@ spectral lint your-asyncapi.yaml
 | **AAR081** | `error` | Server names must match the configured naming pattern (default: letters, digits, `-` and `_`). |
 | **AAR082** | `error` | Server names must be approved server types (default: `eventstreams`, `kafka`). |
 | **AAR083** | `error` | Server hosts must match the enterprise host pattern (default: `quality.es` or one of its subdomains). |
+| **AAR084** | `error` | Server protocols must be AsyncAPI transport protocols, such as `kafka`, `kafka-secure`, `amqp` or `mqtt`. |
 
 ### Operations Rules
 
@@ -157,7 +158,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 44 custom Spectral functions for complex validation logic:
+The ruleset includes 45 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -205,6 +206,7 @@ The ruleset includes 44 custom Spectral functions for complex validation logic:
 | `asa-server-name-pattern` | AAR081 | Validates server names against the configured pattern |
 | `asa-server-types` | AAR082 | Validates server names against the approved server types |
 | `asa-server-host-pattern` | AAR083 | Validates server hosts against the configured pattern |
+| `asa-server-protocol-valid-values` | AAR084 | Checks server protocols against the AsyncAPI transport protocols |
 
 ---
 

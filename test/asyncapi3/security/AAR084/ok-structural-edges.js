@@ -1,0 +1,67 @@
+module.exports = {
+  asyncapi: "3.0.0",
+  info: { title: "Quality Plant Structural Edges", version: "1.0.0", description: "Nodes the rule must skip.", "x-protocol": "rabbitmq" },
+  "x-servers": { rogue: { host: "rogue.example.org", protocol: "rabbitmq" } },
+  servers: {
+    nullServer: null,
+    scalarServer: "kafka://evil.example.org:9092",
+    numberServer: 9093,
+    booleanServer: false,
+    arrayServer: [{ host: "evil.example.org", protocol: "rabbitmq" }, "tcp"],
+    emptyServer: {},
+    missingProtocol: { host: "kafka.quality.es:9092", description: "No protocol at all." },
+    nullProtocol: { host: "kafka.quality.es:9092", protocol: null },
+    extensionProtocolOnly: { host: "kafka.quality.es:9092", "x-protocol": "kafka-ssl" },
+    protocolVersionOnly: { host: "kafka.quality.es:9092", protocolVersion: "kafka-ssl" },
+    pathnameLooksLikeProtocol: { host: "ws.quality.es", pathname: "/tcp/socket.io", protocol: "wss" },
+    bindingsAndSecurity: {
+      host: "mqtt.quality.es",
+      protocol: "mqtt",
+      security: [{ $ref: "#/components/securitySchemes/evil" }, { type: "httpApiKey", name: "protocol", in: "header" }],
+      variables: { protocol: { enum: ["mqtts", "tcp"], default: "mqtts" } },
+      bindings: {
+        mqtt: { clientId: "plant-gateway", lastWill: { topic: "plant/status" }, bindingVersion: "0.2.0" },
+        kafka: { schemaRegistryUrl: "http://10.0.0.1:8081", bindingVersion: "0.5.0", "x-protocol": "SASL_SSL" },
+      },
+      tags: [{ name: "protocol", description: "tcp" }],
+    },
+  },
+  channels: {
+    lineStatus: {
+      address: "plant/{lineId}/status",
+      servers: [{ $ref: "#/servers/nullServer" }, { $ref: "#/x-servers/rogue" }, { $ref: "#/components/x-servers/rogue" }],
+      parameters: { lineId: { enum: ["tcp", "udp"], default: "tcp", examples: ["grpc"], location: "$message.header#/protocol" } },
+      bindings: { ws: { headers: { type: "object", properties: { protocol: { type: "string", const: "socket.io" } } }, bindingVersion: "0.1.0" } },
+      messages: {
+        statusChanged: {
+          headers: { type: "object", properties: { protocol: { type: "string", default: "rabbitmq" } } },
+          payload: { schemaFormat: "application/vnd.apache.avro;version=1.9.0", schema: { type: "record", name: "Status", fields: [{ name: "protocol", type: ["null", "string"], default: null }] } },
+          examples: [{ headers: { protocol: "grpc" }, payload: { protocol: "udp" } }],
+        },
+      },
+    },
+    nullAddress: { address: null, servers: [{ $ref: "#/servers/missingProtocol" }] },
+  },
+  operations: {
+    sendStatus: { action: "send", channel: { $ref: "#/channels/lineStatus" }, protocol: "rabbitmq" },
+    requestRoute: {
+      action: "send",
+      channel: { $ref: "#/channels/lineStatus" },
+      bindings: { sns: { consumers: [{ protocol: "email", endpoint: { url: "mailto:plant@quality.es" }, rawMessageDelivery: false }], bindingVersion: "0.1.0" } },
+      reply: { address: { location: "$message.header#/replyTo", protocol: "tcp" }, channel: { $ref: "#/channels/nullAddress" } },
+    },
+  },
+  components: {
+    servers: { nullServer: null, scalar: "tcp", list: ["rabbitmq"], noProtocol: { host: "localhost" }, nullProtocol: { host: "localhost", protocol: null } },
+    channels: { mirror: { address: "plant.mirror", servers: [{ $ref: "#/servers/nullProtocol" }], "x-protocol": "tcp" } },
+    operations: { mirrorOperation: { action: "receive", channel: { $ref: "#/components/channels/mirror" }, "x-protocol": "tcp" } },
+    schemas: { Server: { type: "object", properties: { protocol: { type: "string", default: "rabbitmq", enum: ["tcp"] } } } },
+    messages: { serverMoved: { payload: { type: "object", properties: { protocol: { type: "string", examples: ["kafka-ssl"] } } }, examples: [{ payload: { protocol: "tcp" } }] } },
+    messageTraits: { transport: { headers: { type: "object", properties: { protocol: { type: "string", enum: ["mqtts"] } } } } },
+    parameters: { protocol: { enum: ["kafka-ssl"], default: "kafka-ssl" } },
+    replies: { routeReply: { address: { location: "$message.header#/replyTo" } } },
+    replyAddresses: { rogue: { location: "$message.header#/protocol" } },
+    securitySchemes: { evil: { type: "oauth2", flows: { clientCredentials: { tokenUrl: "https://evil.example.org/token", availableScopes: {} } } } },
+    "x-servers": { rogue: { host: "evil.example.org", protocol: "rabbitmq" } },
+  },
+};

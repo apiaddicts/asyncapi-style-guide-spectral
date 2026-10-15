@@ -59,6 +59,7 @@ functions:
   - asa-server-host-pattern
   - asa-server-types
   - asa-server-name-pattern
+  - asa-server-protocol-valid-values
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -964,3 +965,13 @@ rules:
       function: asa-server-host-pattern
       functionOptions:
         pattern: "^([a-zA-Z0-9-]+\\.)?quality\\.es$"
+
+  asa:AAR084:
+    description: "Every server protocol must be one of the transport protocols named by AsyncAPI and its bindings: amqp, amqp1, amqps, anypointmq, googlepubsub, http, https, ibmmq, jms, kafka, kafka-secure, mercure, mqtt, mqtt5, nats, pulsar, redis, ros2, secure-mqtt, sns, solace, sqs, stomp, stomps, ws or wss."
+    message: "AAR084: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar084"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-server-protocol-valid-values
