@@ -56,6 +56,7 @@ functions:
   - asa-license-attributes-required
   - asa-external-docs-attributes-required
   - asa-license-valid-values
+  - asa-server-host-pattern
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -925,3 +926,15 @@ rules:
     given: "$"
     then:
       function: asa-license-valid-values
+
+  asa:AAR081:
+    description: "Server hosts, including every value their server variables can take, must match the configured pattern (default: quality.es or one of its subdomains)."
+    message: "AAR081: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar081"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-server-host-pattern
+      functionOptions:
+        pattern: "^([a-zA-Z0-9-]+\\.)?quality\\.es$"
