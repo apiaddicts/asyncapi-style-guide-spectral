@@ -57,6 +57,7 @@ functions:
   - asa-external-docs-attributes-required
   - asa-license-valid-values
   - asa-server-host-pattern
+  - asa-server-types
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -938,3 +939,15 @@ rules:
       function: asa-server-host-pattern
       functionOptions:
         pattern: "^([a-zA-Z0-9-]+\\.)?quality\\.es$"
+
+  asa:AAR082:
+    description: "Every server name, the key of each entry in servers, must be one of the configured server types (default: eventstreams, kafka)."
+    message: "AAR082: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar082"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-server-types
+      functionOptions:
+        allowed-server-types: "eventstreams,kafka"
