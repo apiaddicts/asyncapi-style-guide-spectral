@@ -117,11 +117,12 @@ spectral lint your-asyncapi.yaml
 | **AAR069** | `error` | Protocol bindings must declare the fields required by `required_binding_props` (default: those mandatory in the AsyncAPI binding specifications). |
 | **AAR070** | `error` | The `bindingVersion` of every protocol binding must be a string matching `pattern` (default `^\d+\.\d+\.\d+$`, e.g. `0.4.0`, so `latest` fails); `x-` extensions are ignored and a missing or null version is left to AAR037. |
 | **AAR071** | `warn` | Every message must provide at least one example with a `payload` in its `examples` array; a header-only example (non-empty `headers`) counts only for messages without a payload. Traits are merged as each version specifies (2.x: traits override the message; 3.x: the message overrides its traits), and each message is checked once, where it is defined. |
-| **AAR073** | `warn` | Every message must apply at least one valid message trait in `traits` (fixed, not configurable): a message without `traits`, a `traits` value that is not an array and a list without any valid trait are reported. |
-| **AAR075** | `error` | The `info` object must populate the mandatory fields `title`, `version` and `description` (fixed, not configurable): a missing or unusable `info` object, and a missing, null, blank or empty value, are reported. |
-| **AAR076** | `error` | Every Tag object must populate the mandatory fields `name` and `description` (fixed, not configurable): a tag that is not a Tag object, an unresolvable reference, and a missing, null, blank or empty value, are reported. |
-| **AAR077** | `error` | The `info` object must declare a `contact` object that populates the mandatory fields `name` and `email` (fixed, not configurable): a missing or unusable `contact` or `info` object, and a missing, null, blank or empty `name` or `email`, are reported. |
-| **AAR078** | `error` | The `info` object must declare a `license` object that populates the mandatory fields `name` and `url` (fixed, not configurable): a missing or unusable `license` or `info` object, and a missing, null, blank or empty `name` or `url`, are reported. |
+| **AAR073** | `warn` | Every message must apply at least one valid message trait in `traits`: a message without `traits`, a `traits` value that is not an array and a list without any valid trait are reported. |
+| **AAR075** | `error` | The `info` object must populate the mandatory fields `title`, `version` and `description`: a missing or unusable `info` object, and a missing, null, blank or empty value, are reported. |
+| **AAR076** | `error` | Every Tag object must populate the mandatory fields `name` and `description`: a tag that is not a Tag object, an unresolvable reference, and a missing, null, blank or empty value, are reported. |
+| **AAR077** | `error` | The `info` object must declare a `contact` object that populates the mandatory fields `name` and `email`: a missing or unusable `contact` or `info` object, and a missing, null, blank or empty `name` or `email`, are reported. |
+| **AAR078** | `error` | The `info` object must declare a `license` object that populates the mandatory fields `name` and `url`: a missing or unusable `license` or `info` object, and a missing, null, blank or empty `name` or `url`, are reported. |
+| **AAR079** | `error` | Every External Documentation object (`externalDocs`) must populate the mandatory fields `description` and `url`: root `externalDocs` in 2.x, `info.externalDocs`, servers, channels and `components.externalDocs` in 3.x, and operations, operation and message traits, messages, Tag objects and Schema objects. |
 
 ### Schema Rules
 
@@ -152,7 +153,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 39 custom Spectral functions for complex validation logic:
+The ruleset includes 40 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -195,6 +196,7 @@ The ruleset includes 39 custom Spectral functions for complex validation logic:
 | `asa-tag-properties-required` | AAR076 | Validates that every Tag object populates its mandatory `name` and `description` fields |
 | `asa-contact-attributes-required` | AAR077 | Validates that the `info.contact` object populates its mandatory `name` and `email` fields |
 | `asa-license-attributes-required` | AAR078 | Validates that the `info.license` object populates its mandatory `name` and `url` fields |
+| `asa-external-docs-attributes-required` | AAR079 | Validates that every External Documentation object populates its mandatory `description` and `url` fields |
 
 ---
 

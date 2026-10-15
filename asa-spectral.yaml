@@ -54,6 +54,7 @@ functions:
   - asa-tag-properties-required
   - asa-contact-attributes-required
   - asa-license-attributes-required
+  - asa-external-docs-attributes-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -903,3 +904,13 @@ rules:
     given: "$"
     then:
       function: asa-license-attributes-required
+
+  asa:AAR079:
+    description: "Every External Documentation object (externalDocs) must populate the mandatory fields description and url; an externalDocs value that is not an object, a reference that does not resolve to one, and a field that is missing, null, blank or empty, are reported."
+    message: "AAR079: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar079"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-external-docs-attributes-required
