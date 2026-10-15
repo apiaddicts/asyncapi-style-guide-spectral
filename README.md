@@ -71,8 +71,9 @@ spectral lint your-asyncapi.yaml
 | **AAR018** | `warn` | Security schemes must be among allowed types and must be complete (all required fields). |
 | **AAR043** | `warn` | Each channel operation should define a security scheme. |
 | **AAR064** | `error` | In the Kafka context, each server protocol must be `kafka` or `kafka-ssl` (not `https`, `wss`, etc.). |
-| **AAR081** | `error` | Server hosts must match the configured pattern (default: `quality.es` or one of its subdomains). |
+| **AAR081** | `error` | Server names must match the configured naming pattern (default: letters, digits, `-` and `_`). |
 | **AAR082** | `error` | Server names must be approved server types (default: `eventstreams`, `kafka`). |
+| **AAR083** | `error` | Server hosts must match the enterprise host pattern (default: `quality.es` or one of its subdomains). |
 
 ### Operations Rules
 
@@ -156,7 +157,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 43 custom Spectral functions for complex validation logic:
+The ruleset includes 44 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -201,8 +202,9 @@ The ruleset includes 43 custom Spectral functions for complex validation logic:
 | `asa-license-attributes-required` | AAR078 | Checks the mandatory `info.license` fields |
 | `asa-external-docs-attributes-required` | AAR079 | Checks the mandatory External Documentation fields |
 | `asa-license-valid-values` | AAR080 | Checks the license name against the SPDX License List |
-| `asa-server-host-pattern` | AAR081 | Validates server hosts against the configured pattern |
+| `asa-server-name-pattern` | AAR081 | Validates server names against the configured pattern |
 | `asa-server-types` | AAR082 | Validates server names against the approved server types |
+| `asa-server-host-pattern` | AAR083 | Validates server hosts against the configured pattern |
 
 ---
 

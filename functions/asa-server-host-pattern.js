@@ -43,6 +43,7 @@ const printable = (value) =>
   value.replace(/[\u0000-\u001f\u007f]/g, (char) => ESCAPES[char] || `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`);
 
 const unescapeToken = (token) => token.replace(/~1/g, "/").replace(/~0/g, "~");
+const escapeToken = (token) => String(token).replace(/~/g, "~0").replace(/\//g, "~1");
 
 const pointerPath = (ref) => {
   let fragment;
@@ -124,7 +125,7 @@ module.exports = (document, options, context) => {
   };
 
   const report = (message, path) => {
-    errors.push({ message, path: locatable([...context.path, ...path]) });
+    errors.push({ message, path: locatable([...context.path, ...path]).map(escapeToken) });
   };
 
   const valuesOf = (variable) => {

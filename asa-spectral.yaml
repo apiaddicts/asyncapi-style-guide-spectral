@@ -58,6 +58,7 @@ functions:
   - asa-license-valid-values
   - asa-server-host-pattern
   - asa-server-types
+  - asa-server-name-pattern
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -929,16 +930,16 @@ rules:
       function: asa-license-valid-values
 
   asa:AAR081:
-    description: "Server hosts, including every value their server variables can take, must match the configured pattern (default: quality.es or one of its subdomains)."
+    description: "Every server name, the key of each entry in servers, must match the organization's naming pattern (default: letters, digits, hyphens and underscores)."
     message: "AAR081: {{error}}"
     documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar081"
     severity: error
     resolved: false
     given: "$"
     then:
-      function: asa-server-host-pattern
+      function: asa-server-name-pattern
       functionOptions:
-        pattern: "^([a-zA-Z0-9-]+\\.)?quality\\.es$"
+        pattern: "^[A-Za-z0-9_-]+$"
 
   asa:AAR082:
     description: "Every server name, the key of each entry in servers, must be one of the configured server types (default: eventstreams, kafka)."
@@ -951,3 +952,15 @@ rules:
       function: asa-server-types
       functionOptions:
         allowed-server-types: "eventstreams,kafka"
+
+  asa:AAR083:
+    description: "Every server host, including every value its server variables can take, must match the enterprise host pattern (default: quality.es or one of its subdomains)."
+    message: "AAR083: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar083"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-server-host-pattern
+      functionOptions:
+        pattern: "^([a-zA-Z0-9-]+\\.)?quality\\.es$"

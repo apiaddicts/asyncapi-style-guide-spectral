@@ -3,8 +3,8 @@ const { chars } = require("../utils");
 const DEFAULT_PATTERN = "^([a-zA-Z0-9-]+\\.)?quality\\.es$";
 const NEVER = "(?!)";
 
-const mismatch = (server, host, pattern = DEFAULT_PATTERN) => `AAR081: Server '${server}' host '${host}' must match '${pattern}'.`;
-const notString = (server, field) => `AAR081: Server '${server}' ${field} must be a string.`;
+const mismatch = (server, host, pattern = DEFAULT_PATTERN) => `AAR083: Server '${server}' host '${host}' must match '${pattern}'.`;
+const notString = (server, field) => `AAR083: Server '${server}' ${field} must be a string.`;
 
 const HOST_CASES = {
   valid: [
@@ -62,6 +62,13 @@ const HOST_CASES = {
     `kafka.qu${chars(0x430)}lity.es`,
     `kafka${chars(0xff0e)}quality.es`,
     `kafka.quality.es${chars(0x200b)}`,
+    "kafka%2Equality.es",
+    "qualty.es",
+    "kafka.quality.es.evil.net",
+    "pkc-4nym6.eu-west-1.aws.confluent.cloud",
+    "orders.servicebus.windows.net",
+    "kafka.events.svc.cluster.local",
+    "[fe80::1%25eth0]",
     "",
   ],
 };
@@ -108,6 +115,13 @@ const ADDRESS_CASES = [
   ["surrounding spaces", " broker.quality.es ", [" broker.quality.es "]],
   ["upper-case letters", "Kafka.QUALITY.es:9092", ["Kafka.QUALITY.es"]],
   ["a trailing dot", "kafka.quality.es.:9092", ["kafka.quality.es."]],
+  ["a scheme with an underscore", "SASL_SSL://pkc-4nym6.eu-west-1.aws.confluent.cloud:9092", ["pkc-4nym6.eu-west-1.aws.confluent.cloud"]],
+  ["an IPv6 literal with a zone id", "kafka://[fe80::1%25eth0]:9092", ["[fe80::1%25eth0]"]],
+  ["an IPv4-mapped IPv6 literal", "ws://[::ffff:10.0.0.1]/stream", ["[::ffff:10.0.0.1]"]],
+  ["a comma inside the query", "kafka://broker.quality.es:9092?bootstrap=b1,b2", ["broker.quality.es"]],
+  ["a comma inside the path", "wss://ws.quality.es/feeds/a,b", ["ws.quality.es"]],
+  ["a slash inside the password, which ends the authority", "svc:p/ss@broker.quality.es", ["svc"]],
+  ["a percent-encoded host", "kafka%2Equality.es:9092", ["kafka%2Equality.es"]],
 ];
 
 const SHARED_VARIABLES = {
@@ -188,6 +202,10 @@ const VARIABLE_CASES = [
   ["an external $ref variable inside the host", "kafka-{region}.quality.es", { region: { $ref: "./variables.yaml#/region" } }, [], []],
   ["an external $ref variable outside the host", "evil.example.org:{port}", { port: { $ref: "./variables.yaml#/port" } }, ["evil.example.org"], ["evil.example.org"]],
   ["an external $ref variable next to a local one", "{env}.quality.es,{region}.quality.es", { env: { default: "kafka" }, region: { $ref: "https://config.quality.es/variables.yaml#/region" } }, ["kafka.quality.es"], []],
+  ["a variable named like an Object member", "{constructor}.quality.es", { constructor: { default: "kafka" } }, ["kafka.quality.es"], []],
+  ["undeclared variables named like Object members", "{constructor}-{toString}.quality.es", {}, ["{constructor}-{toString}.quality.es"], ["{constructor}-{toString}.quality.es"]],
+  ["a variable name with dots and dashes", "{kafka.cluster-id}.quality.es", { "kafka.cluster-id": { enum: ["orders", "claims.eu"] } }, ["orders.quality.es", "claims.eu.quality.es"], ["claims.eu.quality.es"]],
+  ["a default that builds a broker list with a port variable", "{brokers}:{port}", { brokers: { default: "b1.quality.es,b2.example.org" }, port: { default: "9092" } }, ["b1.quality.es", "b2.example.org"], ["b2.example.org"]],
 ];
 
 const VARIABLE_SUBSTITUTION_LIMIT = 1000;
@@ -238,6 +256,9 @@ const PATTERN_CASES = [
   [".*", PROBE_HOSTS],
   ["^$", [""]],
   [NEVER, []],
+  ["/^(\\p{L}[\\p{L}\\d-]*\\.)?quality\\.es$/u", DEFAULT_ACCEPTED],
+  ["^(?!kafka\\.)([a-zA-Z0-9-]+\\.)?quality\\.es$", ["quality.es", "KAFKA.quality.es", "kafka-orders.quality.es"]],
+  ["(?<=\\.)quality\\.es$", ["kafka.quality.es", "KAFKA.quality.es", "eu.kafka.quality.es", "kafka-orders.quality.es", "{tenant}.quality.es"]],
 ];
 
 const FALLBACK_PATTERNS = ["", "   ", "\t\n", "[", "(", "*", "^(quality\\.es$", "/abc/z", "/[/", null, undefined, 0, 42, true, {}, [], ["^quality\\.es$"], { match: ".*" }];
