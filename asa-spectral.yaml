@@ -53,6 +53,7 @@ functions:
   - asa-info-attributes-required
   - asa-tag-properties-required
   - asa-contact-attributes-required
+  - asa-license-attributes-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -892,3 +893,13 @@ rules:
     given: "$"
     then:
       function: asa-contact-attributes-required
+
+  asa:AAR078:
+    description: "The info object must declare a license object that populates the mandatory fields name and url; a license or info object that is missing or unusable, and a field that is missing, null, blank or empty, are reported."
+    message: "AAR078: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar078"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-license-attributes-required

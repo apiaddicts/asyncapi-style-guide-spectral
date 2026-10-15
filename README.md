@@ -121,6 +121,7 @@ spectral lint your-asyncapi.yaml
 | **AAR075** | `error` | The `info` object must populate the mandatory fields `title`, `version` and `description` (fixed, not configurable): a missing or unusable `info` object, and a missing, null, blank or empty value, are reported. |
 | **AAR076** | `error` | Every Tag object must populate the mandatory fields `name` and `description` (fixed, not configurable): a tag that is not a Tag object, an unresolvable reference, and a missing, null, blank or empty value, are reported. |
 | **AAR077** | `error` | The `info` object must declare a `contact` object that populates the mandatory fields `name` and `email` (fixed, not configurable): a missing or unusable `contact` or `info` object, and a missing, null, blank or empty `name` or `email`, are reported. |
+| **AAR078** | `error` | The `info` object must declare a `license` object that populates the mandatory fields `name` and `url` (fixed, not configurable): a missing or unusable `license` or `info` object, and a missing, null, blank or empty `name` or `url`, are reported. |
 
 ### Schema Rules
 
@@ -151,7 +152,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 38 custom Spectral functions for complex validation logic:
+The ruleset includes 39 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -193,6 +194,7 @@ The ruleset includes 38 custom Spectral functions for complex validation logic:
 | `asa-info-attributes-required` | AAR075 | Validates that the `info` object populates its mandatory `title`, `version` and `description` fields |
 | `asa-tag-properties-required` | AAR076 | Validates that every Tag object populates its mandatory `name` and `description` fields |
 | `asa-contact-attributes-required` | AAR077 | Validates that the `info.contact` object populates its mandatory `name` and `email` fields |
+| `asa-license-attributes-required` | AAR078 | Validates that the `info.license` object populates its mandatory `name` and `url` fields |
 
 ---
 
