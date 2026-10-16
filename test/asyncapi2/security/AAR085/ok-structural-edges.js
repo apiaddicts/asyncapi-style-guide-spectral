@@ -1,0 +1,56 @@
+module.exports = {
+  asyncapi: "2.6.0",
+  info: { title: "Quality Store Structural Edges", version: "1.0.0", description: "Nodes the rule must skip.", "x-protocolVersion": "2.8.0" },
+  "x-servers": { rogue: { url: "rogue.example.org", protocol: "kafka", protocolVersion: "2.8.0" } },
+  servers: {
+    nullServer: null,
+    scalarServer: "kafka://evil.example.org:9092",
+    numberServer: 9093,
+    booleanServer: false,
+    arrayServer: [{ url: "evil.example.org", protocol: "kafka", protocolVersion: "2.8.0" }, "2.8.0"],
+    emptyServer: {},
+    missingVersion: { url: "kafka.quality.es:9092", protocol: "kafka", description: "No protocolVersion at all." },
+    nullVersion: { url: "kafka.quality.es:9092", protocol: "kafka", protocolVersion: null },
+    extensionVersionOnly: { url: "kafka.quality.es:9092", protocol: "kafka", "x-protocolVersion": "2.8.0", "x-protocol-version": "3.4.0" },
+    protocolOnly: { url: "kafka.quality.es:9092", protocol: "2.8.0" },
+    capitalizedField: { url: "kafka.quality.es:9092", protocol: "kafka", ProtocolVersion: "2.8.0", PROTOCOLVERSION: "3.4.0", protocol_version: "0.9.1", protocolversion: "5.0" },
+    bindingsAndSecurity: {
+      url: "mqtt.quality.es:1883",
+      protocol: "mqtt",
+      security: [{ apiKey: [] }],
+      variables: { protocolVersion: { enum: ["5.0", "3.1.1"], default: "5.0" } },
+      bindings: {
+        mqtt: { clientId: "store-gateway", lastWill: { topic: "store/status", qos: 1, message: "offline", retain: false }, bindingVersion: "0.1.0", protocolVersion: "5.0" },
+        kafka: { protocolVersion: "2.8.0", schemaRegistryUrl: "http://10.0.0.1:8081", bindingVersion: "0.4.0" },
+        "x-transport": { protocolVersion: "0.9.1" },
+      },
+    },
+  },
+  channels: {
+    "store/{storeId}/status": {
+      servers: ["nullServer", "missingVersion", "notDeclared"],
+      parameters: { storeId: { schema: { type: "string", enum: ["2.8.0"], default: "2.8.0" }, location: "$message.header#/protocolVersion" } },
+      bindings: { ws: { headers: { type: "object", properties: { protocolVersion: { type: "string", const: "13" } } }, bindingVersion: "0.1.0" } },
+      subscribe: {
+        operationId: "receiveStoreStatus",
+        traits: [{ bindings: { kafka: { groupId: { type: "string", enum: ["2.8.0"] } } } }],
+        message: {
+          headers: { type: "object", properties: { protocolVersion: { type: "string", default: "2.8.0" } } },
+          payload: { type: "object", properties: { server: { type: "object", properties: { protocolVersion: { const: "2.8.0" } } } } },
+          examples: [{ headers: { protocolVersion: "2.8.0" }, payload: { server: { protocolVersion: "0.9.1" } } }],
+          traits: [{ headers: { type: "object", properties: { protocolVersion: { type: "string", enum: ["3.4.0"] } } } }],
+        },
+      },
+    },
+  },
+  components: {
+    servers: { nullServer: null, scalar: "2.8.0", list: ["2.8.0"], noVersion: { url: "localhost", protocol: "kafka" }, nullVersion: { url: "localhost", protocol: "kafka", protocolVersion: null } },
+    schemas: { Server: { type: "object", properties: { protocolVersion: { type: "string", default: "2.8.0", enum: ["0.9.1"] } } } },
+    messages: { serverMoved: { payload: { type: "object", properties: { protocolVersion: { type: "string", examples: ["2.8.0"] } } }, examples: [{ payload: { protocolVersion: "1.0" } }] } },
+    messageTraits: { transport: { headers: { type: "object", properties: { protocolVersion: { type: "string", enum: ["5.0"] } } } } },
+    operationTraits: { versioned: { "x-protocolVersion": "2.8.0", bindings: { amqp: { expiration: 1000 } } } },
+    parameters: { protocolVersion: { schema: { type: "string", enum: ["2.8.0"] } } },
+    securitySchemes: { apiKey: { type: "apiKey", in: "user", description: "protocolVersion: 2.8.0" } },
+    "x-servers": { rogue: { url: "evil.example.org", protocol: "kafka", protocolVersion: "2.8.0" } },
+  },
+};

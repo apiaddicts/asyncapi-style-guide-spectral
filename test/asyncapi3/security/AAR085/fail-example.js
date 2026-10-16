@@ -1,0 +1,68 @@
+module.exports = {
+  asyncapi: "3.0.0",
+  id: "urn:es:quality:mobility:fleet-telematics",
+  info: {
+    title: "Quality Mobility Fleet Telematics",
+    version: "2.4.0",
+    description: "Vehicle telemetry, charging sessions, trip billing and maintenance alerts exchanged between the cars, the chargers and the back office.",
+  },
+  defaultContentType: "application/json",
+  servers: {
+    eventstreams: { host: "es-fleet.quality.es:443", protocol: "kafka-secure", protocolVersion: "3.3.0", description: "Compliant production cluster." },
+    kafkaLegacy: { host: "kafka-legacy.quality.es:9092", protocol: "kafka", protocolVersion: "2.8.0" },
+    kafkaNext: { host: "kafka-next.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.7.0" },
+    kafkaPatch: { host: "kafka.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.2" },
+    kafkaShort: { host: "kafka.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3" },
+    kafkaPrefixed: { host: "kafka.quality.es:9093", protocol: "kafka-secure", protocolVersion: "V3.3.0" },
+    kafkaIbp: { host: "kafka.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3-IV0" },
+    mskVersion: { host: "b-1.fleet.abc123.c2.kafka.eu-west-1.amazonaws.com:9096", protocol: "kafka-secure", protocolVersion: "3.3.0.0" },
+    kafkaSnapshot: { host: "kafka-lab.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0-SNAPSHOT" },
+    tabbedVersion: { host: "kafka-lab.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0\t" },
+    caretRange: { host: "kafka-lab.quality.es:9093", protocol: "kafka-secure", protocolVersion: "^3.3.0" },
+    starVersion: { host: "kafka-lab.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.*" },
+    semicolonList: { host: "kafka-lab.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0;3.4.0" },
+    placeholderVersion: {
+      host: "kafka-lab.quality.es:{port}",
+      protocol: "kafka-secure",
+      protocolVersion: "{protocolVersion}",
+      variables: { port: { default: "9093" }, protocolVersion: { enum: ["3.3.0"], default: "3.3.0" } },
+    },
+    blankVersion: { host: "kafka-lab.quality.es:9093", protocol: "kafka-secure", protocolVersion: "   " },
+    chargersAmqp: { host: "rabbit.quality.es:5672", pathname: "/chargers", protocol: "amqp", protocolVersion: "0-9-1" },
+    carsMqtt5: { host: "mqtt5.quality.es:1883", protocol: "mqtt5", protocolVersion: "5.0" },
+    dashboardWss: { host: "live.quality.es", pathname: "/stream", protocol: "wss", protocolVersion: "13" },
+    numericVersion: { host: "kafka.quality.es:9093", protocol: "kafka-secure", protocolVersion: 3.3 },
+    zeroVersion: { host: "kafka.quality.es:9093", protocol: "kafka-secure", protocolVersion: 0 },
+    falseVersion: { host: "kafka.quality.es:9093", protocol: "kafka-secure", protocolVersion: false },
+    objectVersion: { host: "kafka.quality.es:9093", protocol: "kafka-secure", protocolVersion: { major: 3, minor: 3, patch: 0 } },
+    refVersion: { host: "kafka.quality.es:9093", protocol: "kafka-secure", protocolVersion: { $ref: "#/components/x-versions/kafka" } },
+    missingVersion: { host: "kafka.quality.es:9093", protocol: "kafka-secure" },
+    nullVersion: { host: "kafka.quality.es:9093", protocol: "kafka-secure", protocolVersion: null },
+    "x-oem": { host: "kafka.oem-partner.example.org:9092", protocol: "kafka", protocolVersion: "2.7.1" },
+    oemRef: { $ref: "#/components/servers/oemHub" },
+  },
+  channels: {
+    vehicleTelemetry: {
+      address: "fleet.cdc.vehicle-telemetry.recorded.v1",
+      servers: [{ $ref: "#/servers/eventstreams" }, { $ref: "#/servers/kafkaLegacy" }, { $ref: "#/components/servers/oemHub" }],
+      messages: {
+        telemetryRecorded: { name: "telemetryRecorded", payload: { type: "object", properties: { protocolVersion: { type: "string", default: "2.8.0" } } } },
+      },
+    },
+  },
+  operations: {
+    receiveTelemetry: {
+      action: "receive",
+      channel: { $ref: "#/channels/vehicleTelemetry" },
+      reply: { address: { location: "$message.header#/replyTo" }, channel: { $ref: "#/channels/vehicleTelemetry" } },
+    },
+  },
+  components: {
+    servers: {
+      oemHub: { host: "kafka.oem.example.org:9093", protocol: "kafka-secure", protocolVersion: "3.2.3", description: "OEM cluster shared by reference." },
+      legacyMq: { host: "qm2.quality.es:1414", protocol: "ibmmq", protocolVersion: "9.3.0.0" },
+      compliant: { host: "kafka-dr.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0" },
+    },
+    "x-versions": { kafka: "3.3.0" },
+  },
+};

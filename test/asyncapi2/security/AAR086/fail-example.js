@@ -1,0 +1,67 @@
+module.exports = {
+  asyncapi: "2.6.0",
+  id: "urn:es:quality:payments:card-event-streams",
+  info: {
+    title: "Quality Payments Card Event Streams",
+    version: "3.4.0",
+    description: "Card authorisations, captures, refunds and chargebacks exchanged between the acquiring platform and its partners.",
+  },
+  defaultContentType: "application/json",
+  servers: {
+    eventstreams: {
+      url: "es-payments.quality.es:443",
+      protocol: "kafka-secure",
+      protocolVersion: "3.3.0",
+      security: [{ saslScram: [] }],
+    },
+    noVersion: { url: "kafka.quality.es:9092", protocol: "kafka", description: "Cluster that omits protocolVersion." },
+    noProtocol: { url: "kafka.quality.es:9092", protocolVersion: "3.3.0" },
+    noUrl: { protocol: "kafka", protocolVersion: "3.3.0", description: "Address forgotten." },
+    hostInsteadOfUrl: { host: "kafka.quality.es:9092", protocol: "kafka", protocolVersion: "3.3.0" },
+    onlyUrl: { url: "kafka.quality.es:9092" },
+    emptyServer: {},
+    emptyUrl: { url: "", protocol: "kafka", protocolVersion: "3.3.0" },
+    blankProtocol: { url: "kafka.quality.es:9092", protocol: "   ", protocolVersion: "3.3.0" },
+    nullVersion: { url: "kafka.quality.es:9092", protocol: "kafka", protocolVersion: null },
+    zeroWidthVersion: { url: "kafka.quality.es:9092", protocol: "kafka", protocolVersion: "\u200b\ufeff" },
+    tabbedUrl: { url: "\t\n", protocol: "kafka", protocolVersion: "3.3.0" },
+    emptyListVersion: { url: "kafka.quality.es:9092", protocol: "kafka", protocolVersion: [] },
+    emptyMapProtocol: { url: "kafka.quality.es:9092", protocol: {}, protocolVersion: "3.3.0" },
+    lookAlikes: { uri: "kafka://kafka.quality.es:9092", scheme: "kafka", version: "3.3.0" },
+    upperCase: { URL: "kafka.quality.es:9092", Protocol: "kafka", ProtocolVersion: "3.3.0" },
+    extensionsOnly: { "x-url": "kafka.quality.es:9092", "x-protocol": "kafka", "x-protocolVersion": "3.3.0" },
+    versionInBindings: { url: "kafka.quality.es:9092", protocol: "kafka", bindings: { kafka: { protocolVersion: "3.3.0", bindingVersion: "0.4.0" } } },
+    versionAsVariable: {
+      url: "kafka.quality.es:{port}",
+      protocol: "kafka",
+      variables: { port: { default: "9092" }, protocolVersion: { enum: ["3.3.0"], default: "3.3.0" } },
+    },
+    nullServer: null,
+    stringServer: "kafka://kafka.quality.es:9092",
+    listServer: [{ url: "kafka.quality.es:9092", protocol: "kafka", protocolVersion: "3.3.0" }],
+    "x-partner": { url: "kafka.partner.example.org:9092", protocol: "kafka" },
+    acquirerWebhooks: { url: "https://hooks.quality.es/acquirer", protocol: "https" },
+    issuerAmqp: { url: "amqps://rabbit.quality.es:5671", protocolVersion: "0.9.1" },
+  },
+  channels: {
+    "payments.cdc.cards.authorised.v1": {
+      servers: ["eventstreams", "noVersion"],
+      subscribe: {
+        operationId: "receiveCardAuthorised",
+        message: {
+          name: "cardAuthorised",
+          payload: { type: "object", properties: { cardToken: { type: "string" }, url: { type: ["string", "null"] } } },
+        },
+      },
+    },
+  },
+  components: {
+    servers: {
+      settlementHub: { url: "settlement.quality.es:9093", protocol: "kafka-secure" },
+      chargebackMq: { url: "", protocol: "ibmmq", protocolVersion: "" },
+      complete: { url: "kafka-complete.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0" },
+      nullShared: null,
+    },
+    securitySchemes: { saslScram: { type: "scramSha512" } },
+  },
+};
