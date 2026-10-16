@@ -64,6 +64,7 @@ functions:
   - asa-server-attributes-required
   - asa-channel-attributes-required
   - asa-channel-servers-required
+  - asa-channel-security-valid-values
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -1021,3 +1022,15 @@ rules:
     given: "$"
     then:
       function: asa-channel-servers-required
+
+  asa:AAR089:
+    description: "Every security scheme applied by servers, operations and operation traits must be of one of the configured approved types (default: scramSha512, X509)."
+    message: "AAR089: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar089"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-channel-security-valid-values
+      functionOptions:
+        allowed-security-types: "scramSha512,X509"

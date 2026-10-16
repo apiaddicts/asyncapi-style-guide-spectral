@@ -1,0 +1,70 @@
+const scheme = (name) => ({ $ref: `#/components/securitySchemes/${name}` });
+const channel = (name) => ({ $ref: `#/channels/${name}` });
+
+module.exports = {
+  asyncapi: "3.0.0",
+  info: {
+    title: "Quality Retail Integration Backbone",
+    version: "9.4.0",
+    description: "Orders, cards and refunds over Kafka, AMQP, MQTT, IBM MQ, webhooks and WebSockets with mixed authentication mechanisms.",
+  },
+  servers: {
+    kafkaPlain: { host: "kafka-plain.quality.es:9092", protocol: "kafka", security: [scheme("saslPlain")] },
+    kafkaScram256: { host: "kafka-256.quality.es:9093", protocol: "kafka-secure", security: [scheme("saslScram256")] },
+    kafkaOrPlain: { host: "kafka.quality.es:9093", protocol: "kafka-secure", security: [scheme("saslScram"), scheme("saslPlain")] },
+    kafkaKerberos: { host: "kafka-krb.quality.es:9093", protocol: "kafka-secure", security: [scheme("mtls"), scheme("kerberos")] },
+    mqttBroker: { host: "mqtt.quality.es:8883", protocol: "secure-mqtt", security: [scheme("userPass")] },
+    amqpBroker: { host: "rabbit.quality.es:5671", protocol: "amqps", security: [scheme("apiKeyUser")] },
+    webhooks: { host: "hooks.quality.es", protocol: "https", security: [scheme("httpBasic"), scheme("httpHeaderKey")] },
+    wsGateway: { host: "ws.quality.es", protocol: "wss", security: [scheme("oauth"), scheme("oidc")] },
+    ibmmqQm: { host: "qm1.quality.es:1414", protocol: "ibmmq", security: [scheme("symmetric"), scheme("asymmetric")] },
+    certLegacy: { host: "kafka-legacy.quality.es:9093", protocol: "kafka-secure", security: [{ type: "mutualTLS", description: "Inline mTLS, OpenAPI spelling." }] },
+    caseScram: { host: "kafka-case.quality.es:9093", protocol: "kafka-secure", security: [{ type: "ScramSha512" }] },
+    lowerCert: { host: "kafka-lower.quality.es:9093", protocol: "kafka-secure", security: [scheme("lowerCert")] },
+    paddedScram: { host: "kafka-padded.quality.es:9093", protocol: "kafka-secure", security: [{ type: "scramSha512 " }] },
+    numericType: { host: "kafka-numeric.quality.es:9093", protocol: "kafka-secure", security: [scheme("numericType"), { type: 512 }] },
+    "x-partner": { host: "partner.example.org:9093", protocol: "kafka-secure", security: [{ type: "plain" }] },
+  },
+  channels: {
+    cardAuthorised: { address: "payments/cards/{cardId}/authorised", parameters: { cardId: {} }, messages: { authorised: { payload: { type: "object" } } } },
+    orderPlaced: { address: "orders.cdc.placed.v1", messages: { placed: { payload: { type: "object" } } } },
+    audit: { address: "internal.audit", messages: { entry: { payload: { type: "object" } } } },
+  },
+  operations: {
+    receiveCardAuthorised: { action: "receive", channel: channel("cardAuthorised"), security: [scheme("saslPlain")] },
+    sendCardAuthorised: { action: "send", channel: channel("cardAuthorised"), security: [scheme("saslScram")], traits: [{ security: [{ type: "oauth2", flows: {} }] }] },
+    sendOrderPlaced: {
+      action: "send",
+      channel: channel("orderPlaced"),
+      security: [scheme("saslScram"), scheme("userPass")],
+      traits: [{ $ref: "#/components/operationTraits/legacyAuth" }, [{ security: [scheme("kerberos")] }, { description: "Tuple form." }]],
+    },
+    "x-internal/audit": { action: "receive", channel: channel("audit"), security: [{ type: "plain" }, scheme("mtls")] },
+  },
+  components: {
+    securitySchemes: {
+      saslPlain: { type: "plain" },
+      saslScram: { type: "scramSha512" },
+      saslScram256: { type: "scramSha256" },
+      mtls: { type: "X509" },
+      kerberos: { type: "gssapi" },
+      userPass: { type: "userPassword" },
+      apiKeyUser: { type: "apiKey", in: "user" },
+      httpBasic: { type: "http", scheme: "basic" },
+      httpHeaderKey: { type: "httpApiKey", name: "X-API-Key", in: "header" },
+      oauth: { type: "oauth2", flows: { clientCredentials: { tokenUrl: "https://auth.quality.es/token", availableScopes: { "orders:read": "Read orders." } } }, scopes: ["orders:read"] },
+      oidc: { type: "openIdConnect", openIdConnectUrl: "https://auth.quality.es/.well-known/openid-configuration" },
+      symmetric: { type: "symmetricEncryption" },
+      asymmetric: { type: "asymmetricEncryption" },
+      lowerCert: { type: "x509" },
+      numericType: { type: 512 },
+      unusedPlain: { type: "plain", description: "Never applied." },
+    },
+    servers: { dr: { host: "kafka-dr.quality.es:9093", protocol: "kafka-secure", security: [scheme("saslPlain")] } },
+    operations: { refund: { action: "send", channel: channel("orderPlaced"), security: [{ type: "http", scheme: "basic" }] } },
+    operationTraits: {
+      legacyAuth: { security: [scheme("saslPlain")] },
+      unusedTrait: { security: [scheme("kerberos")] },
+    },
+  },
+};

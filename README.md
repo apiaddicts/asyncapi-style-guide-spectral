@@ -77,6 +77,7 @@ spectral lint your-asyncapi.yaml
 | **AAR084** | `error` | Server protocols must be AsyncAPI transport protocols, such as `kafka`, `kafka-secure`, `amqp` or `mqtt`. |
 | **AAR085** | `error` | Server `protocolVersion` values must be approved versions (default: `3.3.0`). |
 | **AAR086** | `error` | Every server must declare a non-empty `url` or `host`, `protocol` and `protocolVersion`. |
+| **AAR089** | `error` | Security schemes applied by servers and operations must be of approved types (default: `scramSha512`, `X509`). |
 
 ### Operations Rules
 
@@ -162,7 +163,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 49 custom Spectral functions for complex validation logic:
+The ruleset includes 50 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -215,6 +216,7 @@ The ruleset includes 49 custom Spectral functions for complex validation logic:
 | `asa-server-attributes-required` | AAR086 | Checks the mandatory server fields |
 | `asa-channel-attributes-required` | AAR087 | Checks the mandatory channel fields |
 | `asa-channel-servers-required` | AAR088 | Checks that every channel lists a root server |
+| `asa-channel-security-valid-values` | AAR089 | Validates applied security scheme types against the approved mechanisms |
 
 ---
 
