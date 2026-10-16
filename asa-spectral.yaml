@@ -63,6 +63,7 @@ functions:
   - asa-server-protocol-version-valid-values
   - asa-server-attributes-required
   - asa-channel-attributes-required
+  - asa-channel-servers-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -1010,3 +1011,13 @@ rules:
     given: "$"
     then:
       function: asa-channel-attributes-required
+
+  asa:AAR088:
+    description: "Every channel must declare servers listing at least one server defined in the root servers object."
+    message: "AAR088: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar088"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-channel-servers-required

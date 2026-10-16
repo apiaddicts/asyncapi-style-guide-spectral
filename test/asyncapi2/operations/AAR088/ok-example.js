@@ -1,0 +1,151 @@
+module.exports = {
+  asyncapi: "2.6.0",
+  id: "urn:es:quality:retail:order-event-streams",
+  info: {
+    title: "Quality Retail Order Event Streams",
+    version: "5.1.0",
+    description: "Orders, payments, stock reservations, store sensors and courier tracking exchanged between the retail platforms.",
+    contact: { name: "Retail Integration", email: "retail-integration@quality.es" },
+    license: { name: "Apache-2.0", url: "https://www.apache.org/licenses/LICENSE-2.0" },
+  },
+  defaultContentType: "application/json",
+  servers: {
+    production: { url: "kafka.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0", security: [{ saslScram: [] }] },
+    "production-dr": { url: "kafka-dr.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0", security: [{ saslScram: [] }] },
+    warehouse: { url: "rabbit.quality.es:5671", protocol: "amqps", protocolVersion: "0.9.1" },
+    sensors: {
+      url: "mqtt.quality.es:{port}",
+      protocol: "secure-mqtt",
+      protocolVersion: "5.0",
+      variables: { port: { enum: ["8883", "8884"], default: "8883" } },
+    },
+    live: { url: "wss://live.quality.es/couriers", protocol: "wss" },
+    "x-partners": { url: "partners.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0" },
+    shared: { $ref: "#/components/servers/sharedCluster" },
+  },
+  channels: {
+    "retail.cdc.orders.placed.v1": {
+      description: "Orders placed in any sales channel.",
+      servers: ["production", "production-dr"],
+      bindings: { kafka: { topic: "retail.cdc.orders.placed.v1", partitions: 12, replicas: 3, bindingVersion: "0.4.0" } },
+      subscribe: {
+        operationId: "receiveOrderPlaced",
+        summary: "Receive placed orders.",
+        traits: [{ $ref: "#/components/operationTraits/kafkaConsumer" }],
+        message: { oneOf: [{ $ref: "#/components/messages/orderPlaced" }, { $ref: "#/components/messages/orderPlacedAvro" }] },
+      },
+      publish: { operationId: "publishOrderPlaced", message: { $ref: "#/components/messages/orderPlaced" } },
+    },
+    "retail.cmd.payments.capture.v1": {
+      description: "Payment capture commands sent to the payment gateway.",
+      servers: ["production"],
+      publish: {
+        operationId: "sendCapturePayment",
+        security: [{ saslScram: [] }],
+        message: {
+          name: "capturePayment",
+          correlationId: { description: "Payment correlation.", location: "$message.header#/correlationId" },
+          headers: { type: "object", properties: { correlationId: { type: "string" }, retryCount: { type: ["integer", "null"] } } },
+          payload: { type: "object", properties: { paymentId: { type: "string" }, voucher: { type: ["string", "null"] } } },
+          traits: [{ $ref: "#/components/messageTraits/tracing" }],
+        },
+      },
+    },
+    "stores/{storeId}/sensors/{sensorId}": {
+      description: "Temperature and door sensors of each store.",
+      servers: ["sensors"],
+      parameters: {
+        storeId: { description: "Store identifier.", schema: { type: "string", pattern: "^[A-Z]{3}[0-9]{3}$" } },
+        sensorId: { $ref: "#/components/parameters/sensorId" },
+      },
+      publish: { operationId: "publishSensorReading", bindings: { mqtt: { qos: 1, retain: false } }, message: { $ref: "#/components/messages/sensorReading" } },
+    },
+    "warehouse.stock.reserved": {
+      description: "Stock reservations confirmed by the warehouse.",
+      servers: ["warehouse"],
+      bindings: { amqp: { is: "routingKey", exchange: { name: "warehouse", type: "topic", durable: true } } },
+      subscribe: { operationId: "receiveStockReserved", message: { $ref: "#/components/messages/stockReserved" } },
+    },
+    "couriers/{courierId}/position": {
+      description: "Live courier positions streamed to the tracking page.",
+      servers: ["live"],
+      parameters: { courierId: { description: "Courier identifier.", schema: { type: "string" } } },
+      subscribe: { operationId: "receiveCourierPosition", message: { $ref: "./shared/courier-messages.yaml#/courierPosition" } },
+    },
+    "retail.cdc.partners.synced.v1": {
+      description: "Partner synchronisation on the partner cluster, whose server name starts with x-.",
+      servers: ["x-partners"],
+      subscribe: { operationId: "receivePartnerSynced", message: { $ref: "#/components/messages/partnerSynced" } },
+    },
+    "retail.cdc.loyalty.points.v1": {
+      description: "Loyalty points, listed on a legacy cluster that is no longer declared and on the production cluster.",
+      servers: ["legacy-loyalty", "production"],
+      subscribe: { operationId: "receiveLoyaltyPoints", message: { $ref: "#/components/messages/loyaltyPoints" } },
+    },
+    "retail.cdc.pricing.changed.v1": {
+      description: "Price changes, served by a server defined through a reference.",
+      servers: ["shared"],
+      subscribe: { operationId: "receivePriceChanged", message: { $ref: "#/components/messages/priceChanged" } },
+    },
+    "retail.sys.orders.audit.v1": {
+      description: "Order audit trail, whose server list is shared.",
+      servers: { $ref: "#/components/x-server-lists/kafka" },
+      subscribe: { $ref: "./shared/audit-operations.yaml#/receiveAudit" },
+    },
+    "retail.cdc.returns.created.v1": { $ref: "#/components/channels/returnsCreated" },
+    "retail.cdc.returns.created.v1.retry": { $ref: "#/components/channels/returnsCreated" },
+    "retail.cdc.invoices.issued.v1": { $ref: "./shared/invoice-channels.yaml#/invoicesIssued" },
+    "x-retail.cdc.vouchers.redeemed.v1": {
+      description: "Voucher redemptions, whose channel key starts with x-.",
+      servers: ["production"],
+      subscribe: { operationId: "receiveVoucherRedeemed", message: { $ref: "#/components/messages/voucherRedeemed" } },
+    },
+  },
+  components: {
+    servers: { sharedCluster: { url: "kafka-shared.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0" } },
+    channels: {
+      returnsCreated: {
+        description: "Returns created by customers or stores.",
+        servers: ["production"],
+        subscribe: { operationId: "receiveReturnCreated", message: { $ref: "#/components/messages/returnCreated" } },
+      },
+      unusedArchive: {
+        description: "Archived channel kept for reuse.",
+        servers: ["production-dr"],
+        publish: { operationId: "publishArchive", message: { name: "archive", payload: { type: "string" } } },
+      },
+    },
+    messages: {
+      orderPlaced: { name: "orderPlaced", payload: { $ref: "#/components/schemas/Order" }, examples: [{ payload: { orderId: "o-1", couponCode: null } }] },
+      orderPlacedAvro: {
+        name: "orderPlacedAvro",
+        schemaFormat: "application/vnd.apache.avro;version=1.9.0",
+        contentType: "application/vnd.apache.avro+json",
+        payload: {
+          type: "record",
+          name: "OrderPlaced",
+          namespace: "es.quality.retail",
+          fields: [
+            { name: "orderId", type: "string" },
+            { name: "couponCode", type: ["null", "string"], default: null },
+          ],
+        },
+      },
+      sensorReading: { name: "sensorReading", payload: { type: "object", properties: { celsius: { type: ["number", "null"] } } } },
+      stockReserved: { name: "stockReserved", payload: { type: "object" } },
+      partnerSynced: { name: "partnerSynced", payload: { type: "object" } },
+      loyaltyPoints: { name: "loyaltyPoints", payload: { type: "object" } },
+      priceChanged: { name: "priceChanged", payload: { type: "object" } },
+      returnCreated: { name: "returnCreated", payload: { type: "object" } },
+      voucherRedeemed: { name: "voucherRedeemed", payload: { type: "object" } },
+    },
+    schemas: {
+      Order: { type: "object", required: ["orderId"], properties: { orderId: { type: "string" }, couponCode: { type: ["string", "null"] } } },
+    },
+    parameters: { sensorId: { description: "Sensor identifier.", schema: { type: "string" } } },
+    operationTraits: { kafkaConsumer: { bindings: { kafka: { groupId: { type: "string", enum: ["order-fulfilment"] }, bindingVersion: "0.4.0" } } } },
+    messageTraits: { tracing: { headers: { type: "object", properties: { traceId: { type: "string" } } } } },
+    securitySchemes: { saslScram: { type: "scramSha512" } },
+    "x-server-lists": { kafka: ["production", "production-dr"] },
+  },
+};
