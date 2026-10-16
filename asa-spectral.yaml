@@ -62,6 +62,7 @@ functions:
   - asa-server-protocol-valid-values
   - asa-server-protocol-version-valid-values
   - asa-server-attributes-required
+  - asa-channel-attributes-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -999,3 +1000,13 @@ rules:
     given: "$"
     then:
       function: asa-server-attributes-required
+
+  asa:AAR087:
+    description: "Every channel must declare a non-empty address, description and messages."
+    message: "AAR087: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar087"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-channel-attributes-required
