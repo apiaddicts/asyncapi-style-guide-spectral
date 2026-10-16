@@ -60,6 +60,7 @@ functions:
   - asa-server-types
   - asa-server-name-pattern
   - asa-server-protocol-valid-values
+  - asa-server-protocol-version-valid-values
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -975,3 +976,15 @@ rules:
     given: "$"
     then:
       function: asa-server-protocol-valid-values
+
+  asa:AAR085:
+    description: "Every server protocolVersion must be one of the configured approved versions (default: 3.3.0)."
+    message: "AAR085: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar085"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-server-protocol-version-valid-values
+      functionOptions:
+        valid-versions: "3.3.0"
