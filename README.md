@@ -76,6 +76,7 @@ spectral lint your-asyncapi.yaml
 | **AAR083** | `error` | Server hosts must match the enterprise host pattern (default: `quality.es` or one of its subdomains). |
 | **AAR084** | `error` | Server protocols must be AsyncAPI transport protocols, such as `kafka`, `kafka-secure`, `amqp` or `mqtt`. |
 | **AAR085** | `error` | Server `protocolVersion` values must be approved versions (default: `3.3.0`). |
+| **AAR086** | `error` | Every server must declare a non-empty `url` or `host`, `protocol` and `protocolVersion`. |
 
 ### Operations Rules
 
@@ -159,7 +160,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 45 custom Spectral functions for complex validation logic:
+The ruleset includes 47 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -209,6 +210,7 @@ The ruleset includes 45 custom Spectral functions for complex validation logic:
 | `asa-server-host-pattern` | AAR083 | Validates server hosts against the configured pattern |
 | `asa-server-protocol-valid-values` | AAR084 | Checks server protocols against the AsyncAPI transport protocols |
 | `asa-server-protocol-version-valid-values` | AAR085 | Validates server protocol versions against the approved versions |
+| `asa-server-attributes-required` | AAR086 | Checks the mandatory server fields |
 
 ---
 
@@ -241,7 +243,7 @@ apiaddicts-asyncapi-style-guide-spectral/
 │   ├── helpers/
 │   │   ├── utils.js            # linterForRule and small shared helpers
 │   │   ├── casing.js           # Casing fixtures shared by AAR065, AAR066 and AAR074
-│   │   ├── required-fields.js  # Fixtures shared by the required-field rules (AAR075-AAR080)
+│   │   ├── required-fields.js  # Fixtures shared by the required-field rules (AAR075-AAR080, AAR086)
 │   │   └── rules/              # One fixture module per rule (aarNNN-<name>.js)
 │   ├── asyncapi2/           # AsyncAPI 2.x tests
 │   │   ├── security/        # Security rule tests

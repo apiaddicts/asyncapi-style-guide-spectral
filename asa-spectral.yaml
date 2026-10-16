@@ -61,6 +61,7 @@ functions:
   - asa-server-name-pattern
   - asa-server-protocol-valid-values
   - asa-server-protocol-version-valid-values
+  - asa-server-attributes-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -988,3 +989,13 @@ rules:
       function: asa-server-protocol-version-valid-values
       functionOptions:
         valid-versions: "3.3.0"
+
+  asa:AAR086:
+    description: "Every server must declare a non-empty url or host, protocol and protocolVersion."
+    message: "AAR086: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar086"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-server-attributes-required

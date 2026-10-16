@@ -1,0 +1,63 @@
+module.exports = {
+  asyncapi: "3.0.0",
+  info: { title: "Quality Fleet Structural Edges", version: "1.0.0", description: "Server-like nodes the rule must skip.", "x-host": "" },
+  "x-servers": { rogue: { host: "", protocol: null }, empty: {}, nothing: null },
+  servers: {
+    kafka: { host: "kafka.quality.es:9092", protocol: "kafka", protocolVersion: "3.3.0" },
+    gateway: {
+      host: "mqtt.quality.es:{port}",
+      pathname: "",
+      protocol: "mqtt",
+      protocolVersion: "5.0",
+      title: "",
+      summary: "",
+      variables: { port: { enum: ["1883", "8883"], default: "8883" }, host: { default: "" }, protocolVersion: { default: "" } },
+      security: [{ $ref: "#/components/securitySchemes/evil" }, { type: "httpApiKey", name: "host", in: "header" }],
+      bindings: { mqtt: { clientId: "fleet-gateway", bindingVersion: "0.2.0", host: "", protocolVersion: null }, kafka: {} },
+      tags: [{ name: "protocolVersion", description: "" }],
+      externalDocs: { url: "https://docs.quality.es/gateway" },
+    },
+  },
+  channels: {
+    vehicleStatus: {
+      address: "fleet/{vehicleId}/status",
+      servers: [{ $ref: "#/servers/kafka" }, { $ref: "#/x-servers/rogue" }, { $ref: "#/components/x-servers/rogue" }, { host: "", protocol: "" }],
+      parameters: { vehicleId: { enum: ["a"], default: "a", location: "$message.header#/host" } },
+      bindings: { ws: { headers: { type: "object", properties: { protocolVersion: { type: "string" } } }, bindingVersion: "0.1.0" } },
+      messages: {
+        statusChanged: {
+          headers: { type: "object", properties: { host: { type: ["string", "null"] } } },
+          payload: { schemaFormat: "application/vnd.apache.avro;version=1.9.0", schema: { type: "record", name: "Status", fields: [{ name: "host", type: ["null", "string"], default: null }] } },
+          examples: [{ headers: { host: "" }, payload: { host: null } }],
+          traits: [{ headers: { type: "object", properties: { protocol: { type: "string" } } } }],
+        },
+      },
+    },
+    nullAddress: { address: null, servers: [{ $ref: "#/servers/gateway" }] },
+  },
+  operations: {
+    sendStatus: { action: "send", channel: { $ref: "#/channels/vehicleStatus" }, "x-host": "" },
+    requestRoute: {
+      action: "send",
+      channel: { $ref: "#/channels/vehicleStatus" },
+      traits: [{ bindings: { kafka: { groupId: { type: "string" } } }, "x-servers": { a: {} } }],
+      reply: { address: { location: "$message.header#/replyTo" }, channel: { $ref: "#/channels/nullAddress" } },
+    },
+  },
+  components: {
+    servers: { shared: { host: "kafka-shared.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0" } },
+    serverVariables: { host: { default: "" }, protocolVersion: { enum: [""] } },
+    serverBindings: { legacy: { kafka: { host: "", protocol: null, protocolVersion: "" } } },
+    channels: { mirror: { address: "fleet.mirror", servers: [{ $ref: "#/servers/kafka" }], "x-servers": { b: {} } } },
+    operations: { mirrorOperation: { action: "receive", channel: { $ref: "#/components/channels/mirror" } } },
+    schemas: { Server: { type: "object", required: ["host", "protocol", "protocolVersion"], properties: { host: { type: "string" }, protocol: { type: "string" }, protocolVersion: { type: "string" } } } },
+    messages: { serverMoved: { payload: { $ref: "#/components/schemas/Server" }, examples: [{ payload: { host: "", protocol: "", protocolVersion: "" } }] } },
+    messageTraits: { transport: { headers: { type: "object", properties: { host: { type: "string" } } } } },
+    operationTraits: { versioned: { "x-protocolVersion": "" } },
+    parameters: { host: { enum: [""], default: "" } },
+    replies: { routeReply: { address: { location: "$message.header#/replyTo" } } },
+    replyAddresses: { rogue: { location: "$message.header#/host", description: "" } },
+    securitySchemes: { evil: { type: "oauth2", flows: { clientCredentials: { tokenUrl: "https://auth.quality.es/token", availableScopes: {} } } } },
+    "x-servers": { rogue: { host: "", protocol: "", protocolVersion: "" } },
+  },
+};
