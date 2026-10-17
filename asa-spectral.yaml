@@ -67,6 +67,7 @@ functions:
   - asa-channel-security-valid-values
   - asa-channel-bindings-required
   - asa-channel-messages-required
+  - asa-operation-attributes-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -1056,3 +1057,13 @@ rules:
     given: "$"
     then:
       function: asa-channel-messages-required
+
+  asa:AAR092:
+    description: "Every operation must declare a non-empty action, channel and summary."
+    message: "AAR092: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar092"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-operation-attributes-required

@@ -97,6 +97,7 @@ spectral lint your-asyncapi.yaml
 | **AAR088** | `error` | Every channel must list at least one server of the root `servers` object. |
 | **AAR090** | `error` | Every channel must declare a `kafka` binding. |
 | **AAR091** | `error` | Every channel must declare at least one message in `messages`. |
+| **AAR092** | `error` | Every operation must declare a non-empty `action`, `channel` and `summary` (2.x: `summary`). |
 
 ### Format / Documentation Rules
 
@@ -165,7 +166,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 52 custom Spectral functions for complex validation logic:
+The ruleset includes 53 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -221,6 +222,7 @@ The ruleset includes 52 custom Spectral functions for complex validation logic:
 | `asa-channel-security-valid-values` | AAR089 | Validates applied security scheme types against the approved mechanisms |
 | `asa-channel-bindings-required` | AAR090 | Checks that every channel declares a kafka binding |
 | `asa-channel-messages-required` | AAR091 | Checks that every channel declares at least one message |
+| `asa-operation-attributes-required` | AAR092 | Checks the mandatory operation fields |
 
 ---
 
@@ -253,7 +255,7 @@ apiaddicts-asyncapi-style-guide-spectral/
 │   ├── helpers/
 │   │   ├── utils.js            # linterForRule and small shared helpers
 │   │   ├── casing.js           # Casing fixtures shared by AAR065, AAR066 and AAR074
-│   │   ├── required-fields.js  # Fixtures shared by the required-field rules (AAR075-AAR080, AAR086-AAR088, AAR091)
+│   │   ├── required-fields.js  # Fixtures shared by the required-field rules (AAR075-AAR080, AAR086-AAR088, AAR091, AAR092)
 │   │   └── rules/              # One fixture module per rule (aarNNN-<name>.js)
 │   ├── asyncapi2/           # AsyncAPI 2.x tests
 │   │   ├── security/        # Security rule tests
