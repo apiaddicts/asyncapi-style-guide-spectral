@@ -95,6 +95,7 @@ spectral lint your-asyncapi.yaml
 | **AAR062** | `error` | Each consuming operation (v2 `subscribe`, v3 `receive`) must declare a consumer group via `x-scs-group` or `bindings.kafka.groupId`. |
 | **AAR087** | `error` | Every channel must declare a non-empty `address`, `description` and `messages` (2.x: `description` and a `publish` or `subscribe` message). |
 | **AAR088** | `error` | Every channel must list at least one server of the root `servers` object. |
+| **AAR090** | `error` | Every channel must declare a `kafka` binding. |
 
 ### Format / Documentation Rules
 
@@ -163,7 +164,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 50 custom Spectral functions for complex validation logic:
+The ruleset includes 51 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -217,6 +218,7 @@ The ruleset includes 50 custom Spectral functions for complex validation logic:
 | `asa-channel-attributes-required` | AAR087 | Checks the mandatory channel fields |
 | `asa-channel-servers-required` | AAR088 | Checks that every channel lists a root server |
 | `asa-channel-security-valid-values` | AAR089 | Validates applied security scheme types against the approved mechanisms |
+| `asa-channel-bindings-required` | AAR090 | Checks that every channel declares a kafka binding |
 
 ---
 

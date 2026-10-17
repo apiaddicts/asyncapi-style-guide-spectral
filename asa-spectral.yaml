@@ -65,6 +65,7 @@ functions:
   - asa-channel-attributes-required
   - asa-channel-servers-required
   - asa-channel-security-valid-values
+  - asa-channel-bindings-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -1034,3 +1035,13 @@ rules:
       function: asa-channel-security-valid-values
       functionOptions:
         allowed-security-types: "scramSha512,X509"
+
+  asa:AAR090:
+    description: "Every channel must declare a kafka binding."
+    message: "AAR090: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar090"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-channel-bindings-required
