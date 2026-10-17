@@ -66,6 +66,7 @@ functions:
   - asa-channel-servers-required
   - asa-channel-security-valid-values
   - asa-channel-bindings-required
+  - asa-channel-messages-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -1045,3 +1046,13 @@ rules:
     given: "$"
     then:
       function: asa-channel-bindings-required
+
+  asa:AAR091:
+    description: "Every channel must declare at least one message in its messages map."
+    message: "AAR091: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar091"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-channel-messages-required
