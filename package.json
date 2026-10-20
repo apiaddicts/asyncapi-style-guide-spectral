@@ -1,6 +1,6 @@
 {
   "name": "@apiaddicts/asyncapi-style-guide-spectral",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Spectral ruleset for AsyncAPI definitions by APIAddicts / ApiQuality",
   "main": "asa-spectral.yaml",
   "files": [
