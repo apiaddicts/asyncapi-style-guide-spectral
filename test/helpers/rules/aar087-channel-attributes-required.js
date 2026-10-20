@@ -8,7 +8,7 @@ const ESCAPES = { "\n": "\\n", "\r": "\\r", "\t": "\\t" };
 const shown = (value) =>
   value.replace(/[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028\u2029\u2060\ufeff]/g, (char) => ESCAPES[char] || `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`);
 
-const EXPECTED = { 2: "'description' and a message in 'publish' or 'subscribe'", 3: "'address', 'description' and 'messages'" };
+const EXPECTED = { 2: "'description' and a 'publish' or 'subscribe' operation", 3: "'address', 'description' and 'messages'" };
 
 /**
  * @param {number} major - The AsyncAPI major version under test (2 or 3)
@@ -17,8 +17,7 @@ const EXPECTED = { 2: "'description' and a message in 'publish' or 'subscribe'",
 const messagesFor = (major) => ({
   missing: (channel, field) => `AAR087: Channel '${shown(channel)}' must declare '${field}'.`,
   empty: (channel, field) => `AAR087: The '${field}' of channel '${shown(channel)}' must not be empty.`,
-  noMessage: (channel) => `AAR087: Channel '${shown(channel)}' must declare a message in 'publish' or 'subscribe'.`,
-  emptyMessage: (channel, operation) => `AAR087: The '${operation}.message' of channel '${shown(channel)}' must not be empty.`,
+  noOperation: (channel) => `AAR087: Channel '${shown(channel)}' must declare a 'publish' or 'subscribe' operation.`,
   unusable: (channel) => `AAR087: Channel '${shown(channel)}' must be an object declaring ${EXPECTED[major]}.`,
 });
 
@@ -29,7 +28,15 @@ const findingsFor = (major) => findingsFrom(messagesFor(major));
  * @returns {Function} Expected [path, kind, ...args] entries for a channel lacking every mandatory field
  */
 const allMissingFor = (major) => (path, name) =>
-  major === 3 ? FIELDS_V3.map((field) => [path, "missing", name, field]) : [[path, "missing", name, "description"], [path, "noMessage", name]];
+  major === 3 ? FIELDS_V3.map((field) => [path, "missing", name, field]) : [[path, "missing", name, "description"], [path, "noOperation", name]];
+
+/**
+ * @param {string} field - The AsyncAPI 3.x channel field set to the value
+ * @param {*} value - The value written in the field
+ * @param {boolean} populated - Whether the value counts as populated
+ * @returns {boolean} Whether AAR087 reports the field as empty: messages only needs to be present and address may be null
+ */
+const reportedEmptyV3 = (field, value, populated) => field !== "messages" && !(field === "address" && value === null) && !populated;
 
 const channelTarget = (name) => ({ $ref: `#/components/x-channels/${name}` });
 const operationTarget = (name) => ({ $ref: `#/components/x-operations/${name}` });
@@ -192,11 +199,8 @@ const sharedReferenceCases = (major) => {
   const NAME = NAMES[major];
   const { complete, minimal } = shapesFor(major);
   const allMissing = allMissingFor(major);
-  const sparse =
-    major === 3
-      ? [["components.x-channels.sparse", "missing", "sparse", "description"], ["components.x-channels.sparse.messages", "empty", "sparse", "messages"]]
-      : [["components.x-channels.sparse.description", "empty", "sparse", "description"], ["components.x-channels.sparse", "noMessage", "sparse"]];
-  const otherVersion = major === 3 ? [["components.x-channels.otherVersion", "missing", "otherVersion", "address"], ["components.x-channels.otherVersion", "missing", "otherVersion", "messages"]] : [["components.x-channels.otherVersion", "noMessage", "otherVersion"]];
+  const sparse = major === 3 ? [["components.x-channels.sparse", "missing", "sparse", "description"]] : [["components.x-channels.sparse.description", "empty", "sparse", "description"]];
+  const otherVersion = major === 3 ? [["components.x-channels.otherVersion", "missing", "otherVersion", "address"], ["components.x-channels.otherVersion", "missing", "otherVersion", "messages"]] : [["components.x-channels.otherVersion", "noOperation", "otherVersion"]];
   return [
     ["a reference to a complete channel", channelTarget("complete"), []],
     ["a reference to a minimal channel", channelTarget("minimal"), []],
@@ -269,17 +273,25 @@ const channelObjectCasesV3 = () => {
     ["an empty channel", {}, allMissing(AT, NAME)],
     ...FIELDS_V3.map((field) => [`a channel without ${field}`, without(field), [[AT, "missing", NAME, field]]]),
     ...combinations(FIELDS_V3).map(([a, b]) => [`a channel without ${a} and ${b}`, without(a, b), [[AT, "missing", NAME, a], [AT, "missing", NAME, b]]]),
-    ["a channel with a null address, which the spec reads as unknown", { ...minimal, address: null }, [[`${AT}.address`, "empty", NAME, "address"]]],
-    ["a reply channel with a null address and a dynamic reply location elsewhere", { address: null, description: "Replies.", messages: { orderAccepted: messageRef("orderPlaced") } }, [[`${AT}.address`, "empty", NAME, "address"]]],
-    ["a channel with an empty messages map", { ...minimal, messages: {} }, [[`${AT}.messages`, "empty", NAME, "messages"]]],
+    ["a channel with a null address, which the spec reads as unknown", { ...minimal, address: null }, []],
+    ["a reply channel with a null address and a dynamic reply location elsewhere", { address: null, description: "Replies.", messages: { orderAccepted: messageRef("orderPlaced") } }, []],
+    ["a channel with a null address and no description or messages", { address: null }, [[AT, "missing", NAME, "description"], [AT, "missing", NAME, "messages"]]],
+    ["a channel whose address is a reference to null, which is not a null address", { ...minimal, address: { $ref: "#/components/x-texts/nothing" } }, [[`${AT}.address`, "empty", NAME, "address"]]],
+    ["a channel with an empty messages map, whose content AAR091 checks", { ...minimal, messages: {} }, []],
+    ["a channel with null messages, whose content AAR091 checks", { ...minimal, messages: null }, []],
+    ["a channel with a messages list, whose content AAR091 checks", { ...minimal, messages: [] }, []],
+    ["a channel with a blank messages string, whose content AAR091 checks", { ...minimal, messages: " " }, []],
+    ["a channel whose messages is a dangling reference, whose content AAR091 checks", { ...minimal, messages: { $ref: "#/components/x-message-maps/missing" } }, []],
+    ["a channel whose messages map only holds null messages, whose content AAR091 checks", { ...minimal, messages: { orderPlaced: null } }, []],
     ["a channel with only extensions", { "x-address": "orders.placed", "x-description": "Orders.", "x-messages": { orderPlaced: messageRef("orderPlaced") } }, allMissing(AT, NAME)],
     ["a channel with look-alike keys", { name: "orders.placed", topic: "orders.placed", path: "/orders", summary: "Orders.", title: "Orders", message: messageRef("orderPlaced"), payload: { type: "object" } }, allMissing(AT, NAME)],
     ["a channel whose keys differ in case", { Address: "orders.placed", ADDRESS: "orders.placed", Description: "Orders.", Messages: { orderPlaced: messageRef("orderPlaced") } }, allMissing(AT, NAME)],
     ["an address only in the Kafka binding", { ...without("address"), bindings: { kafka: { topic: "orders.placed", bindingVersion: "0.5.0" } } }, [[AT, "missing", NAME, "address"]]],
     ["a description only in the title and summary", { ...without("description"), title: "Orders placed", summary: "Orders placed in any sales channel." }, [[AT, "missing", NAME, "description"]]],
     ["a channel written for AsyncAPI 2.x", { description: "Orders.", subscribe: { message: messageRef("orderPlaced") }, publish: { message: messageRef("orderPlaced") } }, [[AT, "missing", NAME, "address"], [AT, "missing", NAME, "messages"]]],
-    ["a channel with the three fields blank", { address: " ", description: "", messages: {} }, FIELDS_V3.map((field) => [`${AT}.${field}`, "empty", NAME, field])],
-    ["a channel with blank fields and populated look-alikes", { address: "\t", description: null, messages: [], topic: "orders.placed", summary: "Orders.", message: messageRef("orderPlaced") }, FIELDS_V3.map((field) => [`${AT}.${field}`, "empty", NAME, field])],
+    ["a channel with the three fields blank", { address: " ", description: "", messages: {} }, [[`${AT}.address`, "empty", NAME, "address"], [`${AT}.description`, "empty", NAME, "description"]]],
+    ["a channel with blank fields and populated look-alikes", { address: "\t", description: null, messages: [], topic: "orders.placed", summary: "Orders.", message: messageRef("orderPlaced") }, [[`${AT}.address`, "empty", NAME, "address"], [`${AT}.description`, "empty", NAME, "description"]]],
+    ["a channel with the three fields null", { address: null, description: null, messages: null }, [[`${AT}.description`, "empty", NAME, "description"]]],
     ...sharedReferenceCases(3),
   ];
 };
@@ -293,11 +305,11 @@ const channelObjectCasesV2 = () => {
   const { complete, minimal } = shapesFor(2);
   const allMissing = allMissingFor(2);
   const DESCRIPTION = { description: "Orders placed." };
-  const noMessage = [[AT, "noMessage", NAME]];
+  const noOperation = [[AT, "noOperation", NAME]];
   return [
     ["a complete inline channel", complete, []],
-    ["a channel with a description and a subscribe message", minimal, []],
-    ["a channel with a description and a publish message", { ...DESCRIPTION, publish: { message: messageRef("orderPlaced") } }, []],
+    ["a channel with a description and a subscribe operation", minimal, []],
+    ["a channel with a description and a publish operation", { ...DESCRIPTION, publish: { message: messageRef("orderPlaced") } }, []],
     [
       "a channel with every optional field",
       {
@@ -312,30 +324,31 @@ const channelObjectCasesV2 = () => {
     ],
     ["an empty channel", {}, allMissing(AT, NAME)],
     ["a channel without description", { subscribe: { message: messageRef("orderPlaced") } }, [[AT, "missing", NAME, "description"]]],
-    ["a channel without operations", { ...DESCRIPTION, parameters: { storeId: { schema: { type: "string" } } } }, noMessage],
-    ["a channel whose publish has no message", { ...DESCRIPTION, publish: { operationId: "publishOrder", summary: "Publish.", traits: [{ $ref: "#/components/operationTraits/kafka" }], bindings: { kafka: { clientId: "orders" } } } }, noMessage],
-    ["a channel whose operations are empty objects", { ...DESCRIPTION, publish: {}, subscribe: {} }, noMessage],
-    ["a channel whose operations are null", { ...DESCRIPTION, publish: null, subscribe: null }, noMessage],
-    ["a channel whose operations are not objects", { ...DESCRIPTION, publish: "orderPlaced", subscribe: [{ message: messageRef("orderPlaced") }] }, noMessage],
-    ["a channel whose message is only in an operation trait", { ...DESCRIPTION, subscribe: { traits: [{ message: messageRef("orderPlaced") }] } }, noMessage],
-    ["a channel whose message is only in the bindings", { ...DESCRIPTION, bindings: { kafka: { message: messageRef("orderPlaced") } } }, noMessage],
-    ["a channel with an AsyncAPI 3.x messages map", { ...DESCRIPTION, messages: { orderPlaced: messageRef("orderPlaced") } }, noMessage],
-    ["a channel with AsyncAPI 3.x send and receive keys", { ...DESCRIPTION, send: { message: messageRef("orderPlaced") }, receive: { message: messageRef("orderPlaced") } }, noMessage],
-    ["a channel whose operation keys differ in case", { ...DESCRIPTION, Publish: { message: messageRef("orderPlaced") }, SUBSCRIBE: { message: messageRef("orderPlaced") } }, noMessage],
-    ["a channel whose operations are extensions", { ...DESCRIPTION, "x-publish": { message: messageRef("orderPlaced") } }, noMessage],
-    ["a channel with an empty publish message", { ...DESCRIPTION, publish: { message: { oneOf: [] } } }, [[`${AT}.publish.message`, "emptyMessage", NAME, "publish"]]],
-    ["a channel with both messages empty", { ...DESCRIPTION, publish: { message: null }, subscribe: { message: { oneOf: [] } } }, [[`${AT}.publish.message`, "emptyMessage", NAME, "publish"], [`${AT}.subscribe.message`, "emptyMessage", NAME, "subscribe"]]],
-    ["an empty publish message next to a subscribe message", { ...DESCRIPTION, publish: { message: { oneOf: [] } }, subscribe: { message: messageRef("orderPlaced") } }, []],
-    ["an empty publish message next to a subscribe without message", { ...DESCRIPTION, publish: { message: "" }, subscribe: { operationId: "receiveOrder" } }, [[`${AT}.publish.message`, "emptyMessage", NAME, "publish"]]],
+    ["a channel without operations", { ...DESCRIPTION, parameters: { storeId: { schema: { type: "string" } } } }, noOperation],
+    ["a channel whose message is only in the bindings", { ...DESCRIPTION, bindings: { kafka: { message: messageRef("orderPlaced") } } }, noOperation],
+    ["a channel with an AsyncAPI 3.x messages map", { ...DESCRIPTION, messages: { orderPlaced: messageRef("orderPlaced") } }, noOperation],
+    ["a channel with AsyncAPI 3.x send and receive keys", { ...DESCRIPTION, send: { message: messageRef("orderPlaced") }, receive: { message: messageRef("orderPlaced") } }, noOperation],
+    ["a channel whose operation keys differ in case", { ...DESCRIPTION, Publish: { message: messageRef("orderPlaced") }, SUBSCRIBE: { message: messageRef("orderPlaced") } }, noOperation],
+    ["a channel whose operations are extensions", { ...DESCRIPTION, "x-publish": { message: messageRef("orderPlaced") } }, noOperation],
+    ["a channel whose publish has no message, which AAR094 checks", { ...DESCRIPTION, publish: { operationId: "publishOrder", summary: "Publish.", traits: [{ $ref: "#/components/operationTraits/kafka" }], bindings: { kafka: { clientId: "orders" } } } }, []],
+    ["a channel whose operations are empty objects, which AAR094 checks", { ...DESCRIPTION, publish: {}, subscribe: {} }, []],
+    ["a channel whose operations are null, which AAR094 checks", { ...DESCRIPTION, publish: null, subscribe: null }, []],
+    ["a channel whose only operation is null, which AAR094 checks", { ...DESCRIPTION, subscribe: null }, []],
+    ["a channel whose operations are not objects, which AAR094 checks", { ...DESCRIPTION, publish: "orderPlaced", subscribe: [{ message: messageRef("orderPlaced") }] }, []],
+    ["a channel whose message is only in an operation trait, which AAR094 checks", { ...DESCRIPTION, subscribe: { traits: [{ message: messageRef("orderPlaced") }] } }, []],
+    ["a channel with an empty publish message, which AAR094 checks", { ...DESCRIPTION, publish: { message: { oneOf: [] } } }, []],
+    ["a channel with both messages empty, which AAR094 checks", { ...DESCRIPTION, publish: { message: null }, subscribe: { message: { oneOf: [] } } }, []],
+    ["an empty publish message next to a subscribe without message, which AAR094 checks", { ...DESCRIPTION, publish: { message: "" }, subscribe: { operationId: "receiveOrder" } }, []],
     ["a description only in the operations", { publish: { description: "Publishes orders.", message: messageRef("orderPlaced") } }, [[AT, "missing", NAME, "description"]]],
     ["a description only as an extension or binding", { "x-description": "Orders.", bindings: { kafka: { description: "Orders." } }, subscribe: { message: messageRef("orderPlaced") } }, [[AT, "missing", NAME, "description"]]],
-    ["a blank description and no operations", { description: " " }, [[`${AT}.description`, "empty", NAME, "description"], [AT, "noMessage", NAME]]],
+    ["a blank description and no operations", { description: " " }, [[`${AT}.description`, "empty", NAME, "description"], [AT, "noOperation", NAME]]],
+    ["a blank description and an empty operation", { description: " ", publish: {} }, [[`${AT}.description`, "empty", NAME, "description"]]],
     ["an operation given as a reference to an operation with a message", { ...DESCRIPTION, subscribe: operationTarget("withMessage") }, []],
     ["an operation given as a chained reference", { ...DESCRIPTION, subscribe: operationTarget("alias") }, []],
     ["an operation given as an external reference", { ...DESCRIPTION, subscribe: { $ref: "./shared/operations.yaml#/receiveOrder" } }, []],
-    ["an operation given as a reference to an operation without message", { ...DESCRIPTION, subscribe: operationTarget("withoutMessage") }, noMessage],
-    ["an operation given as a dangling reference", { ...DESCRIPTION, subscribe: operationTarget("missing") }, noMessage],
-    ["an operation given as a reference to an operation with an empty message", { ...DESCRIPTION, publish: operationTarget("emptyMessage") }, [["components.x-operations.emptyMessage.message", "emptyMessage", NAME, "publish"]]],
+    ["an operation given as a reference to an operation without message, which is not followed", { ...DESCRIPTION, subscribe: operationTarget("withoutMessage") }, []],
+    ["an operation given as a dangling reference, which is not followed", { ...DESCRIPTION, subscribe: operationTarget("missing") }, []],
+    ["an operation given as a reference to an operation with an empty message, which is not followed", { ...DESCRIPTION, publish: operationTarget("emptyMessage") }, []],
     ...sharedReferenceCases(2),
   ];
 };
@@ -365,6 +378,7 @@ module.exports = {
   messagesFor,
   findingsFor,
   allMissingFor,
+  reportedEmptyV3,
   channelTarget,
   operationTarget,
   messageRef,

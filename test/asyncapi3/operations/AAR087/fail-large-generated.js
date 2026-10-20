@@ -22,7 +22,9 @@ for (let i = 0; i < SHARED_COUNT; i++) {
     expected.push([path, "missing", name, "address"]);
   } else if (i % 5 === 3) {
     sharedChannels[name] = { ...complete("sessions", i), messages: {} };
-    expected.push([`${path}.messages`, "empty", name, "messages"]);
+  } else if (i % 5 === 4) {
+    sharedChannels[name] = { address: `mobility.cdc.sessions.shared${i}.v1`, description: `Shared ${i} without messages.` };
+    expected.push([path, "missing", name, "messages"]);
   } else {
     sharedChannels[name] = complete("sessions", i);
   }
@@ -56,6 +58,8 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     case 3:
       if (c % 5 === 3) {
         channels[name] = { ...complete(domain, c), address: null };
+      } else if (c % 5 === 1) {
+        channels[name] = { ...complete(domain, c), address: "" };
         expected.push([`${path}.address`, "empty", name, "address"]);
       } else {
         channels[name] = complete(domain, c);

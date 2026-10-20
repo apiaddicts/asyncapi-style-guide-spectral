@@ -9,6 +9,11 @@ const operations = {};
 const messages = {};
 const operationTraits = {};
 const expectedPaths = [];
+const ros2Paths = [];
+
+const track = (path, valid) => {
+  if (valid === "ros2") ros2Paths.push(`${path}.ros2`);
+};
 
 const bindings = (valid, invalid) => {
   const result = { [valid]: { bindingVersion: "latest" }, "x-owner": { team: "platform" } };
@@ -20,6 +25,7 @@ for (let s = 0; s < 20; s++) {
   const invalid = s % 6 === 0 ? INVALID[s % INVALID.length] : undefined;
   servers[`broker${s}`] = { host: `broker-${s}.metro.io:9093`, protocol: "kafka-secure", bindings: bindings(VALID[s % VALID.length], invalid) };
   if (invalid !== undefined) expectedPaths.push(`servers.broker${s}.bindings.${invalid}`);
+  track(`servers.broker${s}.bindings`, VALID[s % VALID.length]);
 }
 
 for (let i = 0; i < CHANNEL_COUNT; i++) {
@@ -67,6 +73,12 @@ for (let i = 0; i < CHANNEL_COUNT; i++) {
   if (tupleInvalid !== undefined) expectedPaths.push(`${base}.messages.published.traits.2.0.bindings.${tupleInvalid}`);
   if (operationInvalid !== undefined) expectedPaths.push(`operations.send${channelId}.bindings.${operationInvalid}`);
   if (operationTraitInvalid !== undefined) expectedPaths.push(`operations.send${channelId}.traits.1.bindings.${operationTraitInvalid}`);
+  track(`${base}.bindings`, VALID[i % VALID.length]);
+  track(`${base}.messages.published.bindings`, VALID[(i + 1) % VALID.length]);
+  track(`${base}.messages.published.traits.1.bindings`, VALID[(i + 2) % VALID.length]);
+  track(`${base}.messages.published.traits.2.0.bindings`, VALID[(i + 3) % VALID.length]);
+  track(`operations.send${channelId}.bindings`, VALID[(i + 4) % VALID.length]);
+  track(`operations.send${channelId}.traits.1.bindings`, VALID[(i + 5) % VALID.length]);
 }
 
 for (let s = 0; s < 5; s++) {
@@ -97,4 +109,5 @@ module.exports = {
     },
   },
   expectedPaths: [...expectedPaths, "components.messageTraits.commonHeaders.bindings.rabbitmq"].sort(),
+  ros2Paths: ros2Paths.sort(),
 };

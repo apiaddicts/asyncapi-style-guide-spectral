@@ -1,11 +1,14 @@
 /**
  * @param {object} document - The whole AsyncAPI document (given: "$", resolved: false)
- * @param {object} _options - Unused: the allowed values are always ALLOWED_PROTOCOLS, the protocols named by the
- *   AsyncAPI 2.6 specification plus those of the official AsyncAPI bindings, compared as written.
+ * @param {object} options - Function options
+ * @param {string|string[]} options["allowed-protocols"] - Comma-separated list (or array) of the allowed protocols,
+ *   compared as written with the protocol of every server in servers and components.servers. Entries are trimmed,
+ *   empty entries dropped and duplicates removed; a missing, blank or otherwise unusable value falls back to the
+ *   default list: the protocols named by the AsyncAPI 2.6 specification plus those of the official AsyncAPI bindings.
  * @param {import('@stoplight/spectral-core').RulesetFunctionContext} context
  * @returns {Array} Array of error objects
  */
-const ALLOWED_PROTOCOLS = [
+const DEFAULT_ALLOWED_PROTOCOLS = [
   "amqp",
   "amqp1",
   "amqps",
@@ -14,6 +17,7 @@ const ALLOWED_PROTOCOLS = [
   "http",
   "https",
   "ibmmq",
+  "ibmmq-secure",
   "jms",
   "kafka",
   "kafka-secure",
@@ -44,6 +48,17 @@ const ESCAPES = { "\n": "\\n", "\r": "\\r", "\t": "\\t" };
 const printable = (value) =>
   value.replace(/[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028\u2029\u2060\ufeff]/g, (char) => ESCAPES[char] || `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`);
 
+const parseAllowed = (raw) => {
+  let candidates = [];
+  if (typeof raw === "string") {
+    candidates = raw.split(",");
+  } else if (Array.isArray(raw)) {
+    candidates = raw.filter((item) => typeof item === "string").flatMap((item) => item.split(","));
+  }
+  const entries = [...new Set(candidates.map((entry) => entry.trim()).filter((entry) => entry !== ""))];
+  return entries.length > 0 ? entries : DEFAULT_ALLOWED_PROTOCOLS;
+};
+
 const unescapeToken = (token) => token.replace(/~1/g, "/").replace(/~0/g, "~");
 const escapeToken = (token) => String(token).replace(/~/g, "~0").replace(/\//g, "~1");
 
@@ -59,14 +74,15 @@ const pointerPath = (ref) => {
   return fragment.slice(1).split("/").map(unescapeToken);
 };
 
-module.exports = (document, _options, context) => {
+module.exports = (document, options, context) => {
   const errors = [];
   if (!isObject(document) || !has(document, "asyncapi")) {
     return errors;
   }
 
-  const allowed = new Set(ALLOWED_PROTOCOLS);
-  const expected = ALLOWED_PROTOCOLS.map((protocol) => `'${protocol}'`).join(", ");
+  const protocols = parseAllowed(options && options["allowed-protocols"]);
+  const allowed = new Set(protocols);
+  const expected = protocols.map((protocol) => `'${printable(protocol)}'`).join(", ");
   const visited = new Set();
 
   const follow = (node, path) => {

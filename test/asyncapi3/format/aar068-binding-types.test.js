@@ -1,5 +1,5 @@
 const { linterForRule } = require("../../helpers/utils");
-const { BINDING_KEY_CASES } = require("../../helpers/rules/aar068-binding-types");
+const { BINDING_KEY_CASES, unavailableIn, versionMessage } = require("../../helpers/rules/aar068-binding-types");
 const okExample = require("./AAR068/ok-example");
 const failExample = require("./AAR068/fail-example");
 const failSharedRef = require("./AAR068/fail-shared-ref");
@@ -46,6 +46,10 @@ const FAIL_EXAMPLE_PATHS = [
   "components.messageBindings.keyed.key",
 ].sort();
 
+const FAIL_EXAMPLE_ROS2 = ["servers.robotFleet.bindings.ros2"];
+const OK_EXAMPLE_ROS2 = ["servers.robotFleet.bindings.ros2", "operations.receiveTelemetry.bindings.ros2"].sort();
+const pairsOf = (results) => only(results).map((r) => `${r.path.join(".")} :: ${r.message}`).sort();
+
 const bad = { kafka: {}, rabbitmq: {} };
 
 const LOCATIONS = [
@@ -90,20 +94,70 @@ describe.each(["3.0.0", "3.1.0"])("AAR068 (AsyncAPI %s): bindings objects may on
   });
 
   const reportedKeys = (results) => new Set(only(results).map((r) => r.path[3]));
+  const gated = unavailableIn(version);
+  const withRos2 = (paths, ros2) => (gated.includes("ros2") ? [...paths, ...ros2].sort() : paths);
+  const FAIL_PATHS = withRos2(FAIL_EXAMPLE_PATHS, FAIL_EXAMPLE_ROS2);
+  const OK_PATHS = withRos2([], OK_EXAMPLE_ROS2);
 
   describe("shipped allowed-bindings", () => {
-    test("passes a realistic multi-protocol document, ignoring extensions, payloads, multi-format schemas, headers, examples and $ref bindings", async () => {
-      expect(await run(okExample)).toEqual([]);
+    test("passes a realistic multi-protocol document, ignoring extensions, payloads, multi-format schemas, headers, examples and $ref bindings, ros2 only from 3.1.0", async () => {
+      expect(await run(okExample)).toEqual(OK_PATHS);
     });
 
     test("reports every key outside the list in servers, channels, channel messages, operations, traits and every components map", async () => {
-      expect(await run(failExample)).toEqual(FAIL_EXAMPLE_PATHS);
+      expect(await run(failExample)).toEqual(FAIL_PATHS);
     });
 
-    test("treats any version from 3 upwards as 3.x", async () => {
-      for (const other of [3, "3", "3.0", " 3.1.0 ", "3.2.0", "4.0.0"]) {
-        expect(pathsOf(await linter.run(withVersion(failExample, other)))).toEqual(FAIL_EXAMPLE_PATHS);
+    test("treats any version from 3 upwards as 3.x, gating ros2 below 3.1", async () => {
+      for (const other of [3, "3", "3.0", "3.0.9"]) {
+        expect([other, pathsOf(await linter.run(withVersion(failExample, other)))]).toEqual([other, [...FAIL_EXAMPLE_PATHS, ...FAIL_EXAMPLE_ROS2].sort()]);
       }
+      for (const other of [3.1, "3.1", " 3.1.0 ", "3.2.0", "4.0.0"]) {
+        expect([other, pathsOf(await linter.run(withVersion(failExample, other)))]).toEqual([other, FAIL_EXAMPLE_PATHS]);
+      }
+    });
+
+    test("reports ros2 with the version message on 3.0.0 and accepts it on 3.1.0, at every location that holds bindings", async () => {
+      const ros2 = { ros2: {}, kafka: {} };
+      const doc = base({
+        servers: { s: { host: "h", protocol: "ros2", bindings: ros2 } },
+        channels: { c: { address: "c", bindings: ros2, messages: { m: { bindings: ros2, traits: [{ bindings: ros2 }, [{ bindings: ros2 }, {}]] } } } },
+        operations: { o: { action: "send", bindings: ros2, traits: [{ bindings: ros2 }] } },
+        components: {
+          operations: { o: { action: "receive", bindings: ros2 } },
+          messageTraits: { t: { bindings: ros2 } },
+          operationTraits: { t: { bindings: ros2 } },
+          serverBindings: { b: ros2 },
+          channelBindings: { b: ros2 },
+          operationBindings: { b: ros2 },
+          messageBindings: { b: ros2 },
+        },
+      });
+      const expected = [
+        ["servers.s.bindings.ros2", "Server"],
+        ["channels.c.bindings.ros2", "Channel"],
+        ["channels.c.messages.m.bindings.ros2", "Message"],
+        ["channels.c.messages.m.traits.0.bindings.ros2", "Message"],
+        ["channels.c.messages.m.traits.1.0.bindings.ros2", "Message"],
+        ["operations.o.bindings.ros2", "Operation"],
+        ["operations.o.traits.0.bindings.ros2", "Operation"],
+        ["components.operations.o.bindings.ros2", "Operation"],
+        ["components.messageTraits.t.bindings.ros2", "Message"],
+        ["components.operationTraits.t.bindings.ros2", "Operation"],
+        ["components.serverBindings.b.ros2", "Server"],
+        ["components.channelBindings.b.ros2", "Channel"],
+        ["components.operationBindings.b.ros2", "Operation"],
+        ["components.messageBindings.b.ros2", "Message"],
+      ].map(([path, kind]) => `${path} :: ${versionMessage(kind, "ros2")}`);
+      expect(pairsOf(await linter.run(doc))).toEqual(gated.includes("ros2") ? expected.sort() : []);
+      expect(versionMessage("Server", "ros2")).toBe("AAR068: Server binding 'ros2' requires AsyncAPI 3.1.0 or later.");
+    });
+
+    test("never version-checks a configured key outside the specification, and gates a configured ros2 below 3.1", async () => {
+      const configured = await withOptions("ros2, dds, rabbitmq, kafka");
+      const doc = matrixDoc(["ros2", "dds", "rabbitmq", "kafka", "pulsar", "x-ros"]);
+      const results = only(await configured.run(doc));
+      expect(results.map((r) => r.message)).toEqual([...(gated.includes("ros2") ? [versionMessage("Operation", "ros2")] : []), message("Operation", "pulsar")]);
     });
 
     test.each(LOCATIONS)("reports a %s binding with its kind and the exact key path", async (_, kind, path, extra) => {
@@ -123,7 +177,8 @@ describe.each(["3.0.0", "3.1.0"])("AAR068 (AsyncAPI %s): bindings objects may on
       expect(byPath["components.channelBindings.compacted.kafka_ssl"]).toBe(message("Channel", "kafka_ssl"));
       expect(byPath["components.operationBindings.durable.rabbit"]).toBe(message("Operation", "rabbit"));
       expect(byPath["components.messageBindings.keyed.key"]).toBe(message("Message", "key"));
-      expect(results).toHaveLength(FAIL_EXAMPLE_PATHS.length);
+      expect(byPath["servers.robotFleet.bindings.ros2"]).toBe(gated.includes("ros2") ? versionMessage("Server", "ros2") : undefined);
+      expect(results).toHaveLength(FAIL_PATHS.length);
       results.forEach((r) => expect(r.severity).toBe(0));
     });
 
@@ -147,7 +202,7 @@ describe.each(["3.0.0", "3.1.0"])("AAR068 (AsyncAPI %s): bindings objects may on
       paths.forEach((p) => expect(p).toMatch(/^operations\.[^.]+\.(traits\.\d+\.)?bindings\.[^.]+$/));
     });
 
-    test.each(BINDING_KEY_CASES.allowed.map((key) => [key]))("accepts the protocol key %p", async (key) => {
+    test.each(BINDING_KEY_CASES.allowed.filter((key) => !gated.includes(key)).map((key) => [key]))("accepts the protocol key %p", async (key) => {
       expect(await run(matrixDoc([key]))).toEqual([]);
     });
 
@@ -163,16 +218,16 @@ describe.each(["3.0.0", "3.1.0"])("AAR068 (AsyncAPI %s): bindings objects may on
     test("checks a whole matrix in one bindings object and reports exactly the rejected keys", async () => {
       const keys = [...BINDING_KEY_CASES.allowed, ...BINDING_KEY_CASES.notAllowed, ...BINDING_KEY_CASES.extensions];
       const reported = reportedKeys(await linter.run(matrixDoc(keys)));
-      keys.forEach((key) => expect([key, reported.has(key)]).toEqual([key, BINDING_KEY_CASES.notAllowed.includes(key)]));
+      keys.forEach((key) => expect([key, reported.has(key)]).toEqual([key, BINDING_KEY_CASES.notAllowed.includes(key) || gated.includes(key)]));
     });
 
-    test("accepts protocols the 3.x schemas do not list for every kind, such as mqtt5, mercure, pulsar on messages or ros2 on channels", async () => {
+    test("accepts protocols the 3.x schemas do not list for every kind, such as mqtt5, mercure, pulsar on messages or ros2 on channels from 3.1", async () => {
       const doc = base({
         servers: { s: { host: "h", protocol: "mqtt", bindings: { mqtt5: {}, mercure: {} } } },
         channels: { c: { address: "c", bindings: { ros2: {}, mqtt5: {} }, messages: { m: { bindings: { pulsar: {}, ros2: {} } } } } },
         operations: { o: { action: "send", bindings: { pulsar: {}, mercure: {} } } },
       });
-      expect(pathsOf(await linter.run(doc))).toEqual([]);
+      expect(pathsOf(await linter.run(doc))).toEqual(withRos2([], ["channels.c.bindings.ros2", "channels.c.messages.m.bindings.ros2"]));
     });
 
     test("validates shared bindings objects, messages, traits, operations, servers and channels once at their definition, and ignores external, dangling and sibling-carrying refs", async () => {
@@ -234,7 +289,8 @@ describe.each(["3.0.0", "3.1.0"])("AAR068 (AsyncAPI %s): bindings objects may on
     });
 
     test("handles a very large document and reports exactly the generated violations", async () => {
-      expect(await run(failLargeGenerated.document)).toEqual(failLargeGenerated.expectedPaths);
+      expect(failLargeGenerated.ros2Paths.length).toBeGreaterThan(0);
+      expect(await run(failLargeGenerated.document)).toEqual(withRos2(failLargeGenerated.expectedPaths, failLargeGenerated.ros2Paths));
     });
   });
 
@@ -256,7 +312,7 @@ describe.each(["3.0.0", "3.1.0"])("AAR068 (AsyncAPI %s): bindings objects may on
       ["kafka,rabbitmq,kafka-ssl", ["kafka", "rabbitmq", "kafka-ssl", "x-internal"]],
       [["sns", "sqs", "googlepubsub", "pulsar"], ["sns", "sqs", "googlepubsub", "pulsar", "x-internal"]],
     ])("allowed-bindings %p accepts exactly the matching probes and always the extensions", async (value, expected) => {
-      expect(await allowedUnder(value)).toEqual(expected);
+      expect(await allowedUnder(value)).toEqual(expected.filter((key) => !gated.includes(key)));
     });
 
     test("normalises case and whitespace of entries, ignores unusable ones, and never allows a capitalised key", async () => {
@@ -299,21 +355,24 @@ describe.each(["3.0.0", "3.1.0"])("AAR068 (AsyncAPI %s): bindings objects may on
         "kafka, amqp, mqtt, ws, sns, sqs, ros2, confluent, dds, kafka-ssl, kafak, websocket, rabbitmq, amqps, websockets, mqtts, ibm-mq, ros, kafka.v2, kinesis, servicebus, eventbridge, pubsub, grpc, kafka_ssl, rabbit, key"
       );
       expect(await run(failExample, configured)).toEqual(
-        [
-          "servers.mqttEdge.bindings.MQTT",
-          `${V}.messages.positionCorrected.bindings.bindingVersion`,
-          "channels.serviceAlerts.messages.alertCleared.bindings.Amqp",
-          "operations.publishPosition.bindings.groupId",
-          "components.messageTraits.commonHeaders.bindings.X-internal",
-          "components.serverBindings.registry.schemaRegistryUrl",
-        ].sort()
+        withRos2(
+          [
+            "servers.mqttEdge.bindings.MQTT",
+            `${V}.messages.positionCorrected.bindings.bindingVersion`,
+            "channels.serviceAlerts.messages.alertCleared.bindings.Amqp",
+            "operations.publishPosition.bindings.groupId",
+            "components.messageTraits.commonHeaders.bindings.X-internal",
+            "components.serverBindings.registry.schemaRegistryUrl",
+          ].sort(),
+          FAIL_EXAMPLE_ROS2
+        )
       );
     });
 
     test.each([[""], [" , "], ["*"], ["Ámqp"], [null], [0], [true], [{}], [[]], [[null, 3]]])("falls back to the shipped list when allowed-bindings is %p", async (value) => {
       const configured = await withOptions(value);
-      expect(await run(failExample, configured)).toEqual(FAIL_EXAMPLE_PATHS);
-      expect(await run(okExample, configured)).toEqual([]);
+      expect(await run(failExample, configured)).toEqual(FAIL_PATHS);
+      expect(await run(okExample, configured)).toEqual(OK_PATHS);
     });
   });
 });

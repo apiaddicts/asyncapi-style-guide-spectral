@@ -18,14 +18,14 @@ const {
   traitCases,
   operationObjectCasesFor,
   IGNORED_OPTIONS,
-} = require("../../helpers/rules/aar095-operation-messages-required");
-const okExample = require("./AAR095/ok-example");
-const failExample = require("./AAR095/fail-example");
-const failSharedRef = require("./AAR095/fail-shared-ref");
-const okStructuralEdges = require("./AAR095/ok-structural-edges");
-const failLargeGenerated = require("./AAR095/fail-large-generated");
+} = require("../../helpers/rules/aar094-operation-messages-required");
+const okExample = require("./AAR094/ok-example");
+const failExample = require("./AAR094/fail-example");
+const failSharedRef = require("./AAR094/fail-shared-ref");
+const okStructuralEdges = require("./AAR094/ok-structural-edges");
+const failLargeGenerated = require("./AAR094/fail-large-generated");
 
-const RULE = "asa:AAR095";
+const RULE = "asa:AAR094";
 const OMIT = Symbol("omit");
 const NAME = NAMES[3];
 const AT = atOf(3);
@@ -43,7 +43,6 @@ const withVersion = (doc, version) => ({ ...doc, asyncapi: version });
 const atOperation = (expected) => expected.map(([path, kind]) => [path.replace(/^@/, AT), kind, NAME]);
 
 const FAIL = findings([
-  ["operations.noMessages", "missing", "noMessages"],
   ["operations.emptyMessages.messages", "empty", "emptyMessages"],
   ["operations.nullMessages.messages", "empty", "nullMessages"],
   ["operations.danglingEntry.messages", "empty", "danglingEntry"],
@@ -52,48 +51,32 @@ const FAIL = findings([
   ["operations.mapMessages.messages", "empty", "mapMessages"],
   ["operations.singleReference.messages", "empty", "singleReference"],
   ["operations.channelMessagesMap.messages", "empty", "channelMessagesMap"],
-  ["operations.singularMessage", "missing", "singularMessage"],
-  ["operations.inlineChannelOnly", "missing", "inlineChannelOnly"],
-  ["operations.replyOnly", "missing", "replyOnly"],
-  ["operations.traitOnly", "missing", "traitOnly"],
-  ["operations.extension", "missing", "extension"],
-  ["operations.upperCase", "missing", "upperCase"],
   ["operations.danglingList.messages", "empty", "danglingList"],
   ["operations.cyclicEntries.messages", "empty", "cyclicEntries"],
-  ["operations.emptyOperation", "missing", "emptyOperation"],
   ["operations.nullOperation", "unusable", "nullOperation"],
   ["operations.stringOperation", "unusable", "stringOperation"],
   ["operations.listOperation", "unusable", "listOperation"],
-  ["operations.v2Style", "missing", "v2Style"],
-  ["operations.x-partner", "missing", "x-partner"],
   ["operations.terminals/payments.messages", "empty", "terminals/payments"],
-  ["components.operations.refundsShared", "missing", "refundsShared"],
   ["components.operations.archiveShared.messages", "empty", "archiveShared"],
   ["components.operations.nullShared", "unusable", "nullShared"],
 ]);
 
 const SHARED = findings([
-  ["operations.partner", "missing", "partner"],
-  ["components.operations.carrierHub", "missing", "carrierHub"],
   ["components.operations.hop2.messages", "empty", "hop2"],
   ["components.operations.carrier/eu~dr.messages", "empty", "carrier/eu~dr"],
-  ["components.operations.north america", "missing", "north america"],
   ["components.operations.recepci\u00f3n.messages", "empty", "recepci\u00f3n"],
   ["operations.dangling", "unusable", "dangling"],
   ["components.operations.loopA", "unusable", "loopA"],
   ["components.operations.loopB", "unusable", "loopB"],
   ["operations.selfLoop", "unusable", "selfLoop"],
-  ["x-operation-list.0", "missing", "0"],
   ["channels.shipments.messages", "empty", "shipments"],
   ["channels.replies.messages", "empty", "replies"],
-  ["info", "missing", "info"],
   ["operations.toRoot", "unusable", "toRoot"],
   ["operations.nonStringRef", "unusable", "nonStringRef"],
   ["operations.emptyRef", "unusable", "emptyRef"],
   ["operations.badPointer", "unusable", "badPointer"],
   ["operations.badEncoding", "unusable", "badEncoding"],
   ["operations.throughIntermediate", "unusable", "throughIntermediate"],
-  ["components.operations.bare", "missing", "bare"],
   ["operations.listToEmpty.messages", "empty", "listToEmpty"],
   ["operations.listCyclic.messages", "empty", "listCyclic"],
   ["operations.listSelf.messages", "empty", "listSelf"],
@@ -105,7 +88,6 @@ const SHARED = findings([
   ["operations.entryCyclic.messages", "empty", "entryCyclic"],
   ["operations.entryNonString.messages", "empty", "entryNonString"],
   ["operations.entryThroughIntermediate.messages", "empty", "entryThroughIntermediate"],
-  ["operations.traitsWithMessages", "missing", "traitsWithMessages"],
   ["components.operations.nullShared", "unusable", "nullShared"],
 ]);
 
@@ -121,7 +103,7 @@ const base = (operations, extra = {}) => ({
 const withOperation = (operation) => base({ [NAME]: operation });
 const withComponents = (extra) => ({ ...COMPONENTS, ...extra });
 
-describe("AAR095 (AsyncAPI 3.x): every operation must declare at least one message", () => {
+describe("AAR094 (AsyncAPI 3.x): every operation that declares messages must include at least one message, and one that omits them takes those of its channel", () => {
   let linter;
 
   beforeAll(async () => {
@@ -164,9 +146,29 @@ describe("AAR095 (AsyncAPI 3.x): every operation must declare at least one messa
   });
 
   test("names the operation in every message", async () => {
-    expect(findingsOf(await linter.run(withOperation(bare)))).toEqual([[AT, `AAR095: Operation '${NAME}' must declare at least one message in 'messages'.`]]);
-    expect(findingsOf(await linter.run(withOperation({ ...bare, messages: [] })))).toEqual([[`${AT}.messages`, `AAR095: The 'messages' of operation '${NAME}' must declare at least one message.`]]);
-    expect(findingsOf(await linter.run(withOperation(null)))).toEqual([[AT, `AAR095: Operation '${NAME}' must be an object declaring at least one message in 'messages'.`]]);
+    expect(findingsOf(await linter.run(withOperation({ ...bare, messages: [] })))).toEqual([[`${AT}.messages`, `AAR094: The 'messages' of operation '${NAME}' must declare at least one message.`]]);
+    expect(findingsOf(await linter.run(withOperation(null)))).toEqual([[AT, `AAR094: Operation '${NAME}' must be an object declaring at least one message in 'messages'.`]]);
+  });
+
+  test.each(["3.0.0", "3.1.0"])("on AsyncAPI %s, an operation that omits messages takes those of its channel and is never reported, while messages: [] means no messages", async (version) => {
+    const doc = withVersion(
+      base({
+        omitted: bare,
+        omittedSilentChannel: { ...bare, channel: channelRef("silent") },
+        omittedNoChannel: { action: "send" },
+        omittedWithTrait: { ...bare, traits: [traitRef("emptyMessages")] },
+        explicitEmpty: { ...bare, messages: [] },
+        explicitNull: { ...bare, messages: null },
+        listed: minimal,
+      }),
+      version
+    );
+    expect(findingsOf(await linter.run(doc))).toEqual(
+      findings([
+        ["operations.explicitEmpty.messages", "empty", "explicitEmpty"],
+        ["operations.explicitNull.messages", "empty", "explicitNull"],
+      ])
+    );
   });
 
   describe("messages values", () => {
@@ -220,7 +222,7 @@ describe("AAR095 (AsyncAPI 3.x): every operation must declare at least one messa
     });
   });
 
-  describe("operation traits never supply or remove messages", () => {
+  describe("operation traits never supply or remove messages, and an operation that omits messages is never reported", () => {
     test.each(traitCases(3, OMIT))("an operation with %s", async (_, messages, traits, expected) => {
       const operation = messages === OMIT ? { ...bare, traits } : { ...bare, messages, traits };
       expect(findingsOf(await linter.run(withOperation(operation)))).toEqual(findings(atOperation(expected)));
@@ -230,8 +232,8 @@ describe("AAR095 (AsyncAPI 3.x): every operation must declare at least one messa
   describe("replies", () => {
     test("the messages of a reply never stand in for the messages of its operation", async () => {
       const reply = { address: { location: "$message.header#/replyTo" }, channel: channelRef("replies"), messages: [channelMessageRef("orderAccepted", "replies")] };
-      expect(findingsOf(await linter.run(withOperation({ ...bare, reply })))).toEqual(findings([[AT, "missing", NAME]]));
       expect(findingsOf(await linter.run(withOperation({ ...bare, messages: [], reply })))).toEqual(findings([[`${AT}.messages`, "empty", NAME]]));
+      expect(findingsOf(await linter.run(withOperation({ ...bare, messages: [null], reply })))).toEqual(findings([[`${AT}.messages`, "empty", NAME]]));
     });
 
     test.each([
@@ -264,17 +266,17 @@ describe("AAR095 (AsyncAPI 3.x): every operation must declare at least one messa
       expect(findingsOf(await linter.run(withOperation(operation)))).toEqual(findings(expected));
     });
 
-    test("the messages of the channel, its parameters, bindings or the components never stand in for the messages of the operation", async () => {
-      const channels = { ...CHANNELS_V3, dedicated: { address: "orders.dedicated", messages: { orderPlaced: ORDER_PLACED }, bindings: { kafka: { messages: [USABLE] } } } };
+    test("an operation that omits messages takes those of its channel without inspecting them, while the channel messages never stand in for an explicit empty list", async () => {
+      const channels = { ...CHANNELS_V3, dedicated: { address: "orders.dedicated", messages: { orderPlaced: ORDER_PLACED }, bindings: { kafka: { messages: [USABLE] } } }, hollow: { address: "orders.hollow", messages: {} } };
       const operation = { action: "receive", channel: channelRef("dedicated"), bindings: { kafka: { groupId: { type: "string" } } } };
-      expect(findingsOf(await linter.run(base({ [NAME]: operation }, { channels })))).toEqual(findings([[AT, "missing", NAME]]));
+      expect(findingsOf(await linter.run(base({ [NAME]: operation, hollow: { action: "send", channel: channelRef("hollow") } }, { channels })))).toEqual([]);
+      expect(findingsOf(await linter.run(base({ [NAME]: { ...operation, messages: [] } }, { channels })))).toEqual(findings([[`${AT}.messages`, "empty", NAME]]));
     });
 
     test("checks the same objects under components.operations, reporting them at their own path", async () => {
       const doc = base(OMIT, { components: withComponents({ operations: { shared: bare, gone: null, fine: complete, tiny: minimal, nothing: { ...bare, messages: [] }, broken: { ...bare, messages: [null] } } }) });
       expect(findingsOf(await linter.run(doc))).toEqual(
         findings([
-          ["components.operations.shared", "missing", "shared"],
           ["components.operations.gone", "unusable", "gone"],
           ["components.operations.nothing.messages", "empty", "nothing"],
           ["components.operations.broken.messages", "empty", "broken"],
@@ -285,9 +287,9 @@ describe("AAR095 (AsyncAPI 3.x): every operation must declare at least one messa
     test("checks an operation once at its definition, whatever operations point to it", async () => {
       const doc = base(
         { orders: { $ref: "#/components/operations/orders" }, ordersAgain: { $ref: "#/components/operations/orders", messages: [USABLE] }, mirror: { $ref: "#/operations/orders" } },
-        { components: withComponents({ operations: { orders: bare } }) }
+        { components: withComponents({ operations: { orders: { ...bare, messages: [] } } }) }
       );
-      expect(findingsOf(await linter.run(doc))).toEqual(findings([["components.operations.orders", "missing", "orders"]]));
+      expect(findingsOf(await linter.run(doc))).toEqual(findings([["components.operations.orders.messages", "empty", "orders"]]));
     });
 
     test("an operation whose messages point to another operation's messages follows them", async () => {
@@ -328,8 +330,8 @@ describe("AAR095 (AsyncAPI 3.x): every operation must declare at least one messa
     });
 
     test("follows an operations map, a components object and a components.operations map given as local references", async () => {
-      const viaOperations = base({ $ref: "#/x-operation-map" }, { "x-operation-map": { partner: { action: "send" }, local: complete } });
-      expect(findingsOf(await linter.run(viaOperations))).toEqual(findings([["x-operation-map.partner", "missing", "partner"]]));
+      const viaOperations = base({ $ref: "#/x-operation-map" }, { "x-operation-map": { partner: { action: "send", messages: [] }, local: complete } });
+      expect(findingsOf(await linter.run(viaOperations))).toEqual(findings([["x-operation-map.partner.messages", "empty", "partner"]]));
       const viaComponents = base(OMIT, { components: { $ref: "#/x-components" }, "x-components": { operations: { dr: { messages: [] } } } });
       expect(findingsOf(await linter.run(viaComponents))).toEqual(findings([["x-components.operations.dr.messages", "empty", "dr"]]));
       const operationsMapRef = base(OMIT, { components: { operations: { $ref: "#/x-shared" } }, "x-shared": { lab: { messages: "lab" } } });
@@ -337,8 +339,8 @@ describe("AAR095 (AsyncAPI 3.x): every operation must declare at least one messa
     });
 
     test("checks an operations map shared by operations and components.operations once", async () => {
-      const doc = base({ $ref: "#/components/operations" }, { components: { operations: { lab: { action: "send" } } } });
-      expect(findingsOf(await linter.run(doc))).toEqual(findings([["components.operations.lab", "missing", "lab"]]));
+      const doc = base({ $ref: "#/components/operations" }, { components: { operations: { lab: { action: "send", messages: null } } } });
+      expect(findingsOf(await linter.run(doc))).toEqual(findings([["components.operations.lab.messages", "empty", "lab"]]));
     });
 
     test("ignores an operations map or a components object given as an external, dangling, cyclic or root reference", async () => {
@@ -350,31 +352,31 @@ describe("AAR095 (AsyncAPI 3.x): every operation must declare at least one messa
 
   describe("operation names", () => {
     test("checks operations whose key starts with x-, which are names and not extensions in these maps", async () => {
-      const doc = base({ "x-edge": { action: "send" } }, { components: withComponents({ operations: { "x-mirror": { messages: [] } } }) });
+      const doc = base({ "x-edge": { action: "send", messages: [] } }, { components: withComponents({ operations: { "x-mirror": { messages: [] } } }) });
       expect(findingsOf(await linter.run(doc))).toEqual(
         findings([
-          ["operations.x-edge", "missing", "x-edge"],
+          ["operations.x-edge.messages", "empty", "x-edge"],
           ["components.operations.x-mirror.messages", "empty", "x-mirror"],
         ])
       );
     });
 
     test("reports operations whose names contain ~0, ~1, slashes or dots at their own path", async () => {
-      const doc = base({ "eu~1west": { messages: [] }, "orders~0dr": {}, "a/b~c": { messages: [null] }, "orders.placed.v1": minimal });
+      const doc = base({ "eu~1west": { messages: [] }, "orders~0dr": { messages: "orderPlaced" }, "a/b~c": { messages: [null] }, "orders.placed.v1": minimal });
       expect(findingsOf(await linter.run(doc))).toEqual(
         findings([
           ["operations.eu~1west.messages", "empty", "eu~1west"],
-          ["operations.orders~0dr", "missing", "orders~0dr"],
+          ["operations.orders~0dr.messages", "empty", "orders~0dr"],
           ["operations.a/b~c.messages", "empty", "a/b~c"],
         ])
       );
     });
 
     test("checks an empty operation key and operations named like Object members", async () => {
-      const doc = base({ "": { action: "send" }, constructor: { messages: null }, toString: complete, valueOf: { messages: { valueOf: USABLE } } });
+      const doc = base({ "": { action: "send", messages: [] }, constructor: { messages: null }, toString: complete, valueOf: { messages: { valueOf: USABLE } } });
       expect(findingsOf(await linter.run(doc))).toEqual(
         findings([
-          ["operations.", "missing", ""],
+          ["operations..messages", "empty", ""],
           ["operations.constructor.messages", "empty", "constructor"],
           ["operations.valueOf.messages", "empty", "valueOf"],
         ])
@@ -382,27 +384,28 @@ describe("AAR095 (AsyncAPI 3.x): every operation must declare at least one messa
     });
 
     test("escapes control and invisible characters of operation names so every message stays on one line", async () => {
-      const doc = base({ "orders\nplaced": { action: "send" }, "tab\tbed": null, "zero\u200bwidth": { messages: [] } });
+      const doc = base({ "orders\nplaced": { action: "send", messages: [] }, "tab\tbed": null, "zero\u200bwidth": { messages: [] } });
       const results = findingsOf(await linter.run(doc));
       expect(results).toEqual(
         findings([
-          ["operations.orders\nplaced", "missing", "orders\nplaced"],
+          ["operations.orders\nplaced.messages", "empty", "orders\nplaced"],
           ["operations.tab\tbed", "unusable", "tab\tbed"],
           ["operations.zero\u200bwidth.messages", "empty", "zero\u200bwidth"],
         ])
       );
       expect(results.map(([, message]) => message).filter((m) => /[\u0000-\u001f\u200b]/.test(m))).toEqual([]);
-      expect(results.map(([, message]) => message)).toContain("AAR095: Operation 'orders\\nplaced' must declare at least one message in 'messages'.");
+      expect(results.map(([, message]) => message)).toContain("AAR094: The 'messages' of operation 'orders\\nplaced' must declare at least one message.");
     });
   });
 
   describe("functionOptions", () => {
-    test.each(IGNORED_OPTIONS)("injecting %s changes nothing: every operation must still declare at least one message", async (_, functionOptions) => {
+    test.each(IGNORED_OPTIONS)("injecting %s changes nothing: declared messages must still include at least one message", async (_, functionOptions) => {
       const custom = await linterForRule(RULE, { functionOptions });
       expect(findingsOf(await custom.run(failExample))).toEqual(FAIL);
       expect(findingsOf(await custom.run(failSharedRef))).toEqual(SHARED);
       expect(findingsOf(await custom.run(okExample))).toEqual([]);
-      expect(findingsOf(await custom.run(withOperation({ ...bare, traits: [traitRef("withMessages")] })))).toEqual([[AT, MSG.missing(NAME)]]);
+      expect(findingsOf(await custom.run(withOperation({ ...bare, messages: [], traits: [traitRef("withMessages")] })))).toEqual([[`${AT}.messages`, MSG.empty(NAME)]]);
+      expect(findingsOf(await custom.run(withOperation(bare)))).toEqual([]);
       expect(findingsOf(await custom.run(withOperation({ ...bare, messages: [messageRef("orderPlaced")] })))).toEqual([]);
     });
   });

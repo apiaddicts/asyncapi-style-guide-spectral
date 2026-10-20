@@ -5,7 +5,7 @@ const ARCHIVE_COUNT = 240;
 
 const channels = {};
 const sharedChannels = {};
-const expected = [];
+const defects = [];
 const message = (name) => ({ $ref: `#/components/messages/${name}` });
 const complete = (domain, index) => ({
   description: `Events of ${domain} number ${index}.`,
@@ -17,10 +17,10 @@ for (let i = 0; i < SHARED_COUNT; i++) {
   const path = `components.channels.${name}`;
   if (i % 5 === 1) {
     sharedChannels[name] = { description: `Shared ${i}.` };
-    expected.push([path, "missing", name]);
+    defects.push([path, "missing", name]);
   } else if (i % 5 === 3) {
     sharedChannels[name] = { description: `Shared ${i}.`, publish: { message: { oneOf: [message(`retired${i}`)] } } };
-    expected.push([`${path}.publish.message`, "emptyMessage", name, "publish"]);
+    defects.push([`${path}.publish.message`, "emptyMessage", name, "publish"]);
   } else {
     sharedChannels[name] = complete("orders", i);
   }
@@ -45,7 +45,7 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     case 2:
       if (c % 3 === 2) {
         channels[name] = { description: `Events of ${domain}.`, publish: { operationId: `publish${c}`, summary: "No message." } };
-        expected.push([path, "missing", name]);
+        defects.push([path, "missing", name]);
       } else {
         channels[name] = complete(domain, c);
       }
@@ -53,7 +53,7 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     case 3:
       if (c % 5 === 3) {
         channels[name] = { description: `Events of ${domain}.`, subscribe: { message: { oneOf: [] } }, publish: { message: message(`${domain}V0`) } };
-        expected.push([`${path}.publish.message`, "emptyMessage", name, "publish"], [`${path}.subscribe.message`, "emptyMessage", name, "subscribe"]);
+        defects.push([`${path}.publish.message`, "emptyMessage", name, "publish"], [`${path}.subscribe.message`, "emptyMessage", name, "subscribe"]);
       } else {
         channels[name] = complete(domain, c);
       }
@@ -61,7 +61,7 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     case 4:
       if (c % 16 === 4) {
         channels[name] = null;
-        expected.push([path, "unusable", name]);
+        defects.push([path, "unusable", name]);
       } else {
         channels[name] = { ...complete(domain, c), "x-team": domain };
       }
@@ -69,7 +69,7 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     case 5:
       if (c % 10 === 5) {
         channels[name] = { parameters: { id: { schema: { type: "string" } } } };
-        expected.push([path, "missing", name]);
+        defects.push([path, "missing", name]);
       } else {
         channels[name] = { description: `Events of ${domain}.`, subscribe: { message: { $ref: `./partners/${domain}.yaml#/messages/event` } } };
       }
@@ -77,7 +77,7 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     case 6:
       if (c % 12 === 6) {
         channels[name] = { $ref: `#/components/channels/retired${c}` };
-        expected.push([path, "unusable", name]);
+        defects.push([path, "unusable", name]);
       } else {
         channels[name] = { $ref: `./partners/${domain}.yaml#/channels/events` };
       }
@@ -85,7 +85,7 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     default:
       if (c % 14 === 7) {
         channels[name] = { description: `Events of ${domain}.`, messages: { [domain]: message(domain) } };
-        expected.push([path, "missing", name]);
+        defects.push([path, "missing", name]);
       } else {
         channels[name] = complete(domain, c);
       }
@@ -96,7 +96,7 @@ for (let i = 0; i < ARCHIVE_COUNT; i++) {
   const name = `archive${i}`;
   if (i % 11 === 4) {
     sharedChannels[name] = { description: `Archive ${i}.`, subscribe: { message: null } };
-    expected.push([`components.channels.${name}.subscribe.message`, "emptyMessage", name, "subscribe"]);
+    defects.push([`components.channels.${name}.subscribe.message`, "emptyMessage", name, "subscribe"]);
   } else {
     sharedChannels[name] = complete("orders", i);
   }
@@ -118,5 +118,5 @@ module.exports = {
       ),
     },
   },
-  expected,
+  defects,
 };

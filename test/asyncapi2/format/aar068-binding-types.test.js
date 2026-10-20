@@ -1,5 +1,5 @@
 const { linterForRule } = require("../../helpers/utils");
-const { BINDING_KEY_CASES } = require("../../helpers/rules/aar068-binding-types");
+const { BINDING_KEY_CASES, unavailableIn, versionMessage } = require("../../helpers/rules/aar068-binding-types");
 const okExample = require("./AAR068/ok-example");
 const failExample = require("./AAR068/fail-example");
 const failSharedRef = require("./AAR068/fail-shared-ref");
@@ -83,6 +83,22 @@ const matrixDoc = (keys) => ({
 });
 
 const reportedKeys = (results) => new Set(only(results).map((r) => r.path[3]));
+const pairsOf = (results) => only(results).map((r) => `${r.path.join(".")} :: ${r.message}`).sort();
+const N = "channels.harborline.cloud.notifications";
+
+const OK_EXAMPLE_GATED = [
+  ["servers.ibmQueue.bindings.ibmmq", "Server", "ibmmq"],
+  ["servers.solaceCloud.bindings.solace", "Server", "solace"],
+  ["servers.pulsarCluster.bindings.pulsar", "Server", "pulsar"],
+  [`${N}.bindings.googlepubsub`, "Channel", "googlepubsub"],
+  [`${N}.publish.bindings.anypointmq`, "Operation", "anypointmq"],
+  [`${N}.publish.bindings.mercure`, "Operation", "mercure"],
+];
+const gatedPairs = (version) =>
+  OK_EXAMPLE_GATED.filter(([, , key]) => unavailableIn(version).includes(key))
+    .map(([path, kind, key]) => `${path} :: ${versionMessage(kind, key)}`)
+    .sort();
+const matrixPairs = (keys, version) => keys.filter((key) => unavailableIn(version).includes(key)).map((key) => `components.messageBindings.matrix.${key} :: ${versionMessage("Message", key)}`).sort();
 
 describe("AAR068 (AsyncAPI 2.x): bindings objects may only use allowed protocol keys", () => {
   let linter;
@@ -100,13 +116,13 @@ describe("AAR068 (AsyncAPI 2.x): bindings objects may only use allowed protocol 
       expect(pathsOf(await linter.run(failExample))).toEqual(FAIL_EXAMPLE_PATHS);
     });
 
-    test.each(["2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"])("reports the same findings on AsyncAPI %s", async (version) => {
+    test.each(["2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"])("reports the same findings on AsyncAPI %s, plus the protocols that version does not define yet", async (version) => {
       expect(pathsOf(await linter.run(withVersion(failExample, version)))).toEqual(FAIL_EXAMPLE_PATHS);
-      expect(pathsOf(await linter.run(withVersion(okExample, version)))).toEqual([]);
+      expect(pairsOf(await linter.run(withVersion(okExample, version)))).toEqual(gatedPairs(version));
     });
 
     test("treats a version that is not 3.x as 2.x", async () => {
-      for (const version of [2, "2", "2.6", " 2.6.0 ", "2.7.0", "1.2.0", "latest", null]) {
+      for (const version of [2, "2", "2.6", " 2.6.0 ", "2.7.0", "latest", null]) {
         expect(pathsOf(await linter.run(withVersion(failExample, version)))).toEqual(FAIL_EXAMPLE_PATHS);
       }
     });
@@ -137,7 +153,7 @@ describe("AAR068 (AsyncAPI 2.x): bindings objects may only use allowed protocol 
       expect(keys).toEqual(expect.arrayContaining(["Kafka", "MQTT5", "X-internal", "bindingVersion", "schemaRegistryUrl", "groupId"]));
     });
 
-    test.each(BINDING_KEY_CASES.allowed.map((key) => [key]))("accepts the protocol key %p", async (key) => {
+    test.each(BINDING_KEY_CASES.allowed.filter((key) => !unavailableIn("2.6.0").includes(key)).map((key) => [key]))("accepts the protocol key %p", async (key) => {
       expect(pathsOf(await linter.run(matrixDoc([key])))).toEqual([]);
     });
 
@@ -154,12 +170,82 @@ describe("AAR068 (AsyncAPI 2.x): bindings objects may only use allowed protocol 
       const keys = [...BINDING_KEY_CASES.allowed, ...BINDING_KEY_CASES.notAllowed, ...BINDING_KEY_CASES.extensions];
       expect(new Set(keys).size).toBe(keys.length);
       const reported = reportedKeys(await linter.run(matrixDoc(keys)));
-      keys.forEach((key) => expect([key, reported.has(key)]).toEqual([key, BINDING_KEY_CASES.notAllowed.includes(key)]));
+      keys.forEach((key) => expect([key, reported.has(key)]).toEqual([key, BINDING_KEY_CASES.notAllowed.includes(key) || unavailableIn("2.6.0").includes(key)]));
     });
 
-    test("accepts protocols added in later AsyncAPI versions in any 2.x document, such as ros2 or pulsar in 2.0.0", async () => {
-      const doc = withVersion(matrixDoc(["ros2", "pulsar", "googlepubsub", "solace", "anypointmq", "ibmmq", "mercure", "mqtt5"]), "2.0.0");
-      expect(pathsOf(await linter.run(doc))).toEqual([]);
+    test.each(["2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0"])("reports on AsyncAPI %s exactly the allowed protocols that version does not define yet", async (version) => {
+      expect(pairsOf(await linter.run(withVersion(matrixDoc(BINDING_KEY_CASES.allowed), version)))).toEqual(matrixPairs(BINDING_KEY_CASES.allowed, version));
+    });
+
+    test("names the first AsyncAPI version of each protocol added after 2.0", async () => {
+      const results = only(await linter.run(withVersion(matrixDoc(BINDING_KEY_CASES.allowed), "2.0.0")));
+      expect(results.map((r) => r.message).sort()).toEqual(
+        [
+          "AAR068: Message binding 'mercure' requires AsyncAPI 2.1.0 or later.",
+          "AAR068: Message binding 'ibmmq' requires AsyncAPI 2.1.0 or later.",
+          "AAR068: Message binding 'anypointmq' requires AsyncAPI 2.2.0 or later.",
+          "AAR068: Message binding 'solace' requires AsyncAPI 2.3.0 or later.",
+          "AAR068: Message binding 'googlepubsub' requires AsyncAPI 2.5.0 or later.",
+          "AAR068: Message binding 'pulsar' requires AsyncAPI 2.6.0 or later.",
+          "AAR068: Message binding 'ros2' requires AsyncAPI 3.1.0 or later.",
+        ].sort()
+      );
+      results.forEach((r) => expect(r.severity).toBe(0));
+    });
+
+    test("reads the version as major.minor, so a short, padded, numeric or patched version gates like its minor release", async () => {
+      const gated = async (version) => [...reportedKeys(await linter.run(withVersion(matrixDoc(BINDING_KEY_CASES.allowed), version)))].sort();
+      const since = (version) => unavailableIn(version).sort();
+      expect(await gated("2")).toEqual(since("2.0.0"));
+      expect(await gated(2)).toEqual(since("2.0.0"));
+      expect(await gated(2.5)).toEqual(since("2.5.0"));
+      expect(await gated("2.5")).toEqual(since("2.5.0"));
+      expect(await gated(" 2.4.9 ")).toEqual(since("2.4.0"));
+      expect(await gated("2.1.0-beta")).toEqual(since("2.1.0"));
+      expect(await gated("2.7.0")).toEqual(["ros2"]);
+      expect(await gated("2.10.0")).toEqual(["ros2"]);
+    });
+
+    test("a 1.x version predates every binding, so each allowed protocol is reported with its first version", async () => {
+      const results = only(await linter.run(withVersion(matrixDoc(["kafka", "http", "pulsar", "x-internal"]), "1.2.0")));
+      expect(results.map((r) => r.message)).toEqual([versionMessage("Message", "kafka"), versionMessage("Message", "http"), versionMessage("Message", "pulsar")]);
+      expect(versionMessage("Message", "kafka")).toBe("AAR068: Message binding 'kafka' requires AsyncAPI 2.0.0 or later.");
+    });
+
+    test.each([["latest"], ["v2.0.0"], ["two"], [""], [" "], [".2"], [null], [true], [{ major: 2 }], [["2.0.0"]]])("checks no version when asyncapi is %p, accepting every allowed protocol", async (version) => {
+      const doc = { ...matrixDoc([...BINDING_KEY_CASES.allowed, "rabbitmq"]), asyncapi: version };
+      expect(pairsOf(await linter.run(doc))).toEqual([`components.messageBindings.matrix.rabbitmq :: ${message("Message", "rabbitmq")}`]);
+    });
+
+    test("reports a key outside the list with the existing message whatever the version, and the version message only for allowed keys", async () => {
+      const doc = withVersion(matrixDoc(["rabbitmq", "ros2", "pulsar", "kafka"]), "2.5.0");
+      expect(only(await linter.run(doc)).map((r) => r.message)).toEqual([message("Message", "rabbitmq"), versionMessage("Message", "ros2"), versionMessage("Message", "pulsar")]);
+      const narrowed = await withOptions("kafka");
+      expect(only(await narrowed.run(doc)).map((r) => r.message)).toEqual([message("Message", "rabbitmq"), message("Message", "ros2"), message("Message", "pulsar")]);
+    });
+
+    test("reports the version message at every location that holds bindings", async () => {
+      const gated = { ros2: {}, kafka: {} };
+      const doc = base({
+        servers: { s: { url: "k:9092", protocol: "kafka", bindings: gated } },
+        channels: { c: { bindings: gated, publish: { bindings: gated, traits: [{ bindings: gated }], message: { bindings: gated, traits: [[{ bindings: gated }, {}]] } } } },
+        components: { messageTraits: { t: { bindings: gated } }, operationTraits: { t: { bindings: gated } }, channelBindings: { b: gated } },
+      });
+      expect(pairsOf(await linter.run(doc))).toEqual(
+        [
+          ["servers.s.bindings.ros2", "Server"],
+          ["channels.c.bindings.ros2", "Channel"],
+          ["channels.c.publish.bindings.ros2", "Operation"],
+          ["channels.c.publish.traits.0.bindings.ros2", "Operation"],
+          ["channels.c.publish.message.bindings.ros2", "Message"],
+          ["channels.c.publish.message.traits.0.0.bindings.ros2", "Message"],
+          ["components.messageTraits.t.bindings.ros2", "Message"],
+          ["components.operationTraits.t.bindings.ros2", "Operation"],
+          ["components.channelBindings.b.ros2", "Channel"],
+        ]
+          .map(([path, kind]) => `${path} :: ${versionMessage(kind, "ros2")}`)
+          .sort()
+      );
     });
 
     test("validates a shared bindings object, message, trait, server or channel once at its definition, and ignores external, dangling and sibling-carrying refs", async () => {
@@ -254,11 +340,18 @@ describe("AAR068 (AsyncAPI 2.x): bindings objects may only use allowed protocol 
       ["mqtt5", ["mqtt5", "x-internal"]],
       ["http,ws", ["ws", "http", "x-internal"]],
       ["sns,sqs,googlepubsub", ["sns", "sqs", "googlepubsub", "x-internal"]],
-      ["ros2,pulsar", ["pulsar", "ros2", "x-internal"]],
+      ["ros2,pulsar", ["pulsar", "x-internal"]],
       ["kafka,rabbitmq,kafka-ssl", ["kafka", "rabbitmq", "kafka-ssl", "x-internal"]],
       ["confluent", ["x-internal"]],
     ])("allowed-bindings %p accepts exactly the matching probes and always the extensions", async (value, expected) => {
       expect(await allowedUnder(value)).toEqual(expected);
+    });
+
+    test("never version-checks a configured key outside the specification, and still gates the specification protocols of the list", async () => {
+      const configured = await withOptions("rabbitmq, kafka-ssl, confluent, pulsar, ros2, kafka");
+      const doc = withVersion(matrixDoc(["rabbitmq", "kafka-ssl", "confluent", "pulsar", "ros2", "kafka", "x-internal"]), "2.0.0");
+      expect(only(await configured.run(doc)).map((r) => r.message)).toEqual([versionMessage("Message", "pulsar"), versionMessage("Message", "ros2")]);
+      expect(pathsOf(await configured.run(withVersion(doc, "1.0.0")))).toEqual(["pulsar", "ros2", "kafka"].map((key) => `components.messageBindings.matrix.${key}`).sort());
     });
 
     test("accepts an array, entries carrying commas, mixed case and spaces, and ignores unusable entries", async () => {
@@ -328,7 +421,6 @@ describe("AAR068 (AsyncAPI 2.x): bindings objects may only use allowed protocol 
           "components.messages.notificationSent.bindings.sqs",
           "components.messages.gateEvents.oneOf.1.bindings.amqp",
           "components.operationBindings.durableConsumer.amqp",
-          "components.messageBindings.partitionKey.ros2",
         ].sort()
       );
     });

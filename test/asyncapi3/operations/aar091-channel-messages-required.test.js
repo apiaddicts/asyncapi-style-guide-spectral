@@ -22,9 +22,8 @@ const RULE = "asa:AAR091";
 const OMIT = Symbol("omit");
 const NAME = NAMES[3];
 const AT = atOf(3);
-const MSG = messagesFor(3);
-const findings = findingsFor(3);
-const v2Findings = findingsFor(2);
+const MSG = messagesFor();
+const findings = findingsFor();
 const { complete, minimal } = shapesFor(3);
 const COMPONENTS = channelComponentsFor(3);
 
@@ -34,7 +33,6 @@ const findingsOf = (results) => only(results).map((r) => [r.path.join("."), r.me
 const withVersion = (doc, version) => ({ ...doc, asyncapi: version });
 
 const FAIL = findings([
-  ["channels.noMessages", "missing", "noMessages"],
   ["channels.emptyMessages.messages", "empty", "emptyMessages"],
   ["channels.nullMessages.messages", "empty", "nullMessages"],
   ["channels.listMessages.messages", "empty", "listMessages"],
@@ -45,42 +43,16 @@ const FAIL = findings([
   ["channels.onlyBrokenRefs.messages", "empty", "onlyBrokenRefs"],
   ["channels.nullComponentMessage.messages", "empty", "nullComponentMessage"],
   ["channels.x-partnerFeed.messages", "empty", "x-partnerFeed"],
-  ["channels.v2Style", "missing", "v2Style"],
-  ["channels.singularMessage", "missing", "singularMessage"],
-  ["channels.upperCaseMessages", "missing", "upperCaseMessages"],
-  ["channels.extensionMessages", "missing", "extensionMessages"],
-  ["channels.bindingsOnly", "missing", "bindingsOnly"],
-  ["channels.referencedByOperation", "missing", "referencedByOperation"],
   ["channels.sharedMapEmpty.messages", "empty", "sharedMapEmpty"],
-  ["channels.nullChannel", "unusable", "nullChannel"],
-  ["channels.stringChannel", "unusable", "stringChannel"],
-  ["channels.listChannel", "unusable", "listChannel"],
-  ["components.channels.sharedHub", "missing", "sharedHub"],
   ["components.channels.legacyQueue.messages", "empty", "legacyQueue"],
-  ["components.channels.nullShared", "unusable", "nullShared"],
 ]);
 
 const SHARED = findings([
-  ["channels.partner", "missing", "partner"],
   ["components.channels.carrierHub.messages", "empty", "carrierHub"],
-  ["components.channels.hop2", "missing", "hop2"],
   ["components.channels.carrier/eu~dr.messages", "empty", "carrier/eu~dr"],
-  ["components.channels.north america", "missing", "north america"],
   ["components.channels.recepci\u00f3n.messages", "empty", "recepci\u00f3n"],
-  ["channels.dangling", "unusable", "dangling"],
-  ["components.channels.loopA", "unusable", "loopA"],
-  ["components.channels.loopB", "unusable", "loopB"],
-  ["channels.selfLoop", "unusable", "selfLoop"],
   ["components.channels.sparseShared.messages", "empty", "sparseShared"],
   ["operations.receiveShipments.messages", "empty", "receiveShipments"],
-  ["channels.toRoot", "unusable", "toRoot"],
-  ["channels.nonStringRef", "unusable", "nonStringRef"],
-  ["channels.emptyRef", "unusable", "emptyRef"],
-  ["channels.badPointer", "unusable", "badPointer"],
-  ["channels.badEncoding", "unusable", "badEncoding"],
-  ["channels.throughIntermediate", "unusable", "throughIntermediate"],
-  ["components.channels.nullShared", "unusable", "nullShared"],
-  ["x-channel-list.0", "missing", "0"],
   ["channels.mapRefs.messages", "empty", "mapRefs"],
   ["channels.deadEntryRefs.messages", "empty", "deadEntryRefs"],
 ]);
@@ -96,7 +68,7 @@ const base = (channels, extra = {}) => ({
 const withChannel = (channel) => base({ [NAME]: channel });
 const withMessages = (messages) => withChannel({ address: "retail.cdc.orders.placed.v1", description: "Orders placed.", messages });
 
-describe("AAR091 (AsyncAPI 3.x): every channel must declare at least one message in its messages map", () => {
+describe("AAR091 (AsyncAPI 3.x): every channel that declares messages must include at least one message in it", () => {
   let linter;
 
   beforeAll(async () => {
@@ -107,7 +79,7 @@ describe("AAR091 (AsyncAPI 3.x): every channel must declare at least one message
     expect(findingsOf(await linter.run(okExample))).toEqual([]);
   });
 
-  test("reports every channel of channels and components.channels without a usable message with the exact message", async () => {
+  test("reports every channel of channels and components.channels whose messages hold no usable message with the exact message", async () => {
     expect(findingsOf(await linter.run(failExample))).toEqual(FAIL);
   });
 
@@ -124,15 +96,12 @@ describe("AAR091 (AsyncAPI 3.x): every channel must declare at least one message
     }
   });
 
-  test("asks for a publish or subscribe message instead when the asyncapi value does not start with a major version of 3 or more", async () => {
+  test("reports nothing when the asyncapi value does not start with a major version of 3 or more, since 2.x channels have no messages map", async () => {
     for (const version of [2, "2.6.0", "2.0.0", "latest", "v3.0.0", "", null]) {
-      const doc = withVersion(base({ [NAME]: minimal, legacy: { subscribe: { message: messageRef("orderPlaced") } }, empty: {} }), version);
-      expect(findingsOf(await linter.run(doc))).toEqual(
-        v2Findings([
-          [AT, "missing", NAME],
-          ["channels.empty", "missing", "empty"],
-        ])
-      );
+      expect(findingsOf(await linter.run(withVersion(failExample, version)))).toEqual([]);
+      expect(findingsOf(await linter.run(withVersion(failSharedRef, version)))).toEqual([]);
+      const doc = withVersion(base({ [NAME]: { messages: {} }, legacy: { subscribe: { message: { oneOf: [] } } }, empty: {} }), version);
+      expect(findingsOf(await linter.run(doc))).toEqual([]);
     }
   });
 
@@ -144,9 +113,24 @@ describe("AAR091 (AsyncAPI 3.x): every channel must declare at least one message
   });
 
   test("names the channel in every message", async () => {
-    expect(findingsOf(await linter.run(withChannel({ address: "orders" })))).toEqual([[AT, "AAR091: Channel 'orderPlaced' must declare at least one message in 'messages'."]]);
     expect(findingsOf(await linter.run(withMessages({ orderPlaced: null })))).toEqual([[`${AT}.messages`, "AAR091: The 'messages' of channel 'orderPlaced' must declare at least one message."]]);
-    expect(findingsOf(await linter.run(withChannel(null)))).toEqual([[AT, "AAR091: Channel 'orderPlaced' must be an object declaring at least one message in 'messages'."]]);
+  });
+
+  test.each(["3.0.0", "3.1.0"])("on AsyncAPI %s, leaves channels without messages and channels that are not objects to AAR087", async (version) => {
+    const doc = withVersion(
+      base({
+        noMessages: { address: "orders", description: "Orders." },
+        dynamicNoMessages: { address: null, description: "Dynamic address." },
+        empty: {},
+        nothing: null,
+        text: "orders.placed",
+        list: [complete],
+        dangling: { $ref: "#/components/channels/missing" },
+        emptyMap: { address: "orders.empty", messages: {} },
+      }),
+      version
+    );
+    expect(findingsOf(await linter.run(doc))).toEqual(findings([["channels.emptyMap.messages", "empty", "emptyMap"]]));
   });
 
   describe("messages values", () => {
@@ -182,12 +166,11 @@ describe("AAR091 (AsyncAPI 3.x): every channel must declare at least one message
     });
 
     test("checks the same objects under components.channels, reporting them at their own path", async () => {
-      const doc = base(OMIT, { components: { ...COMPONENTS, channels: { shared: { address: "orders.shared", messages: { a: null } }, bare: { address: "orders.bare" }, gone: null, fine: complete } } });
+      const doc = base(OMIT, { components: { ...COMPONENTS, channels: { shared: { address: "orders.shared", messages: { a: null } }, bare: { address: "orders.bare" }, gone: null, fine: complete, blank: { messages: [] } } } });
       expect(findingsOf(await linter.run(doc))).toEqual(
         findings([
           ["components.channels.shared.messages", "empty", "shared"],
-          ["components.channels.bare", "missing", "bare"],
-          ["components.channels.gone", "unusable", "gone"],
+          ["components.channels.blank.messages", "empty", "blank"],
         ])
       );
     });
@@ -208,7 +191,7 @@ describe("AAR091 (AsyncAPI 3.x): every channel must declare at least one message
 
     test("never counts the messages listed by operations or replies, nor inspects channels declared only inside them", async () => {
       const doc = base(
-        { orders: { address: "orders" } },
+        { orders: { address: "orders", messages: {} } },
         {
           operations: {
             sendOrders: { action: "send", channel: { $ref: "#/channels/orders" }, messages: [messageRef("orderPlaced")], reply: { channel: { address: null, messages: {} }, messages: [messageRef("orderPlaced")] } },
@@ -216,7 +199,7 @@ describe("AAR091 (AsyncAPI 3.x): every channel must declare at least one message
           components: { ...COMPONENTS, operations: { inlineChannel: { action: "send", channel: { messages: {} } } }, replies: { inline: { channel: {} } } },
         }
       );
-      expect(findingsOf(await linter.run(doc))).toEqual(findings([["channels.orders", "missing", "orders"]]));
+      expect(findingsOf(await linter.run(doc))).toEqual(findings([["channels.orders.messages", "empty", "orders"]]));
     });
   });
 
@@ -232,8 +215,8 @@ describe("AAR091 (AsyncAPI 3.x): every channel must declare at least one message
     });
 
     test("follows a channels map, a components object and a components.channels map given as local references", async () => {
-      const viaChannels = base({ $ref: "#/x-channel-map" }, { "x-channel-map": { partner: { address: "partner" }, local: complete } });
-      expect(findingsOf(await linter.run(viaChannels))).toEqual(findings([["x-channel-map.partner", "missing", "partner"]]));
+      const viaChannels = base({ $ref: "#/x-channel-map" }, { "x-channel-map": { partner: { address: "partner", messages: { a: null } }, local: complete } });
+      expect(findingsOf(await linter.run(viaChannels))).toEqual(findings([["x-channel-map.partner.messages", "empty", "partner"]]));
       const viaComponents = base(OMIT, { components: { $ref: "#/x-components" }, "x-components": { channels: { dr: { messages: {} } } } });
       expect(findingsOf(await linter.run(viaComponents))).toEqual(findings([["x-components.channels.dr.messages", "empty", "dr"]]));
       const channelsMapRef = base(OMIT, { components: { channels: { $ref: "#/x-shared" } }, "x-shared": { lab: { address: "lab", messages: { a: messageRef("gone") } } } });
@@ -241,8 +224,8 @@ describe("AAR091 (AsyncAPI 3.x): every channel must declare at least one message
     });
 
     test("checks a channels map shared by channels and components.channels once", async () => {
-      const doc = base({ $ref: "#/components/channels" }, { components: { channels: { lab: { address: "lab" } } } });
-      expect(findingsOf(await linter.run(doc))).toEqual(findings([["components.channels.lab", "missing", "lab"]]));
+      const doc = base({ $ref: "#/components/channels" }, { components: { channels: { lab: { address: "lab", messages: {} } } } });
+      expect(findingsOf(await linter.run(doc))).toEqual(findings([["components.channels.lab.messages", "empty", "lab"]]));
     });
 
     test("ignores a channels map or a components object given as an external, dangling, cyclic or root reference", async () => {
@@ -254,32 +237,32 @@ describe("AAR091 (AsyncAPI 3.x): every channel must declare at least one message
 
   describe("channel names", () => {
     test("checks channels whose key starts with x-, which are names and not extensions in these maps", async () => {
-      const doc = base({ "x-edge": { address: "edge" } }, { components: { channels: { "x-mirror": { address: "mirror", messages: {} } } } });
+      const doc = base({ "x-edge": { address: "edge", messages: [] } }, { components: { channels: { "x-mirror": { address: "mirror", messages: {} } } } });
       expect(findingsOf(await linter.run(doc))).toEqual(
         findings([
-          ["channels.x-edge", "missing", "x-edge"],
+          ["channels.x-edge.messages", "empty", "x-edge"],
           ["components.channels.x-mirror.messages", "empty", "x-mirror"],
         ])
       );
     });
 
     test("reports channels whose names contain ~0, ~1, slashes or dots at their own path", async () => {
-      const doc = base({ "eu~1west": { messages: {} }, "orders~0dr": {}, "a/b~c": { address: "ab", messages: { a: null } }, "orders.placed.v1": { address: "x" } });
+      const doc = base({ "eu~1west": { messages: {} }, "orders~0dr": { messages: null }, "a/b~c": { address: "ab", messages: { a: null } }, "orders.placed.v1": { address: "x", messages: "orderPlaced" } });
       expect(findingsOf(await linter.run(doc))).toEqual(
         findings([
           ["channels.eu~1west.messages", "empty", "eu~1west"],
-          ["channels.orders~0dr", "missing", "orders~0dr"],
+          ["channels.orders~0dr.messages", "empty", "orders~0dr"],
           ["channels.a/b~c.messages", "empty", "a/b~c"],
-          ["channels.orders.placed.v1", "missing", "orders.placed.v1"],
+          ["channels.orders.placed.v1.messages", "empty", "orders.placed.v1"],
         ])
       );
     });
 
     test("checks an empty channel key and channels named like Object members", async () => {
-      const doc = base({ "": { address: "unnamed" }, constructor: { messages: {} }, toString: complete, valueOf: { messages: { valueOf: null } } });
+      const doc = base({ "": { address: "unnamed", messages: {} }, constructor: { messages: {} }, toString: complete, valueOf: { messages: { valueOf: null } } });
       expect(findingsOf(await linter.run(doc))).toEqual(
         findings([
-          ["channels.", "missing", ""],
+          ["channels..messages", "empty", ""],
           ["channels.constructor.messages", "empty", "constructor"],
           ["channels.valueOf.messages", "empty", "valueOf"],
         ])
@@ -292,17 +275,17 @@ describe("AAR091 (AsyncAPI 3.x): every channel must declare at least one message
     });
 
     test("escapes control and invisible characters of channel names so every message stays on one line", async () => {
-      const doc = base({ "orders\nplaced": { address: "orders" }, "tab\tbed": null, "zero\u200bwidth": { messages: {} } });
+      const doc = base({ "orders\nplaced": { address: "orders", messages: {} }, "tab\tbed": { messages: null }, "zero\u200bwidth": { messages: {} } });
       const results = findingsOf(await linter.run(doc));
       expect(results).toEqual(
         findings([
-          ["channels.orders\nplaced", "missing", "orders\nplaced"],
-          ["channels.tab\tbed", "unusable", "tab\tbed"],
+          ["channels.orders\nplaced.messages", "empty", "orders\nplaced"],
+          ["channels.tab\tbed.messages", "empty", "tab\tbed"],
           ["channels.zero\u200bwidth.messages", "empty", "zero\u200bwidth"],
         ])
       );
       expect(results.map(([, message]) => message).filter((m) => /[\u0000-\u001f\u200b]/.test(m))).toEqual([]);
-      expect(results.map(([, message]) => message)).toContain("AAR091: Channel 'orders\\nplaced' must declare at least one message in 'messages'.");
+      expect(results.map(([, message]) => message)).toContain("AAR091: The 'messages' of channel 'orders\\nplaced' must declare at least one message.");
     });
   });
 
@@ -316,7 +299,7 @@ describe("AAR091 (AsyncAPI 3.x): every channel must declare at least one message
     });
   });
 
-  test("validates a shared channel once at its definition, follows chained, escaped, percent-encoded, map and entry references, skips external ones and reports dangling, cyclic, self and malformed ones", async () => {
+  test("validates a shared channel once at its definition, follows chained, escaped, percent-encoded, map and entry references, skips external ones and leaves dangling, cyclic, self and malformed ones to AAR087", async () => {
     expect(findingsOf(await linter.run(failSharedRef))).toEqual(SHARED);
   });
 

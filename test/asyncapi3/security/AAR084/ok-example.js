@@ -42,6 +42,7 @@ module.exports = {
     controlRoomWs: { host: "live.quality.es", pathname: "/stream", protocol: "ws" },
     controlRoomWss: { host: "live.quality.es", pathname: "/stream", protocol: "wss", bindings: { ws: { method: "GET", bindingVersion: "0.1.0" } } },
     billingMq: { host: "qm1.quality.es:1414", protocol: "ibmmq", bindings: { ibmmq: { groupId: "PRODCLSTR1", bindingVersion: "0.1.0" } } },
+    billingMqSecure: { host: "qm1.quality.es:1415", protocol: "ibmmq-secure", bindings: { ibmmq: { groupId: "PRODCLSTR1", cipherSpec: "ANY_TLS13_OR_HIGHER", bindingVersion: "0.1.0" } } },
     erpJms: { host: "erp-jms.quality.es:61616", protocol: "jms", bindings: { jms: { jmsConnectionFactory: "org.apache.activemq.ActiveMQConnectionFactory", bindingVersion: "0.0.1" } } },
     tradingAnypoint: { host: "mq-eu-central-1.anypoint.mulesoft.com", pathname: "/api", protocol: "anypointmq", protocolVersion: "v1" },
     marketSolace: { host: "market.messaging.solace.cloud:55443", protocol: "solace", bindings: { solace: { msgVpn: "market", bindingVersion: "0.4.0" } } },

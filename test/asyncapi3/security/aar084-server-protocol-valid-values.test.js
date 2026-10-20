@@ -1,13 +1,19 @@
 const { linterForRule } = require("../../helpers/utils");
 const {
   ALLOWED_PROTOCOLS,
+  OPTION,
+  listOf,
   notAllowed,
   notString,
   PROTOCOL_CASES,
   NON_STRING_VALUES,
   ABSENT_VALUES,
   NON_OBJECT_SERVERS,
-  INJECTED_OPTIONS,
+  IGNORED_OPTIONS,
+  PROBE_PROTOCOLS,
+  SHIPPED_ACCEPTED,
+  PARAM_CASES,
+  FALLBACK_VALUES,
 } = require("../../helpers/rules/aar084-server-protocol-valid-values");
 const okExample = require("./AAR084/ok-example");
 const failExample = require("./AAR084/fail-example");
@@ -21,6 +27,7 @@ const only = (results) => results.filter((r) => r.code === RULE);
 const byPathAndMessage = (a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]);
 const findingsOf = (results) => only(results).map((r) => [r.path.join("."), r.message]).sort(byPathAndMessage);
 const withVersion = (doc, version) => ({ ...doc, asyncapi: version });
+const withProtocols = (value) => linterForRule(RULE, { functionOptions: { [OPTION]: value } });
 
 const base = (extra) => ({ asyncapi: "3.0.0", info: { title: "Quality Server Protocols", version: "1.0.0" }, ...extra });
 const single = (protocol) => base({ servers: { plantBroker: { host: "broker.quality.es:9092", protocol } } });
@@ -62,14 +69,16 @@ const FAIL_SHARED_REF = [
   ["components.servers.recepci\u00f3n.protocol", notAllowed("recepci\u00f3n", "websockets")],
 ].sort(byPathAndMessage);
 
-describe("AAR084 (AsyncAPI 3.x): every server protocol must be an AsyncAPI transport protocol", () => {
+describe("AAR084 (AsyncAPI 3.x): every server protocol must be an allowed protocol", () => {
   let linter;
 
   beforeAll(async () => {
     linter = await linterForRule(RULE);
   });
 
-  test("passes a realistic smart grid document using all 26 protocols, ignoring extensions, protocolVersion, bindings, multi-format payloads, replies, x-servers and external references", async () => {
+  test("passes a realistic smart grid document using all 27 protocols, ignoring extensions, protocolVersion, bindings, multi-format payloads, replies, x-servers and external references", async () => {
+    const used = new Set(Object.values(okExample.servers).map((server) => server.protocol));
+    ALLOWED_PROTOCOLS.forEach((protocol) => expect([protocol, used.has(protocol)]).toEqual([protocol, true]));
     expect(findingsOf(await linter.run(okExample))).toEqual([]);
   });
 
@@ -239,9 +248,108 @@ describe("AAR084 (AsyncAPI 3.x): every server protocol must be an AsyncAPI trans
     expect(findingsOf(await linter.run(withVersion(failLargeGenerated.document, "3.1.0")))).toEqual(failLargeGenerated.expected);
   });
 
-  test.each(INJECTED_OPTIONS)("ignores injected functionOptions: %s", async (_, functionOptions) => {
+  test.each(IGNORED_OPTIONS)("ignores options the function does not read: %s", async (_, functionOptions) => {
     const configured = await linterForRule(RULE, { functionOptions });
     expect(findingsOf(await configured.run(failExample))).toEqual(FAIL_EXAMPLE);
     expect(findingsOf(await configured.run(okExample))).toEqual([]);
+  });
+
+  describe("configured list", () => {
+    const acceptedUnder = async (value, version = "3.0.0") => {
+      const configured = await withProtocols(value);
+      const reported = reportedCases(await configured.run(withVersion(matrixDoc(PROBE_PROTOCOLS), version)));
+      return PROBE_PROTOCOLS.filter((_, index) => !reported.has(index));
+    };
+
+    test("the shipped list accepts exactly the default protocols", async () => {
+      expect(await acceptedUnder(undefined)).toEqual(SHIPPED_ACCEPTED);
+      expect(await acceptedUnder(ALLOWED_PROTOCOLS.join(","))).toEqual(SHIPPED_ACCEPTED);
+    });
+
+    test.each(PARAM_CASES)("%s accepts exactly the listed protocols and names the list in every message", async (_, value, accepted, protocols) => {
+      expect(await acceptedUnder(value)).toEqual(accepted);
+      const configured = await withProtocols(value);
+      const results = only(await configured.run(matrixDoc(PROBE_PROTOCOLS)));
+      expect(results).toHaveLength(PROBE_PROTOCOLS.length - accepted.length);
+      results.forEach((r) => expect(r.message).toBe(notAllowed(r.path[1], PROBE_PROTOCOLS[Number(r.path[1].slice(4))], protocols)));
+    });
+
+    test.each(PARAM_CASES)("%s behaves alike on AsyncAPI 3.1.0", async (_, value, accepted) => {
+      expect(await acceptedUnder(value, "3.1.0")).toEqual(accepted);
+    });
+
+    test.each(FALLBACK_VALUES.map((value) => [value]))("falls back to the shipped list when the option is %p", async (value) => {
+      const configured = await withProtocols(value);
+      expect(findingsOf(await configured.run(failExample))).toEqual(FAIL_EXAMPLE);
+      expect(findingsOf(await configured.run(withVersion(failExample, "3.1.0")))).toEqual(FAIL_EXAMPLE);
+      expect(findingsOf(await configured.run(okExample))).toEqual([]);
+    });
+
+    test("protocols with surrounding spaces or no characters can never be listed", async () => {
+      expect(await acceptedUnder(" kafka ,, kafka streams ")).toEqual(["kafka", "kafka streams"]);
+      const configured = await withProtocols("mqtt\t, ,   ");
+      expect(findingsOf(await configured.run(matrixDoc(["mqtt\t", "   ", "mqtt"])))).toEqual(
+        [
+          ["servers.case0.protocol", notAllowed("case0", "mqtt\t", ["mqtt"])],
+          ["servers.case1.protocol", notAllowed("case1", "   ", ["mqtt"])],
+        ].sort(byPathAndMessage)
+      );
+    });
+
+    test("a compliant document fails once the list no longer holds its protocols", async () => {
+      const configured = await withProtocols(["mqtt", "mqtt5", "secure-mqtt"]);
+      const results = only(await configured.run(okExample));
+      const reported = new Set(results.map((r) => /protocol '(.*)' must be/s.exec(r.message)[1]));
+      expect([...reported].sort()).toEqual(ALLOWED_PROTOCOLS.filter((protocol) => !["mqtt", "mqtt5", "secure-mqtt"].includes(protocol)));
+      results.forEach((r) => expect(r.message).toMatch(/must be an allowed protocol: 'mqtt', 'mqtt5', 'secure-mqtt'\.$/));
+    });
+
+    test("a failing document passes once the list holds every string protocol it uses that can be listed", async () => {
+      const protocols = [
+        ...ALLOWED_PROTOCOLS,
+        "kafka-ssl",
+        "SASL_SSL",
+        "KAFKA",
+        "mqtts",
+        "mqtt-5",
+        "rabbitmq",
+        "socket.io",
+        "grpc",
+        "modbus-tcp",
+        "opc.tcp",
+        "ibm_mq",
+        "eventgrid",
+        "rediss",
+        "jetstream",
+        "${PROTOCOL}",
+        "PLAINTEXT",
+        "Kafka-Secure",
+        "amqp091",
+      ];
+      const configured = await withProtocols(protocols.join(","));
+      const expected = [
+        ["servers.paddedMqtt.protocol", notAllowed("paddedMqtt", "mqtt\t", protocols)],
+        ["servers.blankProtocol.protocol", notAllowed("blankProtocol", "   ", protocols)],
+        ["servers.booleanProtocol.protocol", notString("booleanProtocol")],
+        ["servers.arrayProtocol.protocol", notString("arrayProtocol")],
+        ["servers.refProtocol.protocol", notString("refProtocol")],
+      ].sort(byPathAndMessage);
+      expect(findingsOf(await configured.run(failExample))).toEqual(expected);
+      expect(findingsOf(await configured.run(withVersion(failExample, "3.1.0")))).toEqual(expected);
+    });
+
+    test("applies the configured list to components.servers and to servers shared through references", async () => {
+      const list = ["kafka-ssl", "rabbitmq", "kafka-tls", "SSL", "mqtts", "websockets"];
+      const configured = await withProtocols(list);
+      expect(findingsOf(await configured.run(failSharedRef))).toEqual([["components.servers.compliant.protocol", notAllowed("compliant", "kafka-secure", list)]]);
+      expect(findingsOf(await configured.run(withVersion(failSharedRef, "3.1.0")))).toEqual([["components.servers.compliant.protocol", notAllowed("compliant", "kafka-secure", list)]]);
+    });
+
+    test("a reordered list keeps every finding of a very large document and lists the protocols in the configured order", async () => {
+      const reversed = [...ALLOWED_PROTOCOLS].reverse();
+      const configured = await withProtocols(reversed);
+      const expected = failLargeGenerated.expected.map(([path, message]) => [path, message.replace(listOf(ALLOWED_PROTOCOLS), listOf(reversed))]).sort(byPathAndMessage);
+      expect(findingsOf(await configured.run(withVersion(failLargeGenerated.document, "3.1.0")))).toEqual(expected);
+    });
   });
 });

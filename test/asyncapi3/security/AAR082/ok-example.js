@@ -27,6 +27,8 @@ module.exports = {
       bindings: { kafka: { schemaRegistryUrl: "https://registry.quality.es/apis/ccompat/v7", schemaRegistryVendor: "apicurio", bindingVersion: "0.5.0" } },
     },
     kafka: { $ref: "#/components/servers/onPremKafka" },
+    "kafka-dr": { host: "kafka-dr.quality.es:9092", protocol: "kafka", title: "Disaster recovery Kafka cluster" },
+    eventstreams_pre: { host: "es-kafka-bootstrap-eventstreams.apps-pre.quality.es:443", protocol: "kafka-secure", title: "Pre-production Event Streams" },
   },
   channels: {
     paymentCreated: {

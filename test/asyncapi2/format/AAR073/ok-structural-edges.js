@@ -26,7 +26,7 @@ module.exports = {
       publish: {
         "x-traits": [],
         traits: [],
-        message: { name: "orderPlaced", payload: { type: "object", properties: { traits: { type: "array" } } }, traits: [{ $ref: "./traits/commonHeaders.yaml" }, { $ref: "./traits/tracing.yaml" }], "x-traits": [] },
+        message: { name: "orderPlaced", payload: { type: "object", properties: { traits: { type: "array" } } }, traits: [{ $ref: "./traits/common.yaml#/components/messageTraits/commonHeaders" }, { $ref: "./traits/common.yaml#/components/messageTraits/tracing" }], "x-traits": [] },
       },
     },
   },

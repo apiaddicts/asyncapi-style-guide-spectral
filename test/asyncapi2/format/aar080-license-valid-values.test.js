@@ -43,7 +43,7 @@ const base = (info, extra = {}) => ({ asyncapi: "2.6.0", id: "urn:commerce:event
 const withLicense = (license) => base({ ...SPDX_INFO, license });
 const withName = (name) => withLicense({ name, url: SPDX_URL });
 
-describe("AAR080 (AsyncAPI 2.x): the info license name must be an SPDX License List identifier", () => {
+describe("AAR080 (AsyncAPI 2.x): the info license name must be an SPDX License List identifier or a LicenseRef identifier", () => {
   let linter;
 
   beforeAll(async () => {
@@ -132,12 +132,14 @@ describe("AAR080 (AsyncAPI 2.x): the info license name must be an SPDX License L
   });
 
   describe("functionOptions", () => {
-    test.each(SPDX_IGNORED_OPTIONS)("injecting %s changes nothing: the SPDX License List stays the only allowed values", async (_, functionOptions) => {
+    test.each(SPDX_IGNORED_OPTIONS)("injecting %s changes nothing: the SPDX License List and LicenseRef identifiers stay the only allowed values", async (_, functionOptions) => {
       const custom = await linterForRule(RULE, { functionOptions });
       expect(findingsOf(await custom.run(failExample))).toEqual(FAIL);
       expect(findingsOf(await custom.run(failSharedRef))).toEqual(SHARED);
       expect(findingsOf(await custom.run(okExample))).toEqual([]);
       expect(findingsOf(await custom.run(withName("GPL-3.0")))).toEqual([]);
+      expect(findingsOf(await custom.run(withName("LicenseRef-Quality-Internal")))).toEqual([]);
+      expect(findingsOf(await custom.run(withName("licenseref-quality")))).toEqual(spdxFindings([["info.license.name", "suggest", "licenseref-quality", "LicenseRef-quality"]]));
       expect(findingsOf(await custom.run(withName("Proprietary")))).toEqual(spdxFindings([["info.license.name", "invalid", "Proprietary"]]));
       expect(findingsOf(await custom.run(withName("apache-2.0")))).toEqual(spdxFindings([["info.license.name", "suggest", "apache-2.0", "Apache-2.0"]]));
       expect(findingsOf(await custom.run(withName("MIT OR Apache-2.0")))).toEqual(spdxFindings([["info.license.name", "invalid", "MIT OR Apache-2.0"]]));

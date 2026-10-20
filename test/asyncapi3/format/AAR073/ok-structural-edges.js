@@ -36,7 +36,7 @@ module.exports = {
         orderPlaced: {
           name: "orderPlaced",
           payload: { schemaFormat: "application/schema+json;version=draft-07", schema: { type: "object", properties: { traits: { type: "array" } } } },
-          traits: [{ $ref: "./traits/commonHeaders.yaml" }, { $ref: "./traits/tracing.yaml" }],
+          traits: [{ $ref: "./traits/common.yaml#/components/messageTraits/commonHeaders" }, { $ref: "./traits/common.yaml#/components/messageTraits/tracing" }],
           "x-traits": [],
         },
       },

@@ -1,14 +1,14 @@
 /**
  * @param {object} document - The whole AsyncAPI document (given: "$", resolved: false)
- * @param {object} _options - Unused: the mandatory channel fields are always address, description and messages
- *   (AsyncAPI 3.x) or description and a message in publish or subscribe (2.x, where the channel key is the address),
- *   checked on every channel in channels and components.channels
+ * @param {object} _options - Unused: every channel in channels and components.channels must always declare, in
+ *   AsyncAPI 3.x, an address that is non-empty or null (null marks it as unknown or dynamic), a non-empty description
+ *   and the messages key, whose content AAR091 checks; in 2.x, where the channel key is the address, a non-empty
+ *   description and a publish or subscribe key, whose operations AAR094 checks
  * @param {import('@stoplight/spectral-core').RulesetFunctionContext} context
  * @returns {Array} Array of error objects
  */
 const UNKNOWN = Symbol("unknown");
 const INVISIBLE = /[\u200b-\u200d\u2060\ufeff]/g;
-const FIELDS_V3 = ["address", "description", "messages"];
 const OPERATIONS_V2 = ["publish", "subscribe"];
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -48,7 +48,7 @@ module.exports = (document, _options, context) => {
   }
 
   const v3 = isVersion3Plus(document.asyncapi);
-  const expected = v3 ? "'address', 'description' and 'messages'" : "'description' and a message in 'publish' or 'subscribe'";
+  const expected = v3 ? "'address', 'description' and 'messages'" : "'description' and a 'publish' or 'subscribe' operation";
   const visited = new Set();
 
   const follow = (node, path) => {
@@ -84,13 +84,6 @@ module.exports = (document, _options, context) => {
     return node === UNKNOWN || populated(node);
   };
 
-  const hasMessage = (value) => {
-    const { node } = follow(value, []);
-    if (node === UNKNOWN) return true;
-    if (!isObject(node)) return populated(node);
-    return !has(node, "oneOf") || populated(node.oneOf);
-  };
-
   const locatable = (path) => {
     const source = context.document;
     if (!source || typeof source.getRangeForJsonPath !== "function") return path;
@@ -104,30 +97,14 @@ module.exports = (document, _options, context) => {
     errors.push({ message, path: locatable([...context.path, ...path]).map(escapeToken) });
   };
 
-  const checkField = (node, at, name, field) => {
-    if (!has(node, field)) {
-      report(`Channel '${name}' must declare '${field}'.`, at);
-    } else if (!populated(node[field])) {
-      report(`The '${field}' of channel '${name}' must not be empty.`, [...at, field]);
-    }
+  const declares = (node, at, name, field) => {
+    if (has(node, field)) return true;
+    report(`Channel '${name}' must declare '${field}'.`, at);
+    return false;
   };
 
-  const checkMessages = (node, at, name) => {
-    const empty = [];
-    for (const operation of OPERATIONS_V2) {
-      if (!has(node, operation)) continue;
-      const target = follow(node[operation], [...at, operation]);
-      if (target.node === UNKNOWN) return;
-      if (!isObject(target.node) || !has(target.node, "message")) continue;
-      if (hasMessage(target.node.message)) return;
-      empty.push([operation, [...target.path, "message"]]);
-    }
-    if (empty.length === 0) {
-      report(`Channel '${name}' must declare a message in 'publish' or 'subscribe'.`, at);
-    }
-    for (const [operation, path] of empty) {
-      report(`The '${operation}.message' of channel '${name}' must not be empty.`, path);
-    }
+  const checkPopulated = (node, at, name, field) => {
+    if (!populated(node[field])) report(`The '${field}' of channel '${name}' must not be empty.`, [...at, field]);
   };
 
   const checkChannel = (channel, path) => {
@@ -142,12 +119,13 @@ module.exports = (document, _options, context) => {
       report(`Channel '${name}' must be an object declaring ${expected}.`, at);
       return;
     }
+    if (v3 && declares(node, at, name, "address") && node.address !== null) checkPopulated(node, at, name, "address");
+    if (declares(node, at, name, "description")) checkPopulated(node, at, name, "description");
     if (v3) {
-      for (const field of FIELDS_V3) checkField(node, at, name, field);
-      return;
+      declares(node, at, name, "messages");
+    } else if (!OPERATIONS_V2.some((operation) => has(node, operation))) {
+      report(`Channel '${name}' must declare a 'publish' or 'subscribe' operation.`, at);
     }
-    checkField(node, at, name, "description");
-    checkMessages(node, at, name);
   };
 
   const eachChannel = (map, path) => {

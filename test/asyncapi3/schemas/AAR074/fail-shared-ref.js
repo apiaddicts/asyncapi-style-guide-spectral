@@ -77,7 +77,7 @@ module.exports = {
     "x-messages": {
       statementIssued: { name: "statementIssued", payload: { type: "object", properties: { statementId: { type: "string" }, Closing_Balance: { $ref: "#/components/schemas/Money" } } } },
       ackOnly: { name: "ackOnly", payload: { type: "object", properties: { ack_code: { type: "string" } } } },
-      auditOnly: { name: "auditOnly", headers: { type: "object", properties: { Auditor: { type: "string" } } } },
+      auditOnly: { name: "auditOnly", headers: { type: "object", properties: { Auditor: { type: "string" } } }, payload: { type: "object", properties: { audit_ref: { type: "string" } } } },
     },
     channels: {
       paymentsMirror: {

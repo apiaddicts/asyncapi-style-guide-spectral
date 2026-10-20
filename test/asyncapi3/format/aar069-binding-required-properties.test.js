@@ -31,6 +31,10 @@ const quoted = (fields) => {
 };
 const message = (kind, protocol, ...fields) => `AAR069: ${kind} binding '${protocol}' must declare ${quoted(fields)}.`;
 const finding = (path, kind, protocol, ...fields) => `${path} :: ${message(kind, protocol, ...fields)}`;
+const when = (text, clause) => text.replace(/\.$/, ` when ${clause}.`);
+const NOT_QUEUE = "'is' is not 'queue'";
+const IS_QUEUE = "'is' is 'queue'";
+const DESTINATION_QUEUE = "'destinationType' is 'queue'";
 const render = (steps) => steps.reduce((text, step) => (typeof step === "number" ? `${text}[${step}]` : text === "" ? step : `${text}.${step}`), "");
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const base = (extra, version = "3.0.0") => ({ asyncapi: version, info: { title: "Required Binding Fields", version: "1.0.0" }, ...extra });
@@ -51,8 +55,14 @@ const removeAt = (target, steps) => {
 };
 const placeBindings = (kind, bindings, version) => setAt(base({}, version), HOLDERS[kind], bindings);
 const completeBinding = (kind, protocol) => clone(REQUIRED_BINDING_CASES.complete[kind][protocol]);
+const bindingOf = ([kind, protocol, , , extra]) => (extra && extra.binding ? clone(extra.binding) : completeBinding(kind, protocol));
 const fieldsOf = ([, , steps, alternatives]) => alternatives || [render(steps)];
 const parentPath = ([kind, protocol, steps]) => [...HOLDERS[kind], protocol, ...steps.slice(0, -1)].join(".");
+const entryMessage = (entry) => {
+  const text = message(LABELS[entry[0]], entry[1], ...fieldsOf(entry));
+  return entry[4] ? when(text, entry[4].when) : text;
+};
+const entryFinding = (entry) => `${parentPath(entry)} :: ${entryMessage(entry)}`;
 const caseName = (entry) => [`${entry[0]}.${entry[1]}.${render(entry[2])}`, entry];
 
 const FAIL_EXAMPLE = [
@@ -60,7 +70,7 @@ const FAIL_EXAMPLE = [
   finding("servers.jmsPrimary.bindings.jms.properties.1", "Server", "jms", "properties[1].name"),
   finding("servers.jmsPrimary.bindings.jms.properties.2", "Server", "jms", "properties[2].value"),
   finding("servers.jmsBlank.bindings.jms", "Server", "jms", "jmsConnectionFactory"),
-  finding(`${C1}.bindings.amqp`, "Channel", "amqp", "exchange", "queue"),
+  when(finding(`${C1}.bindings.amqp`, "Channel", "amqp", "exchange"), NOT_QUEUE),
   finding(`${C1}.bindings.sqs.queue`, "Channel", "sqs", "queue.fifoQueue"),
   finding(`${C1}.bindings.sqs.queue.policy.statements.0`, "Channel", "sqs", "queue.policy.statements[0].action"),
   finding(`${C1}.bindings.sqs.queue.policy.statements.1`, "Channel", "sqs", "queue.policy.statements[1].effect"),
@@ -235,7 +245,7 @@ describe("AAR069 (AsyncAPI 3.x): protocol bindings must declare their required f
       expect(findings(await linter.run(doc))).toEqual(
         [
           finding("servers.probe.bindings.jms", "Server", "jms", "jmsConnectionFactory"),
-          finding("channels.probe.bindings.amqp", "Channel", "amqp", "exchange", "queue"),
+          when(finding("channels.probe.bindings.amqp", "Channel", "amqp", "exchange"), NOT_QUEUE),
           finding("channels.probe.bindings.googlepubsub", "Channel", "googlepubsub", "schemaSettings"),
           finding("channels.probe.bindings.pulsar", "Channel", "pulsar", "namespace"),
           finding("channels.probe.bindings.pulsar", "Channel", "pulsar", "persistence"),
@@ -252,16 +262,16 @@ describe("AAR069 (AsyncAPI 3.x): protocol bindings must declare their required f
     test.each(REQUIRED_BINDING_CASES.defaults.map(caseName))("reports %s when it is missing, on AsyncAPI 3.0 and 3.1", async (_, entry) => {
       const [kind, protocol, steps] = entry;
       for (const version of VERSIONS) {
-        const doc = placeBindings(kind, { [protocol]: removeAt(completeBinding(kind, protocol), steps) }, version);
-        expect([version, findings(await linter.run(doc))]).toEqual([version, [finding(parentPath(entry), LABELS[kind], protocol, ...fieldsOf(entry))]]);
+        const doc = placeBindings(kind, { [protocol]: removeAt(bindingOf(entry), steps) }, version);
+        expect([version, findings(await linter.run(doc))]).toEqual([version, [entryFinding(entry)]]);
       }
     });
 
     test.each(REQUIRED_BINDING_CASES.defaults.map(caseName))("accepts false, 0, empty lists and objects, padded strings and $ref values for %s", async (_, entry) => {
       const [kind, protocol, steps] = entry;
-      const own = message(LABELS[kind], protocol, ...fieldsOf(entry));
+      const own = entryMessage(entry);
       for (const value of REQUIRED_BINDING_CASES.presentValues) {
-        const doc = placeBindings(kind, { [protocol]: setAt(completeBinding(kind, protocol), steps, clone(value)) });
+        const doc = placeBindings(kind, { [protocol]: setAt(bindingOf(entry), steps, clone(value)) });
         expect([value, only(await linter.run(doc)).filter((r) => r.message === own)]).toEqual([value, []]);
       }
     });
@@ -269,8 +279,8 @@ describe("AAR069 (AsyncAPI 3.x): protocol bindings must declare their required f
     test.each(REQUIRED_BINDING_CASES.defaults.map(caseName))("treats null, empty and blank strings as missing for %s", async (_, entry) => {
       const [kind, protocol, steps] = entry;
       for (const value of REQUIRED_BINDING_CASES.missingValues) {
-        const doc = placeBindings(kind, { [protocol]: setAt(completeBinding(kind, protocol), steps, value) }, "3.1.0");
-        expect([value, findings(await linter.run(doc))]).toEqual([value, [finding(parentPath(entry), LABELS[kind], protocol, ...fieldsOf(entry))]]);
+        const doc = placeBindings(kind, { [protocol]: setAt(bindingOf(entry), steps, value) }, "3.1.0");
+        expect([value, findings(await linter.run(doc))]).toEqual([value, [entryFinding(entry)]]);
       }
     });
 
@@ -519,5 +529,119 @@ describe.each(["3.0.0", "3.1.0"])("AAR069 (AsyncAPI %s): the operation overrides
   test("a trait that sets a whole binding to null leaves the operation binding in place", async () => {
     const doc = operation({ ros2: { role: "publisher" } }, [{ bindings: { ros2: null } }]);
     expect(findings(await linter.run(doc))).toEqual([finding("operations.o.bindings.ros2", "Operation", "ros2", "node")]);
+  });
+});
+
+describe.each(VERSIONS)("AAR069 (AsyncAPI %s): requirements that depend on a field of the same binding", (version) => {
+  let linter;
+
+  beforeAll(async () => {
+    linter = await linterForRule(RULE);
+  });
+
+  const EXCHANGE = { name: "coldchain", type: "topic", durable: true };
+  const QUEUE = { name: "coldchain", durable: true, exclusive: false };
+  const channelDoc = (bindings) => base({ channels: { c: { address: "coldchain.events", bindings } } }, version);
+  const exchangeMissing = when(finding("channels.c.bindings.amqp", "Channel", "amqp", "exchange"), NOT_QUEUE);
+  const queueMissing = when(finding("channels.c.bindings.amqp", "Channel", "amqp", "queue"), IS_QUEUE);
+  const amqpBinding = (is, exchange, queue) => ({
+    ...(is === undefined ? {} : { is }),
+    ...(exchange ? { exchange: clone(EXCHANGE) } : {}),
+    ...(queue ? { queue: clone(QUEUE) } : {}),
+    bindingVersion: "0.3.0",
+  });
+
+  test.each([
+    [undefined, true, true, []],
+    [undefined, true, false, []],
+    [undefined, false, true, [exchangeMissing]],
+    [undefined, false, false, [exchangeMissing]],
+    ["routingKey", true, true, []],
+    ["routingKey", true, false, []],
+    ["routingKey", false, true, [exchangeMissing]],
+    ["routingKey", false, false, [exchangeMissing]],
+    ["queue", true, true, []],
+    ["queue", false, true, []],
+    ["queue", true, false, [queueMissing]],
+    ["queue", false, false, [queueMissing]],
+  ])("an amqp channel binding with is %p, exchange declared %p and queue declared %p", async (is, exchange, queue, expected) => {
+    expect(findings(await linter.run(channelDoc({ amqp: amqpBinding(is, exchange, queue) })))).toEqual(expected);
+  });
+
+  test("the exact messages name the condition, and is compares with the exact string", async () => {
+    expect(only(await linter.run(channelDoc({ amqp: { is: "queue" } }))).map((r) => r.message)).toEqual(["AAR069: Channel binding 'amqp' must declare 'queue' when 'is' is 'queue'."]);
+    expect(only(await linter.run(channelDoc({ amqp: null }))).map((r) => r.message)).toEqual(["AAR069: Channel binding 'amqp' must declare 'exchange' when 'is' is not 'queue'."]);
+    for (const is of ["Queue", " queue", "", null, 1, ["queue"]]) {
+      expect([is, findings(await linter.run(channelDoc({ amqp: { is, queue: clone(QUEUE) } })))]).toEqual([is, [exchangeMissing]]);
+    }
+  });
+
+  test.each([
+    [undefined, false, []],
+    ["topic", false, []],
+    ["QUEUE", false, []],
+    [null, false, []],
+    ["queue", true, []],
+    ["queue", false, [when(finding("channels.c.bindings.ibmmq", "Channel", "ibmmq", "queue"), DESTINATION_QUEUE)]],
+  ])("an ibmmq channel binding with destinationType %p and queue declared %p", async (destinationType, queue, expected) => {
+    const ibmmq = { ...(destinationType === undefined ? {} : { destinationType }), ...(queue ? { queue: { objectName: "ERP.ORDERS.IN" } } : {}), bindingVersion: "0.1.0" };
+    expect(findings(await linter.run(channelDoc({ ibmmq })))).toEqual(expected);
+  });
+
+  test("checks conditional requirements on components.channels and shared channel bindings once at their definition", async () => {
+    const doc = base(
+      {
+        channels: { c: { address: "c", bindings: { $ref: "#/components/channelBindings/queued" } }, d: { $ref: "#/components/channels/erp" } },
+        components: {
+          channels: { erp: { address: "erp", bindings: { ibmmq: { destinationType: "queue" } } } },
+          channelBindings: { queued: { amqp: { is: "queue", exchange: clone(EXCHANGE) } } },
+        },
+      },
+      version
+    );
+    expect(findings(await linter.run(doc))).toEqual(
+      [
+        when(finding("components.channelBindings.queued.amqp", "Channel", "amqp", "queue"), IS_QUEUE),
+        when(finding("components.channels.erp.bindings.ibmmq", "Channel", "ibmmq", "queue"), DESTINATION_QUEUE),
+      ].sort()
+    );
+  });
+
+  describe("configured conditions read the binding after merging traits, the operation winning in 3.x", () => {
+    const ENTRIES = "operation.ros2.qosPolicies?role=subscriber, operation.ros2.node?role!=publisher";
+    const OWN = "operations.o.bindings.ros2";
+    const qos = (path) => when(finding(path, "Operation", "ros2", "qosPolicies"), "'role' is 'subscriber'");
+    const node = (path) => when(finding(path, "Operation", "ros2", "node"), "'role' is not 'publisher'");
+    const doc = (bindings, traits, components) =>
+      base({ channels: { c: { address: "c" } }, operations: { o: { action: "send", channel: { $ref: "#/channels/c" }, bindings, traits } }, components }, version);
+
+    test.each([
+      ["the own role overrides a trait role", { ros2: { role: "publisher" } }, [{ bindings: { ros2: { role: "subscriber" } } }], undefined, []],
+      ["the own role keeps its requirements over a trait role", { ros2: { role: "subscriber" } }, [{ bindings: { ros2: { role: "publisher" } } }], undefined, [qos(OWN), node(OWN)]],
+      ["a role only the trait declares", { ros2: { node: "/n" } }, [{ bindings: { ros2: { role: "subscriber" } } }], undefined, [qos(OWN)]],
+      ["a binding only the trait declares", undefined, [{ bindings: { ros2: { role: "subscriber" } } }], undefined, [qos("operations.o.traits.0.bindings.ros2"), node("operations.o.traits.0.bindings.ros2")]],
+      ["an own null removes the trait role", { ros2: { role: null } }, [{ bindings: { ros2: { role: "publisher" } } }], undefined, [node(OWN)]],
+      ["a trait null never removes the own role", { ros2: { role: "subscriber", qosPolicies: {} } }, [{ bindings: { ros2: { role: null } } }], undefined, [node(OWN)]],
+      ["the later trait wins over the earlier one", { ros2: {} }, [{ bindings: { ros2: { role: "subscriber" } } }, { bindings: { ros2: { role: "publisher" } } }], undefined, []],
+      [
+        "a referenced trait",
+        { ros2: { node: "/n" } },
+        [{ $ref: "#/components/operationTraits/subscriber" }],
+        { operationTraits: { subscriber: { bindings: { ros2: { role: "subscriber" } } } } },
+        [qos(OWN)],
+      ],
+    ])("%s", async (_, bindings, traits, components, expected) => {
+      const configured = await withOptions(ENTRIES);
+      expect(findings(await configured.run(doc(bindings, traits, components)))).toEqual(expected.sort());
+    });
+
+    test("message traits complete the condition too, in their inline and tuple forms", async () => {
+      const configured = await withOptions("message.kafka.schemaIdPayloadEncoding?schemaIdLocation=payload");
+      const missing = when(finding("channels.c.messages.m.bindings.kafka", "Message", "kafka", "schemaIdPayloadEncoding"), "'schemaIdLocation' is 'payload'");
+      const messageDoc = (own, traits) => base({ channels: { c: { address: "c", messages: { m: { bindings: { kafka: own }, traits } } } } }, version);
+      expect(findings(await configured.run(messageDoc({ key: { type: "string" } }, [{ bindings: { kafka: { schemaIdLocation: "payload" } } }])))).toEqual([missing]);
+      expect(findings(await configured.run(messageDoc({ key: { type: "string" } }, [[{ bindings: { kafka: { schemaIdLocation: "payload" } } }, {}]])))).toEqual([missing]);
+      expect(findings(await configured.run(messageDoc({ schemaIdLocation: "header" }, [{ bindings: { kafka: { schemaIdLocation: "payload" } } }])))).toEqual([]);
+    });
   });
 });

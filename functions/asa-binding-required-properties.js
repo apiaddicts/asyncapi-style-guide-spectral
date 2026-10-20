@@ -2,7 +2,12 @@
  * @param {object} document - The whole AsyncAPI document (given: "$", resolved: false)
  * @param {object} options - Function options
  * @param {string|string[]} options\["required_binding_props"] - Comma-separated list (or array) of required binding
- *   fields.
+ *   fields, each written `<kind>.<protocol>.<path>`: kind is server, channel, operation, message or *, protocol is a
+ *   binding key or *, and the last path segment may list alternatives separated by '|' (names containing dots go
+ *   between brackets). An optional suffix `?<field>=<value>` or `?<field>!=<value>` makes the entry conditional on a
+ *   top-level field of the same binding, read after merging traits: '=' applies the entry only when that field is
+ *   the string value, '!=' only when it is absent or not that string. Only a '?' after the last ']' starts the
+ *   condition. Malformed entries are ignored, and a list without usable entries falls back to the default list.
  * @param {import('@stoplight/spectral-core').RulesetFunctionContext} context
  * @returns {Array} Array of error objects
  */
@@ -10,10 +15,12 @@ const DEFAULT_REQUIRED_BINDING_PROPS = [
   "server.jms.jmsConnectionFactory",
   "server.jms.properties.name",
   "server.jms.properties.value",
-  "channel.amqp.exchange|queue",
+  "channel.amqp.exchange?is!=queue",
+  "channel.amqp.queue?is=queue",
   "channel.googlepubsub.schemaSettings",
   "channel.googlepubsub.schemaSettings.encoding",
   "channel.googlepubsub.schemaSettings.name",
+  "channel.ibmmq.queue?destinationType=queue",
   "channel.ibmmq.queue.objectName",
   "channel.pulsar.namespace",
   "channel.pulsar.persistence",
@@ -58,8 +65,9 @@ const DEFAULT_REQUIRED_BINDING_PROPS = [
 const KINDS = ["server", "channel", "operation", "message"];
 const KIND_LABELS = { server: "Server", channel: "Channel", operation: "Operation", message: "Message" };
 const PROTOCOL = /^[a-z0-9][a-z0-9._-]*$/;
-const PLAIN_NAME = /^[^\s.[\]|,]+$/;
+const PLAIN_NAME = /^[^\s.[\]|,?]+$/;
 const BRACKET_NAME = /^[^\s[\]|,]+$/;
+const CONDITION = /^\s*([^\s.[\]|,?=!]+)\s*(!=|=)\s*([^\s[\]|,?=]+)\s*$/;
 const UNRESOLVED = Symbol("unresolved");
 const MAX_REF_HOPS = 64;
 
@@ -116,8 +124,18 @@ const tokenize = (entry) => {
   return closeSegment() ? segments : null;
 };
 
+const splitCondition = (entry) => {
+  const mark = entry.indexOf("?", entry.lastIndexOf("]") + 1);
+  if (mark === -1) return { text: entry, condition: null };
+  const match = CONDITION.exec(entry.slice(mark + 1));
+  if (match === null || match[1] === "$ref") return null;
+  return { text: entry.slice(0, mark), condition: { field: match[1], negated: match[2] === "!=", value: match[3] } };
+};
+
 const parseEntry = (raw) => {
-  const segments = tokenize(raw.trim());
+  const split = splitCondition(raw.trim());
+  if (split === null) return null;
+  const segments = tokenize(split.text);
   if (segments === null || segments.length < 3) return null;
   if (segments.slice(0, -1).some((alternatives) => alternatives.length !== 1)) return null;
   const kind = segments[0][0].toLowerCase();
@@ -128,7 +146,8 @@ const parseEntry = (raw) => {
   if (fields.some((alternatives) => alternatives.includes("$ref"))) return null;
   const path = fields.slice(0, -1).map((alternatives) => alternatives[0]);
   const alternatives = [...new Set(fields[fields.length - 1])];
-  return { kind, protocol, path, alternatives, key: JSON.stringify([path, [...alternatives].sort()]) };
+  const condition = split.condition;
+  return { kind, protocol, path, alternatives, condition, key: JSON.stringify([path, [...alternatives].sort(), condition]) };
 };
 
 const parseRequirements = (raw) => {
@@ -176,6 +195,15 @@ const renderPath = (steps) =>
 const renderFields = (steps, alternatives) => {
   const names = alternatives.map((alternative) => `'${renderPath([...steps, alternative])}'`);
   return names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+};
+
+const renderCondition = (condition) => (condition === null ? "" : ` when '${condition.field}' is ${condition.negated ? "not " : ""}'${condition.value}'`);
+
+const conditionHolds = (parts, condition) => {
+  if (condition === null) return true;
+  const holder = parts.find((part) => has(part.value, condition.field) && part.value[condition.field] !== undefined);
+  const value = holder === undefined ? undefined : holder.value[condition.field];
+  return (typeof value === "string" && value === condition.value) !== condition.negated;
 };
 
 module.exports = (document, options, context) => {
@@ -271,12 +299,12 @@ module.exports = (document, options, context) => {
     return run;
   };
 
-  const report = (kind, protocol, parts, steps, alternatives) => {
+  const report = (kind, protocol, parts, steps, requirement) => {
     const owner = parts.reduce((first, part) => (part.owner.rank < first.rank ? part.owner : first), parts[0].owner);
     if (owner.mode === "definition") return;
     const path = owner.mode === "inline" ? [...owner.base, protocol, ...steps] : owner.anchor;
     errors.push({
-      message: `${KIND_LABELS[kind]} binding '${protocol}' must declare ${renderFields(steps, alternatives)}.`,
+      message: `${KIND_LABELS[kind]} binding '${protocol}' must declare ${renderFields(steps, requirement.alternatives)}${renderCondition(requirement.condition)}.`,
       path: [...context.path, ...path],
     });
   };
@@ -288,7 +316,7 @@ module.exports = (document, options, context) => {
         .map((part, index) => (part === undefined ? null : { part, value: part.value[requirement.alternatives[index]] }));
       if (winners.some((winner) => winner !== null && isPresent(winner.value))) return;
       const blanks = winners.filter((winner) => winner !== null).map((winner) => winner.part);
-      report(kind, protocol, blanks.length > 0 ? blanks : parts, steps, requirement.alternatives);
+      report(kind, protocol, blanks.length > 0 ? blanks : parts, steps, requirement);
       return;
     }
     const name = requirement.path[depth];
@@ -327,7 +355,7 @@ module.exports = (document, options, context) => {
       const run = objectRun(candidates);
       if (run === null || run.length === 0) continue;
       for (const requirement of requirementsFor(requirements, kind, protocol)) {
-        checkRequirement(kind, protocol, run, requirement, 0, []);
+        if (conditionHolds(run, requirement.condition)) checkRequirement(kind, protocol, run, requirement, 0, []);
       }
     }
   };

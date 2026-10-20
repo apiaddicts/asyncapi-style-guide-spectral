@@ -167,7 +167,7 @@ module.exports = {
       durableConsumer: { kafka: { groupId: { type: "string", enum: ["shipments-reader"] } }, amqp: { ack: true } },
     },
     messageBindings: {
-      partitionKey: { kafka: { key: { type: "string" } }, ros2: {} },
+      partitionKey: { kafka: { key: { type: "string" } } },
     },
     schemas: {
       Shipment: {

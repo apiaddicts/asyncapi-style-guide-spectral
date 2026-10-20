@@ -7,6 +7,7 @@ const {
   PROPERTY_FORMAT_PAYLOADS,
   PROPERTY_FORMAT_FINDINGS,
   AVRO_TEXT_SCHEMA,
+  HEADER_SCHEMA,
 } = require("../../helpers/rules/aar074-properties-object-format");
 const okExample = require("./AAR074/ok-example");
 const failExample = require("./AAR074/fail-example");
@@ -30,20 +31,16 @@ const BAD_AT = (prefix) => `${prefix}.properties.order_id`;
 const multiFormat = (schemaFormat, schema) => ({ schemaFormat, schema });
 
 const FAIL_EXAMPLE_PATHS = [
-  `${O}.headers.properties.x-session-id`,
   `${O}.payload.properties.client_order_id`,
   `${O}.payload.properties.legs.items.properties.Side`,
-  `${O}.traits.1.headers.properties.replay_count`,
   `${E}.payload.schema.fields.1.name`,
   `${E}.payload.schema.fields.2.type.1.fields.0.name`,
   "channels.marketData.messages.quoteSnapshot.payload.schema.properties.ask_price",
   "components.schemas.Price.properties.Currency",
   "components.schemas.LimitBreach.schema.properties.breach_pct",
-  "components.schemas.RiskHeaders.properties.Risk-Officer",
   "components.schemas.Instrument.schema.fields.1.name",
   "components.channels.settlementInstructions.messages.settlementInstructed.payload.properties.ssi_ref",
   "components.messages.orderAmended.payload.properties.new_quantity",
-  "components.messageTraits.tracing.headers.schema.properties.TraceState",
 ].sort();
 
 const SHARED_REF_PATHS = [
@@ -56,26 +53,16 @@ const SHARED_REF_PATHS = [
   "components.x-schemas.fx quote.properties.Bid",
   "components.x-messages.statementIssued.payload.properties.Closing_Balance",
   "components.x-messages.ackOnly.payload.properties.ack_code",
-  "components.x-messages.auditOnly.headers.properties.Auditor",
+  "components.x-messages.auditOnly.payload.properties.audit_ref",
   "components.channels.paymentsMirror.messages.mirrorOnly.payload.properties.mirror_lag_ms",
-  "components.messages.paymentReturned.headers.properties.Return_Reason",
 ].sort();
 
 const LOCATIONS = [
   ["channel message payload", "channels.orders.messages.orderPlaced.payload", { channels: { orders: channel({ orderPlaced: { payload: BAD } }) } }],
-  ["channel message headers", "channels.orders.messages.orderPlaced.headers", { channels: { orders: channel({ orderPlaced: { headers: BAD } }) } }],
   ["message of a channel with a null address", "channels.live.messages.frame.payload", { channels: { live: { address: null, messages: { frame: { payload: BAD } } } } }],
   ["multi-format payload", "channels.orders.messages.orderPlaced.payload.schema", { channels: { orders: channel({ orderPlaced: { payload: multiFormat("application/schema+json;version=draft-07", BAD) } }) } }],
-  ["multi-format headers", "channels.orders.messages.orderPlaced.headers.schema", { channels: { orders: channel({ orderPlaced: { headers: multiFormat("application/vnd.aai.asyncapi+json;version=3.0.0", BAD) } }) } }],
-  ["inline trait headers", "channels.orders.messages.orderPlaced.traits.0.headers", { channels: { orders: channel({ orderPlaced: { traits: [{ headers: BAD }] } }) } }],
-  ["tuple trait headers", "channels.orders.messages.orderPlaced.traits.0.0.headers", { channels: { orders: channel({ orderPlaced: { traits: [[{ headers: BAD }, {}]] } }) } }],
-  ["multi-format trait headers", "channels.orders.messages.orderPlaced.traits.0.headers.schema", { channels: { orders: channel({ orderPlaced: { traits: [{ headers: multiFormat("application/schema+yaml;version=draft-07", BAD) }] } }) } }],
-  ["referenced trait headers", "components.x-traits.tracing.headers", { channels: { orders: channel({ orderPlaced: { traits: [{ $ref: "#/components/x-traits/tracing" }] } }) }, components: { "x-traits": { tracing: { headers: BAD } } } }],
-  ["a traits list behind a reference", "components.x-trait-lists.common.0.headers", { channels: { orders: channel({ orderPlaced: { traits: { $ref: "#/components/x-trait-lists/common" } } }) }, components: { "x-trait-lists": { common: [{ headers: BAD }] } } }],
   ["components.channels message payload", "components.channels.audit.messages.auditRecorded.payload", { components: { channels: { audit: channel({ auditRecorded: { payload: BAD } }) } } }],
   ["components.messages payload", "components.messages.orderPlaced.payload", { components: { messages: { orderPlaced: { payload: BAD } } } }],
-  ["components.messageTraits headers", "components.messageTraits.tracing.headers", { components: { messageTraits: { tracing: { headers: BAD } } } }],
-  ["referenced components.messageTraits entry", "components.x-traits.tracing.headers", { components: { messageTraits: { tracing: { $ref: "#/components/x-traits/tracing" } }, "x-traits": { tracing: { headers: BAD } } } }],
   ["components.schemas", "components.schemas.Order", { components: { schemas: { Order: BAD } } }],
   ["multi-format components.schemas entry", "components.schemas.Order.schema", { components: { schemas: { Order: multiFormat("application/vnd.oai.openapi;version=3.0.0", BAD) } } }],
   ["referenced components.schemas entry", "components.x-schemas.Order", { components: { schemas: { Order: { $ref: "#/components/x-schemas/Order" } }, "x-schemas": { Order: BAD } } }],
@@ -85,7 +72,7 @@ const LOCATIONS = [
   ["channel message referenced from an extension", "components.x-messages.orderPlaced.payload", { channels: { orders: channel({ orderPlaced: { $ref: "#/components/x-messages/orderPlaced" } }) }, components: { "x-messages": { orderPlaced: { payload: BAD } } } }],
   ["channel referenced from components.channels", "components.channels.orders.messages.orderPlaced.payload", { channels: { orders: { $ref: "#/components/channels/orders" } }, components: { channels: { orders: channel({ orderPlaced: { payload: BAD } }) } } }],
   ["channel referenced from an extension", "components.x-channels.orders.messages.orderPlaced.payload", { channels: { orders: { $ref: "#/components/x-channels/orders" } }, components: { "x-channels": { orders: channel({ orderPlaced: { payload: BAD } }) } } }],
-  ["operation message referenced from an extension", "components.x-messages.orderPlaced.headers", { operations: { send: { action: "send", messages: [{ $ref: "#/components/x-messages/orderPlaced" }] } }, components: { "x-messages": { orderPlaced: { headers: BAD } } } }],
+  ["operation message referenced from an extension", "components.x-messages.orderPlaced.payload", { operations: { send: { action: "send", messages: [{ $ref: "#/components/x-messages/orderPlaced" }] } }, components: { "x-messages": { orderPlaced: { payload: BAD } } } }],
   ["reply message referenced from an extension", "components.x-messages.orderAck.payload", { operations: { send: { action: "send", reply: { messages: [{ $ref: "#/components/x-messages/orderAck" }] } } }, components: { "x-messages": { orderAck: { payload: BAD } } } }],
   ["reply referenced from components.replies", "components.x-messages.orderAck.payload", { operations: { send: { action: "send", reply: { $ref: "#/components/replies/ack" } } }, components: { replies: { ack: { messages: [{ $ref: "#/components/x-messages/orderAck" }] } }, "x-messages": { orderAck: { payload: BAD } } } }],
   ["components.replies message", "components.x-messages.orderAck.payload", { components: { replies: { ack: { messages: [{ $ref: "#/components/x-messages/orderAck" }] } }, "x-messages": { orderAck: { payload: BAD } } } }],
@@ -115,6 +102,35 @@ const IGNORED = [
   ["a multi-format object without schema", { channels: { orders: channel({ orderPlaced: { payload: { schemaFormat: "application/schema+json;version=draft-07", properties: { order_id: {} } } } }) } }],
 ];
 
+const H = HEADER_SCHEMA;
+const JSON_SCHEMA = "application/schema+json;version=draft-07";
+const ASYNCAPI_SCHEMA = "application/vnd.aai.asyncapi+json;version=3.0.0";
+
+const HEADER_LOCATIONS = [
+  ["channel message headers", { channels: { orders: channel({ orderPlaced: { headers: H, payload: { type: "object" } } }) } }],
+  ["multi-format headers", { channels: { orders: channel({ orderPlaced: { headers: multiFormat(ASYNCAPI_SCHEMA, H) } }) } }],
+  ["multi-format headers under every schema format", { channels: { orders: channel(Object.fromEntries(PROPERTY_FORMAT_CASES.map(([schemaFormat], index) => [`m${index}`, { headers: multiFormat(schemaFormat, H) }]))) } }],
+  ["inline trait headers", { channels: { orders: channel({ orderPlaced: { traits: [{ headers: H }] } }) } }],
+  ["tuple trait headers", { channels: { orders: channel({ orderPlaced: { traits: [[{ headers: H }, {}]] } }) } }],
+  ["multi-format trait headers", { channels: { orders: channel({ orderPlaced: { traits: [{ headers: multiFormat("application/schema+yaml;version=draft-07", H) }] } }) } }],
+  ["referenced trait headers", { channels: { orders: channel({ orderPlaced: { traits: [{ $ref: "#/components/x-traits/cloudEvents" }] } }) }, components: { "x-traits": { cloudEvents: { headers: H } } } }],
+  ["trait headers of a traits list behind a reference", { channels: { orders: channel({ orderPlaced: { traits: { $ref: "#/components/x-trait-lists/common" } } }) }, components: { "x-trait-lists": { common: [{ headers: H }] } } }],
+  ["headers behind a reference to an extension", { channels: { orders: channel({ orderPlaced: { headers: { $ref: "#/components/x-headers/cloudEvents" } } }) }, components: { "x-headers": { cloudEvents: H } } }],
+  ["headers behind a reference to a multi-format extension", { channels: { orders: channel({ orderPlaced: { headers: { $ref: "#/components/x-headers/cloudEvents" } } }) }, components: { "x-headers": { cloudEvents: multiFormat(JSON_SCHEMA, H) } } }],
+  ["multi-format headers whose schema is a reference to an extension", { channels: { orders: channel({ orderPlaced: { headers: multiFormat(JSON_SCHEMA, { $ref: "#/components/x-headers/cloudEvents" }) } }) }, components: { "x-headers": { cloudEvents: H } } }],
+  ["headers behind a chained reference", { channels: { orders: channel({ orderPlaced: { headers: { $ref: "#/components/x-headers/alias" } } }) }, components: { "x-headers": { alias: { $ref: "#/components/x-headers/cloudEvents" }, cloudEvents: H } } }],
+  ["components.messages headers", { components: { messages: { orderPlaced: { headers: H } } } }],
+  ["components.channels message headers", { components: { channels: { audit: channel({ auditRecorded: { headers: multiFormat(JSON_SCHEMA, H) } }) } } }],
+  ["components.messageTraits headers", { components: { messageTraits: { cloudEvents: { headers: H } } } }],
+  ["referenced components.messageTraits entry", { components: { messageTraits: { cloudEvents: { $ref: "#/components/x-traits/cloudEvents" } }, "x-traits": { cloudEvents: { headers: multiFormat(ASYNCAPI_SCHEMA, H) } } } }],
+  ["headers of a channel message referenced from an extension", { channels: { orders: channel({ orderPlaced: { $ref: "#/components/x-messages/orderPlaced" } }) }, components: { "x-messages": { orderPlaced: { headers: H } } } }],
+  ["headers of a channel referenced from an extension", { channels: { orders: { $ref: "#/components/x-channels/orders" } }, components: { "x-channels": { orders: channel({ orderPlaced: { headers: H } }) } } }],
+  ["headers of an operation message", { operations: { send: { action: "send", messages: [{ $ref: "#/components/x-messages/orderPlaced" }] } }, components: { "x-messages": { orderPlaced: { headers: H } } } }],
+  ["headers of a reply message", { operations: { send: { action: "send", reply: { messages: [{ $ref: "#/components/x-messages/orderAck" }] } } }, components: { "x-messages": { orderAck: { headers: H } } } }],
+  ["headers of a components.replies message", { components: { replies: { ack: { messages: [{ $ref: "#/components/x-messages/orderAck" }] } }, "x-messages": { orderAck: { headers: H } } } }],
+  ["headers of a components.operations message", { components: { operations: { send: { action: "send", messages: [{ $ref: "#/components/x-messages/orderPlaced" }] } }, "x-messages": { orderPlaced: { headers: H } } } }],
+];
+
 describe("AAR074 (AsyncAPI 3.x): property names of message schemas must follow the configured naming-convention", () => {
   let linter;
 
@@ -127,7 +143,7 @@ describe("AAR074 (AsyncAPI 3.x): property names of message schemas must follow t
       expect(pathsOf(await linter.run(okExample))).toEqual([]);
     });
 
-    test("reports every property and Avro field that is not camelCase in channels, multi-format payloads, traits and components", async () => {
+    test("reports every property and Avro field that is not camelCase in channels, multi-format payloads and components, never in headers", async () => {
       expect(pathsOf(await linter.run(failExample))).toEqual(FAIL_EXAMPLE_PATHS);
     });
 
@@ -146,7 +162,7 @@ describe("AAR074 (AsyncAPI 3.x): property names of message schemas must follow t
       const results = only(await linter.run(failExample));
       const byPath = Object.fromEntries(results.map((r) => [r.path.join("."), r]));
       expect(byPath[`${O}.payload.properties.client_order_id`].message).toBe("AAR074: Property name 'client_order_id' must be camelCase.");
-      expect(byPath["components.schemas.RiskHeaders.properties.Risk-Officer"].message).toBe("AAR074: Property name 'Risk-Officer' must be camelCase.");
+      expect(byPath["components.schemas.LimitBreach.schema.properties.breach_pct"].message).toBe("AAR074: Property name 'breach_pct' must be camelCase.");
       expect(byPath[`${E}.payload.schema.fields.2.type.1.fields.0.name`].message).toBe("AAR074: Avro field name 'MIC' must be camelCase.");
       results.forEach((r) => expect(r.severity).toBe(1));
     });
@@ -157,11 +173,7 @@ describe("AAR074 (AsyncAPI 3.x): property names of message schemas must follow t
         components: { schemas: { Probe: schema } },
       });
       expect(pathsOf(await linter.run(doc))).toEqual(
-        [
-          ...prefixed("channels.orders.messages.orderPlaced.payload", relatives),
-          ...prefixed("channels.orders.messages.orderPlaced.headers.schema", relatives),
-          ...prefixed("components.schemas.Probe", relatives),
-        ].sort()
+        [...prefixed("channels.orders.messages.orderPlaced.payload", relatives), ...prefixed("components.schemas.Probe", relatives)].sort()
       );
     });
 
@@ -172,7 +184,7 @@ describe("AAR074 (AsyncAPI 3.x): property names of message schemas must follow t
       expect(results.map((r) => [r.path.join("."), r.message])).toEqual([["components.schemas.Probe.schema.fields.1.name", `AAR074: ${message}`]]);
     });
 
-    test.each(PROPERTY_FORMAT_CASES.filter(([schemaFormat]) => schemaFormat !== undefined))("reads a multi-format payload, headers and component whose schemaFormat is %p", async (schemaFormat, kind) => {
+    test.each(PROPERTY_FORMAT_CASES.filter(([schemaFormat]) => schemaFormat !== undefined))("reads a multi-format payload and component, never headers, whose schemaFormat is %p", async (schemaFormat, kind) => {
       const schema = PROPERTY_FORMAT_PAYLOADS[kind || "json"];
       const doc = base({
         channels: { orders: channel({ orderPlaced: { payload: multiFormat(schemaFormat, schema), headers: multiFormat(schemaFormat, schema) } }) },
@@ -183,7 +195,6 @@ describe("AAR074 (AsyncAPI 3.x): property names of message schemas must follow t
           ? []
           : [
               ...prefixed("channels.orders.messages.orderPlaced.payload.schema", PROPERTY_FORMAT_FINDINGS[kind]),
-              ...prefixed("channels.orders.messages.orderPlaced.headers.schema", PROPERTY_FORMAT_FINDINGS[kind]),
               ...prefixed("components.schemas.Probe.schema", PROPERTY_FORMAT_FINDINGS[kind]),
             ].sort();
       expect(pathsOf(await linter.run(doc))).toEqual(expected);
@@ -278,6 +289,112 @@ describe("AAR074 (AsyncAPI 3.x): property names of message schemas must follow t
     });
   });
 
+  describe("message headers", () => {
+    test.each(HEADER_LOCATIONS)("never checks the %s", async (_name, extra) => {
+      expect(pathsOf(await linter.run(base(extra)))).toEqual([]);
+      expect(pathsOf(await linter.run(withVersion(base(extra), "3.1.0")))).toEqual([]);
+    });
+
+    test("a components.schemas entry used only as headers is not checked as a component, also behind chained references, multi-format objects, traits, operations and replies", async () => {
+      const doc = base({
+        channels: {
+          orders: channel({
+            orderPlaced: {
+              headers: { $ref: "#/components/schemas/CloudEventHeaders" },
+              traits: [{ $ref: "#/components/messageTraits/tracing" }, { headers: multiFormat(JSON_SCHEMA, { $ref: "#/components/schemas/RetryHeaders" }) }],
+              payload: BAD,
+            },
+            orderShipped: { headers: { $ref: "#/components/schemas/HeadersAlias" }, traits: { $ref: "#/components/x-trait-lists/common" } },
+          }),
+          refunds: { $ref: "#/components/x-channels/refunds" },
+        },
+        operations: { ack: { action: "send", reply: { $ref: "#/components/replies/ack" } } },
+        components: {
+          schemas: {
+            CloudEventHeaders: H,
+            RetryHeaders: { type: "object", properties: { retry_count: { type: "integer" } } },
+            TraceHeaders: multiFormat(ASYNCAPI_SCHEMA, { type: "object", properties: { trace_state: { type: "string" } } }),
+            HeadersAlias: { $ref: "#/components/schemas/KafkaHeaders" },
+            KafkaHeaders: { type: "object", properties: { kafka_offset: { type: "integer" } } },
+            ListHeaders: { type: "object", properties: { list_id: { type: "string" } } },
+            WrappedHeaders: multiFormat(JSON_SCHEMA, { $ref: "#/components/schemas/InnerHeaders" }),
+            InnerHeaders: { type: "object", properties: { inner_id: { type: "string" } } },
+            RefundHeaders: { type: "object", properties: { refund_reason: { type: "string" } } },
+            AckHeaders: { type: "object", properties: { ack_code: { type: "string" } } },
+            Order: BAD,
+          },
+          messageTraits: { tracing: { headers: { $ref: "#/components/schemas/TraceHeaders" } } },
+          messages: { orderAudited: { headers: { $ref: "#/components/schemas/WrappedHeaders" } } },
+          replies: { ack: { messages: [{ $ref: "#/components/x-messages/acknowledged" }] } },
+          "x-trait-lists": { common: [{ headers: { $ref: "#/components/schemas/ListHeaders" } }] },
+          "x-channels": { refunds: channel({ refundIssued: { $ref: "#/components/x-messages/refundIssued" } }) },
+          "x-messages": { refundIssued: { headers: { $ref: "#/components/schemas/RefundHeaders" } }, acknowledged: { headers: { $ref: "#/components/schemas/AckHeaders" } } },
+        },
+      });
+      const expected = [BAD_AT("channels.orders.messages.orderPlaced.payload"), BAD_AT("components.schemas.Order")].sort();
+      expect(pathsOf(await linter.run(doc))).toEqual(expected);
+      expect(pathsOf(await linter.run(withVersion(doc, "3.1.0")))).toEqual(expected);
+    });
+
+    test("a schema used as headers and also as a payload, a multi-format payload or a property of a checked schema is checked once, at its definition", async () => {
+      const doc = base({
+        channels: {
+          orders: channel({
+            orderPlaced: { headers: { $ref: "#/components/schemas/SharedHeaders" } },
+            orderShipped: { headers: multiFormat(JSON_SCHEMA, { $ref: "#/components/schemas/PropertyHeaders" }), payload: { $ref: "#/components/schemas/SharedHeaders" } },
+            orderAudited: { headers: { $ref: "#/components/schemas/WrappedHeaders" }, payload: multiFormat(JSON_SCHEMA, { $ref: "#/components/schemas/MultiFormatHeaders" }) },
+            orderReturned: { headers: { $ref: "#/components/schemas/MultiFormatHeaders" }, payload: { $ref: "#/components/schemas/WrappedHeaders" } },
+          }),
+        },
+        operations: { receive: { action: "receive", messages: [{ $ref: "#/components/x-messages/late" }] } },
+        components: {
+          schemas: {
+            SharedHeaders: { type: "object", properties: { ce_id: { type: "string" } } },
+            PropertyHeaders: { type: "object", properties: { trace_id: { type: "string" } } },
+            WrappedHeaders: multiFormat(JSON_SCHEMA, { type: "object", properties: { wrapped_id: { type: "string" } } }),
+            MultiFormatHeaders: { type: "object", properties: { mf_id: { type: "string" } } },
+            LateHeaders: { type: "object", properties: { late_by: { type: "integer" } } },
+            Envelope: { type: "object", properties: { headers: { $ref: "#/components/schemas/PropertyHeaders" } } },
+          },
+          messages: { lateHeaders: { headers: { $ref: "#/components/schemas/LateHeaders" } } },
+          "x-messages": { late: { payload: { $ref: "#/components/schemas/LateHeaders" } } },
+        },
+      });
+      const expected = [
+        "components.schemas.LateHeaders.properties.late_by",
+        "components.schemas.MultiFormatHeaders.properties.mf_id",
+        "components.schemas.PropertyHeaders.properties.trace_id",
+        "components.schemas.SharedHeaders.properties.ce_id",
+        "components.schemas.WrappedHeaders.schema.properties.wrapped_id",
+      ];
+      expect(pathsOf(await linter.run(doc))).toEqual(expected);
+      expect(pathsOf(await linter.run(withVersion(doc, "3.1.0")))).toEqual(expected);
+    });
+
+    test("only the direct target of the headers is skipped: components.schemas entries referenced from inside a header schema are still checked", async () => {
+      const doc = base({
+        channels: {
+          orders: channel({
+            orderPlaced: { headers: { $ref: "#/components/schemas/CloudEventHeaders" } },
+            orderShipped: { headers: multiFormat(ASYNCAPI_SCHEMA, { type: "object", properties: { ce_type: { type: "string" }, retry: { $ref: "#/components/schemas/RetryPolicy" } } }) },
+          }),
+        },
+        components: {
+          schemas: {
+            CloudEventHeaders: multiFormat(JSON_SCHEMA, {
+              type: "object",
+              properties: { ce_id: { type: "string" }, trace: { $ref: "#/components/schemas/TraceContext" }, extension: { $ref: "#/components/x-schemas/Extension" } },
+            }),
+            TraceContext: { type: "object", properties: { trace_flags: { type: "string" } } },
+            RetryPolicy: multiFormat(JSON_SCHEMA, { type: "object", properties: { max_attempts: { type: "integer" } } }),
+          },
+          "x-schemas": { Extension: { type: "object", properties: { ext_name: { type: "string" } } } },
+        },
+      });
+      expect(pathsOf(await linter.run(doc))).toEqual(["components.schemas.RetryPolicy.schema.properties.max_attempts", "components.schemas.TraceContext.properties.trace_flags"]);
+    });
+  });
+
   describe("configured naming-convention", () => {
     const docWith = (values) => ({
       asyncapi: "3.1.0",
@@ -335,13 +452,25 @@ describe("AAR074 (AsyncAPI 3.x): property names of message schemas must follow t
       expect(pathsOf(await configured.run(okExample))).toEqual([]);
     });
 
-    test("a document compliant with camelCase fails under kebab-case only on its multi-word names, never on bindings, examples or ignored formats", async () => {
+    test.each(["camelCase", "snake_case", "kebab-case", "PascalCase"])("header names are never reported under naming-convention '%s'", async (type) => {
+      const configured = await linterForRule(RULE, { functionOptions: { "naming-convention": type } });
+      const doc = base({
+        channels: {
+          orders: channel({ orderPlaced: { headers: H, traits: [{ headers: multiFormat(ASYNCAPI_SCHEMA, H) }] }, orderShipped: { headers: { $ref: "#/components/schemas/CloudEventHeaders" } } }),
+        },
+        components: { schemas: { CloudEventHeaders: multiFormat(JSON_SCHEMA, H) }, messageTraits: { cloudEvents: { headers: H } } },
+      });
+      expect(pathsOf(await configured.run(doc))).toEqual([]);
+      expect(pathsOf(await configured.run(withVersion(doc, "3.1.0")))).toEqual([]);
+    });
+
+    test("a document compliant with camelCase fails under kebab-case only on its multi-word names, never on bindings, examples, headers or ignored formats", async () => {
       const configured = await linterForRule(RULE, { functionOptions: { "naming-convention": "kebab-case" } });
       const results = only(await configured.run(okExample));
       const names = results.map((r) => (r.path[r.path.length - 1] === "name" ? r.message.match(/'(.*)'/)[1] : r.path[r.path.length - 1]));
-      expect(names.length).toBeGreaterThan(20);
+      expect(names.length).toBe(17);
       names.forEach((name) => expect(/[A-Z]/.test(name)).toBe(true));
-      expect(results.filter((r) => /bindings|examples|legacyReceipt|protoReceipt|x-legacy/.test(r.path.join(".")))).toEqual([]);
+      expect(results.filter((r) => /bindings|examples|legacyReceipt|protoReceipt|x-legacy|[hH]eaders|traits/.test(r.path.join(".")))).toEqual([]);
     });
   });
 });

@@ -2,8 +2,9 @@
  * @param {object} document - The whole AsyncAPI document (given: "$", resolved: false)
  * @param {object} options - Function options
  * @param {string|string[]} options["allowed-server-types"] - Comma-separated list (or array) of the approved server
- *   types. Entries are trimmed and compared with the server names (the keys of the root servers map) as written.
- *   An unusable value falls back to the default list.
+ *   types. Entries are trimmed, empty entries dropped and duplicates removed; an unusable value falls back to the
+ *   default list. A server name (each key of the root servers map) passes when it equals an approved type or starts
+ *   with one immediately followed by '-' or '_', compared as written.
  * @param {import('@stoplight/spectral-core').RulesetFunctionContext} context
  * @returns {Array} Array of error objects
  */
@@ -28,7 +29,11 @@ const parseAllowed = (raw) => {
   return entries.length > 0 ? entries : DEFAULT_ALLOWED_SERVER_TYPES;
 };
 
+const SEPARATORS = ["-", "_"];
+const startsWithType = (name, type) => name === type || SEPARATORS.some((separator) => name.startsWith(`${type}${separator}`));
+
 const unescapeToken = (token) => token.replace(/~1/g, "/").replace(/~0/g, "~");
+const escapeToken = (token) => String(token).replace(/~/g, "~0").replace(/\//g, "~1");
 
 const pointerPath = (ref) => {
   let fragment;
@@ -49,7 +54,6 @@ module.exports = (document, options, context) => {
   }
 
   const allowed = parseAllowed(options && options["allowed-server-types"]);
-  const approved = new Set(allowed);
   const expected = allowed.map((type) => `'${printable(type)}'`).join(", ");
 
   const follow = (node, path) => {
@@ -88,10 +92,10 @@ module.exports = (document, options, context) => {
   }
 
   for (const name of Object.keys(servers.node)) {
-    if (approved.has(name)) continue;
+    if (allowed.some((type) => startsWithType(name, type))) continue;
     errors.push({
-      message: `Server name '${printable(name)}' must be an approved server type: ${expected}.`,
-      path: locatable([...context.path, ...servers.path, name]),
+      message: `Server name '${printable(name)}' must start with an approved server type: ${expected}.`,
+      path: locatable([...context.path, ...servers.path, name]).map(escapeToken),
     });
   }
 

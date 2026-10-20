@@ -53,7 +53,6 @@ for (let i = 0; i < CHANNEL_COUNT; i++) {
   const base = ["channels", key];
   if (i % 7 === 0) expectedPaths.push([...base, "publish", "message", "payload", "properties", reference].join("."));
   if (i % 11 === 0) expectedPaths.push([...base, "publish", "message", "payload", "properties", "lines", "items", "properties", line].join("."));
-  if (i % 13 === 0) expectedPaths.push([...base, "publish", "message", "headers", "properties", trace].join("."));
   if (i % 17 === 0) expectedPaths.push([...base, "subscribe", "message", "payload", "fields", "1", "name"].join("."));
 }
 

@@ -135,6 +135,28 @@ const PROPERTY_FORMAT_FINDINGS = { json: ["properties.order_id"], avro: ["fields
 
 const AVRO_TEXT_SCHEMA = JSON.stringify({ type: "record", name: "OrderPlaced", fields: [{ name: "orderId", type: "string" }, { name: "order_id", type: "string" }, { name: "Line_Count", type: "int" }] });
 
+const HEADER_SCHEMA = {
+  type: "object",
+  required: ["ce_id", "ce_type"],
+  properties: {
+    ce_specversion: { type: "string", const: "1.0" },
+    ce_id: { type: "string" },
+    ce_source: { type: "string", format: "uri-reference" },
+    ce_type: { type: "string" },
+    ce_time: { type: "string", format: "date-time" },
+    correlation_id: { type: "string", format: "uuid" },
+    "X-Request-Id": { type: "string" },
+    "x-tenant-id": { type: "string" },
+    "Content-Type": { type: "string" },
+    kafka_messageKey: { type: "string" },
+    traceparent: { type: "string" },
+    retry_meta: { type: "object", properties: { retry_count: { type: "integer" }, "First-Attempt-At": { type: "string" } } },
+    ce_tags: { type: "array", items: { type: "object", properties: { tag_name: { type: "string" } } } },
+  },
+  allOf: [{ properties: { spring_json_header_types: { type: "string" } } }],
+  additionalProperties: { type: "object", properties: { header_value: { type: "string" } } },
+};
+
 module.exports = {
   PROPERTY_KEYWORD_CASES,
   NON_STRING_AVRO_NAMES,
@@ -142,4 +164,5 @@ module.exports = {
   PROPERTY_FORMAT_PAYLOADS,
   PROPERTY_FORMAT_FINDINGS,
   AVRO_TEXT_SCHEMA,
+  HEADER_SCHEMA,
 };

@@ -30,9 +30,11 @@ for (let i = 0; i < SHARED_COUNT; i++) {
   const path = `components.operations.${name}`;
   if (i % 5 === 1) {
     shared[name] = { action: "send", channel: channel("rides") };
-    expected.push([path, "missing", name]);
   } else if (i % 5 === 3) {
     shared[name] = operation("rides", i, { messages: [] });
+    expected.push([`${path}.messages`, "empty", name]);
+  } else if (i % 5 === 4) {
+    shared[name] = operation("rides", i, { messages: [null], traits: [{ $ref: "#/components/operationTraits/withMessages" }] });
     expected.push([`${path}.messages`, "empty", name]);
   } else {
     shared[name] = operation("rides", i);
@@ -53,7 +55,9 @@ for (let c = 0; c < OPERATION_COUNT; c++) {
     case 2:
       if (c % 3 === 2) {
         operations[name] = { action: "receive", channel: channel(domain), summary: `Receive ${domain}.` };
-        expected.push([path, "missing", name]);
+      } else if (c % 3 === 1) {
+        operations[name] = operation(domain, c, { messages: [] });
+        expected.push([`${path}.messages`, "empty", name]);
       } else {
         operations[name] = operation(domain, c);
       }
@@ -93,7 +97,6 @@ for (let c = 0; c < OPERATION_COUNT; c++) {
     case 7:
       if (c % 14 === 7) {
         operations[name] = { action: "receive", channel: channel(domain), traits: [{ $ref: "#/components/operationTraits/withMessages" }] };
-        expected.push([path, "missing", name]);
       } else {
         operations[name] = operation(domain, c, { traits: [{ $ref: "#/components/operationTraits/described" }] });
       }

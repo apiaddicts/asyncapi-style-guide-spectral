@@ -124,7 +124,14 @@ module.exports = {
         summary: "Dashboards stream dispensing events.",
         message: {
           oneOf: [
-            { name: "medicineDispensed", traits: [{ $ref: "./traits/commonHeaders.yaml" }, { $ref: "https://schemas.pharma.example.io/asyncapi/traits/tracing.json" }], payload: { type: "object" } },
+            {
+              name: "medicineDispensed",
+              traits: [
+                { $ref: "./traits/common.yaml#/components/messageTraits/commonHeaders" },
+                { $ref: "https://schemas.pharma.example.io/asyncapi/traits.json#/components/messageTraits/tracing" },
+              ],
+              payload: { type: "object" },
+            },
             { name: "dispensingPaused", traits: { $ref: "#/components/x-trait-lists/chained" }, payload: { type: "string", enum: ["stockout", "audit"] } },
             { $ref: "./shared/pharma-messages.yaml#/components/messages/dispensingResumed" },
           ],

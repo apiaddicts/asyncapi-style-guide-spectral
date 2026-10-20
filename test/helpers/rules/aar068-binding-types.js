@@ -81,8 +81,20 @@ const BINDING_KEY_CASES = {
     "ámqp",
   ],
   extensions: ["x-", "x-internal", "x-kafka", "x-Kafka", "x-confluent-cloud", "x-amqp.exchange", "x-team_owner", "x- spaced"],
+  since: { mercure: "2.1.0", ibmmq: "2.1.0", anypointmq: "2.2.0", solace: "2.3.0", googlepubsub: "2.5.0", pulsar: "2.6.0", ros2: "3.1.0" },
+  versions: ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0", "3.0.0", "3.1.0"],
 };
+
+const unavailableIn = (version) => {
+  const position = BINDING_KEY_CASES.versions.indexOf(version);
+  if (position === -1) throw new Error(`Unknown AsyncAPI version ${version}`);
+  return BINDING_KEY_CASES.allowed.filter((key) => BINDING_KEY_CASES.versions.indexOf(BINDING_KEY_CASES.since[key] || "2.0.0") > position);
+};
+
+const versionMessage = (kind, key) => `AAR068: ${kind} binding '${key}' requires AsyncAPI ${BINDING_KEY_CASES.since[key] || "2.0.0"} or later.`;
 
 module.exports = {
   BINDING_KEY_CASES,
+  unavailableIn,
+  versionMessage,
 };

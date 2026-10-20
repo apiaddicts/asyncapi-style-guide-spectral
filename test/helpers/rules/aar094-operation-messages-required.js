@@ -11,19 +11,19 @@ const shown = (value) =>
 
 /**
  * @param {number} major - The AsyncAPI major version under test (2 or 3)
- * @returns {object} Expected message builders keyed by finding kind: (operation) in 3.x, (channel, action) in 2.x
+ * @returns {object} Expected message builders keyed by finding kind: (operation) in 3.x, where an operation that omits
+ *   messages is never reported, (channel, action) in 2.x
  */
 const messagesFor = (major) =>
   major === 3
     ? {
-        missing: (operation) => `AAR095: Operation '${shown(operation)}' must declare at least one message in 'messages'.`,
-        empty: (operation) => `AAR095: The 'messages' of operation '${shown(operation)}' must declare at least one message.`,
-        unusable: (operation) => `AAR095: Operation '${shown(operation)}' must be an object declaring at least one message in 'messages'.`,
+        empty: (operation) => `AAR094: The 'messages' of operation '${shown(operation)}' must declare at least one message.`,
+        unusable: (operation) => `AAR094: Operation '${shown(operation)}' must be an object declaring at least one message in 'messages'.`,
       }
     : {
-        missing: (channel, action) => `AAR095: The ${action} operation of channel '${shown(channel)}' must declare a 'message'.`,
-        empty: (channel, action) => `AAR095: The 'message' of the ${action} operation of channel '${shown(channel)}' must declare at least one message.`,
-        unusable: (channel, action) => `AAR095: The ${action} operation of channel '${shown(channel)}' must be an object declaring a 'message'.`,
+        missing: (channel, action) => `AAR094: The ${action} operation of channel '${shown(channel)}' must declare a 'message'.`,
+        empty: (channel, action) => `AAR094: The 'message' of the ${action} operation of channel '${shown(channel)}' must declare at least one message.`,
+        unusable: (channel, action) => `AAR094: The ${action} operation of channel '${shown(channel)}' must be an object declaring a 'message'.`,
       };
 
 const findingsFor = (major) => findingsFrom(messagesFor(major));
@@ -336,20 +336,23 @@ const MESSAGE_VALUE_CASES = [
 /**
  * @param {number} major - The AsyncAPI major version under test
  * @returns {Array} [description, own message field or OMIT, traits, expected] cases: operation traits never supply or remove
- *   messages; expected findings are [path, kind] pairs where "@" is the operation path
+ *   messages; expected findings are [path, kind] pairs where "@" is the operation path. A 3.x operation that omits messages
+ *   takes those of its channel, so it is never reported whatever its traits hold
  */
 const traitCases = (major, OMIT) => {
   const v3 = major === 3;
   const own = v3 ? [channelMessageRef("orderPlaced")] : messageRef("orderPlaced");
   const empty = v3 ? [] : { oneOf: [] };
   const field = FIELD[major];
+  const omitted = v3 ? [] : [["@", "missing"]];
   return [
-    ["no messages of its own and a referenced trait with messages", OMIT, [traitRef(v3 ? "withMessages" : "withMessage")], [["@", "missing"]]],
-    ["no messages of its own and an inline trait with messages", OMIT, [{ [field]: own }], [["@", "missing"]]],
-    ["no messages of its own and a trait with both message fields", OMIT, [traitRef("withBoth")], [["@", "missing"]]],
-    ["no messages of its own and a tuple trait with messages", OMIT, [[{ [field]: own }, {}]], [["@", "missing"]]],
-    ["no messages of its own and a traits list given as a reference", OMIT, { $ref: "#/components/x-trait-lists/withMessages" }, [["@", "missing"]]],
-    ["no messages of its own and an external trait", OMIT, [{ $ref: "./shared/operation-traits.yaml#/withMessages" }], [["@", "missing"]]],
+    ["no messages of its own and a referenced trait with messages", OMIT, [traitRef(v3 ? "withMessages" : "withMessage")], omitted],
+    ["no messages of its own and an inline trait with messages", OMIT, [{ [field]: own }], omitted],
+    ["no messages of its own and a trait with both message fields", OMIT, [traitRef("withBoth")], omitted],
+    ["no messages of its own and a tuple trait with messages", OMIT, [[{ [field]: own }, {}]], omitted],
+    ["no messages of its own and a traits list given as a reference", OMIT, { $ref: "#/components/x-trait-lists/withMessages" }, omitted],
+    ["no messages of its own and an external trait", OMIT, [{ $ref: "./shared/operation-traits.yaml#/withMessages" }], omitted],
+    ["no messages of its own and a trait with empty messages", OMIT, [traitRef("emptyMessages")], omitted],
     ["empty messages and a trait with messages", empty, [traitRef(v3 ? "withMessages" : "withMessage")], [[`@.${field}`, "empty"]]],
     ["empty messages and an external trait", empty, [{ $ref: "./shared/operation-traits.yaml#/withMessages" }], [[`@.${field}`, "empty"]]],
     ["usable messages and a trait with empty messages", own, [traitRef("emptyMessages")], []],
@@ -377,6 +380,7 @@ const sharedReferenceCases = (major) => {
   const field = FIELD[major];
   const { complete, minimal } = shapesFor(major);
   const f = (path, kind, key) => (v3 ? [path, kind, key] : [path, kind, NAME, ACTION_V2]);
+  const missing = (path, key) => (v3 ? [] : [f(path, "missing", key)]);
   return [
     ["a reference to a complete operation", operationTarget("complete"), []],
     ["a reference to a minimal operation", operationTarget("minimal"), []],
@@ -384,7 +388,8 @@ const sharedReferenceCases = (major) => {
     ["a reference chained twice", operationTarget("aliasTwice"), []],
     ["a reference to an operation with a usable message", operationTarget("usable"), []],
     ["a reference with an empty messages sibling, which is ignored", { ...operationTarget("complete"), [field]: v3 ? [] : { oneOf: [] } }, []],
-    ["a reference to an operation without messages, whose messages siblings are ignored", { ...operationTarget("bare"), [field]: v3 ? [messageRef("orderPlaced")] : messageRef("orderPlaced") }, [f("components.x-operations.bare", "missing", "bare")]],
+    ["a reference to an operation without messages, whose messages siblings are ignored", { ...operationTarget("bare"), [field]: v3 ? [messageRef("orderPlaced")] : messageRef("orderPlaced") }, missing("components.x-operations.bare", "bare")],
+    ["a reference to an operation with empty messages, whose usable messages siblings are ignored", { ...operationTarget("emptyMessages"), [field]: v3 ? [messageRef("orderPlaced")] : messageRef("orderPlaced") }, [f(`components.x-operations.emptyMessages.${field}`, "empty", "emptyMessages")]],
     ["a pointer into an array item", { $ref: "#/components/x-operations/list/0" }, []],
     ["an escaped pointer", { $ref: "#/components/x-operations/a~1b" }, []],
     ["a percent-encoded pointer", { $ref: "#/components/x-operations/with%20space" }, []],
@@ -392,17 +397,17 @@ const sharedReferenceCases = (major) => {
     ["an external reference", { $ref: "./shared/operations.yaml#/receiveOrderPlaced" }, []],
     ["an external whole-file reference", { $ref: "https://specs.example.io/operations/receive-order-placed.yaml" }, []],
     ["a local alias of an external operation", operationTarget("external"), []],
-    ["a reference to an operation without messages", operationTarget("bare"), [f("components.x-operations.bare", "missing", "bare")]],
-    ["a chained reference to an operation without messages", operationTarget("bareAlias"), [f("components.x-operations.bare", "missing", "bare")]],
-    ["a reference to an operation whose messages come only from a trait", operationTarget("traitOnly"), [f("components.x-operations.traitOnly", "missing", "traitOnly")]],
+    ["a reference to an operation without messages", operationTarget("bare"), missing("components.x-operations.bare", "bare")],
+    ["a chained reference to an operation without messages", operationTarget("bareAlias"), missing("components.x-operations.bare", "bare")],
+    ["a reference to an operation whose messages come only from a trait", operationTarget("traitOnly"), missing("components.x-operations.traitOnly", "traitOnly")],
     ["a reference to an operation with empty messages", operationTarget("emptyMessages"), [f(`components.x-operations.emptyMessages.${field}`, "empty", "emptyMessages")]],
     ["a reference to an operation with null messages", operationTarget("nullMessages"), [f(`components.x-operations.nullMessages.${field}`, "empty", "nullMessages")]],
     ["a reference to an operation whose only message is dangling", operationTarget("danglingOnly"), [f(`components.x-operations.danglingOnly.${field}`, "empty", "danglingOnly")]],
-    ["a reference to an operation with only an extension", operationTarget("extensionsOnly"), [f("components.x-operations.extensionsOnly", "missing", "extensionsOnly")]],
-    ["a reference to an operation whose messages key differs in case", operationTarget("caseKeys"), [f("components.x-operations.caseKeys", "missing", "caseKeys")]],
-    [`a reference to an operation using the AsyncAPI ${v3 ? "2.x message" : "3.x messages"} field`, operationTarget("otherVersion"), [f("components.x-operations.otherVersion", "missing", "otherVersion")]],
-    ["a reference to an empty operation", operationTarget("empty"), [f("components.x-operations.empty", "missing", "empty")]],
-    ["a reference to an object that is not an operation", { $ref: "#/info" }, [f("info", "missing", "info")]],
+    ["a reference to an operation with only an extension", operationTarget("extensionsOnly"), missing("components.x-operations.extensionsOnly", "extensionsOnly")],
+    ["a reference to an operation whose messages key differs in case", operationTarget("caseKeys"), missing("components.x-operations.caseKeys", "caseKeys")],
+    [`a reference to an operation using the AsyncAPI ${v3 ? "2.x message" : "3.x messages"} field`, operationTarget("otherVersion"), missing("components.x-operations.otherVersion", "otherVersion")],
+    ["a reference to an empty operation", operationTarget("empty"), missing("components.x-operations.empty", "empty")],
+    ["a reference to an object that is not an operation", { $ref: "#/info" }, missing("info", "info")],
     ...unusableObjectCases(
       operationTarget,
       { text: NAME, item: complete },
@@ -431,7 +436,7 @@ const operationObjectCasesFor = (major) => {
   const field = FIELD[major];
   const { complete, minimal, bare } = shapesFor(major);
   const f = (path, kind) => (v3 ? [path, kind, NAME] : [path, kind, NAME, ACTION_V2]);
-  const missing = [f(AT, "missing")];
+  const missing = v3 ? [] : [f(AT, "missing")];
   const empty = [f(`${AT}.${field}`, "empty")];
   const usable = v3 ? [channelMessageRef("orderPlaced")] : messageRef("orderPlaced");
   return [
@@ -475,11 +480,15 @@ const operationObjectCasesFor = (major) => {
     ["an operation whose message is only in its tags or external docs", { ...bare, tags: [{ name: "orders", [field]: usable }], externalDocs: { url: "https://docs.example.io", [field]: usable } }, missing],
     ...(v3
       ? [
-          ["an operation with a singular message key", { ...bare, message: messageRef("orderPlaced") }, missing],
-          ["an operation whose channel declares messages but the operation does not", { ...bare, channel: channelRef("orders") }, missing],
-          ["an operation whose inline channel declares messages", { ...bare, channel: { address: TOPIC, messages: { orderPlaced: messageRef("orderPlaced") } } }, missing],
-          ["an operation whose messages are only in its reply", { ...bare, reply: { address: { location: "$message.header#/replyTo" }, channel: channelRef("replies"), messages: [channelMessageRef("orderAccepted", "replies")] } }, missing],
-          ["an operation whose messages are only in AsyncAPI 2.x publish and subscribe keys", { ...bare, subscribe: { message: messageRef("orderPlaced") }, publish: { message: messageRef("orderPlaced") } }, missing],
+          ["an operation with a singular message key, which omits messages", { ...bare, message: messageRef("orderPlaced") }, missing],
+          ["an operation that omits messages, which takes those of its channel", { ...bare, channel: channelRef("orders") }, missing],
+          ["an operation that omits messages and whose inline channel declares messages", { ...bare, channel: { address: TOPIC, messages: { orderPlaced: messageRef("orderPlaced") } } }, missing],
+          ["an operation that omits messages and whose channel has an empty messages map, which AAR091 reports", { ...bare, channel: channelRef("silent") }, missing],
+          ["an operation that omits messages and whose channel is dangling", { ...bare, channel: channelRef("returns") }, missing],
+          ["an operation that omits messages and has no channel", { action: "send", summary: "No channel." }, missing],
+          ["an operation that omits messages and has a reply with messages", { ...bare, reply: { address: { location: "$message.header#/replyTo" }, channel: channelRef("replies"), messages: [channelMessageRef("orderAccepted", "replies")] } }, missing],
+          ["an operation that omits messages and has AsyncAPI 2.x publish and subscribe keys", { ...bare, subscribe: { message: messageRef("orderPlaced") }, publish: { message: messageRef("orderPlaced") } }, missing],
+          ["an operation whose messages are explicitly an empty list, which means no messages", { ...bare, channel: channelRef("orders"), messages: [] }, empty],
           ["an operation with empty messages next to a reply with messages", { ...bare, messages: [], reply: { channel: channelRef("replies"), messages: [channelMessageRef("orderAccepted", "replies")] } }, empty],
           ["an operation with usable messages and a reply with empty, null or dangling messages", { ...minimal, reply: { channel: channelRef("replies"), messages: [null, channelMessageRef("gone", "replies")] } }, []],
           ["an operation with usable messages and a reply whose messages are an empty list", { ...minimal, reply: { messages: [] } }, []],

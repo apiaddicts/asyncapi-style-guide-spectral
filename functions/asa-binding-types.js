@@ -4,6 +4,10 @@
  * @param {string|string[]} options\["allowed-bindings"] - Comma-separated list (or array) of the protocol keys allowed
  *   inside a bindings object. Entries are trimmed and lower-cased; keys are compared as written, so 'Kafka' is never
  *   a valid key. Specification extensions (x-*) are always accepted. An unusable value falls back to the default list.
+ *   An allowed specification protocol must also exist in the document's AsyncAPI version (major.minor of the root
+ *   'asyncapi' value): mercure and ibmmq since 2.1, anypointmq 2.2, solace 2.3, googlepubsub 2.5, pulsar 2.6, ros2 3.1
+ *   and every other one since 2.0. Keys outside the specification are never version-checked, and no key is when the
+ *   version cannot be read.
  * @param {import('@stoplight/spectral-core').RulesetFunctionContext} context
  * @returns {Array} Array of error objects
  */
@@ -30,17 +34,42 @@ const DEFAULT_ALLOWED_BINDINGS = [
   "ros2",
 ];
 
+const BINDING_SINCE = {
+  http: [2, 0],
+  ws: [2, 0],
+  kafka: [2, 0],
+  amqp: [2, 0],
+  amqp1: [2, 0],
+  mqtt: [2, 0],
+  mqtt5: [2, 0],
+  nats: [2, 0],
+  jms: [2, 0],
+  sns: [2, 0],
+  sqs: [2, 0],
+  stomp: [2, 0],
+  redis: [2, 0],
+  mercure: [2, 1],
+  ibmmq: [2, 1],
+  anypointmq: [2, 2],
+  solace: [2, 3],
+  googlepubsub: [2, 5],
+  pulsar: [2, 6],
+  ros2: [3, 1],
+};
+
 const ENTRY = /^[a-z0-9][a-z0-9._-]*$/;
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
 const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 
-const isVersion3Plus = (raw) => {
-  if (typeof raw !== "string" && typeof raw !== "number") return false;
-  const match = /^\s*(\d+)/.exec(String(raw));
-  return match !== null && Number(match[1]) >= 3;
+const versionOf = (raw) => {
+  if (typeof raw !== "string" && typeof raw !== "number") return null;
+  const match = /^\s*(\d+)(?:\.(\d+))?/.exec(String(raw));
+  return match === null ? null : [Number(match[1]), match[2] === undefined ? 0 : Number(match[2])];
 };
+
+const isNewer = (since, version) => since[0] > version[0] || (since[0] === version[0] && since[1] > version[1]);
 
 const parseAllowed = (raw) => {
   let candidates = [];
@@ -63,16 +92,27 @@ module.exports = (document, options, context) => {
   }
 
   const allowed = parseAllowed(options && options["allowed-bindings"]);
-  const isV3 = isVersion3Plus(document.asyncapi);
+  const version = versionOf(document.asyncapi);
+  const isV3 = version !== null && version[0] >= 3;
 
   const checkBindings = (bindings, kind, path) => {
     if (!isObject(bindings) || isRef(bindings)) return;
     for (const key of Object.keys(bindings)) {
-      if (key.startsWith("x-") || allowed.has(key)) continue;
-      errors.push({
-        message: `${kind} binding '${key}' is not an allowed protocol.`,
-        path: [...context.path, ...path, key],
-      });
+      if (key.startsWith("x-")) continue;
+      if (!allowed.has(key)) {
+        errors.push({
+          message: `${kind} binding '${key}' is not an allowed protocol.`,
+          path: [...context.path, ...path, key],
+        });
+        continue;
+      }
+      const since = version !== null && has(BINDING_SINCE, key) ? BINDING_SINCE[key] : null;
+      if (since !== null && isNewer(since, version)) {
+        errors.push({
+          message: `${kind} binding '${key}' requires AsyncAPI ${since[0]}.${since[1]}.0 or later.`,
+          path: [...context.path, ...path, key],
+        });
+      }
     }
   };
 

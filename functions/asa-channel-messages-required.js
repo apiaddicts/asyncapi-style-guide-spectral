@@ -1,14 +1,13 @@
 /**
  * @param {object} document - The whole AsyncAPI document (given: "$", resolved: false)
- * @param {object} _options - Unused: every channel in channels and components.channels must always declare at least one
- *   usable message, in its messages map (AsyncAPI 3.x) or in the message of publish or subscribe (2.x, following oneOf).
- *   A usable message is an object, a local reference that resolves to one, or an external reference
+ * @param {object} _options - Unused: every AsyncAPI 3.x channel in channels and components.channels that declares the
+ *   messages key must always include at least one usable message in it. A usable message is an object, a local reference
+ *   that resolves to one, or an external reference. Channels without messages and channels that are not objects are left
+ *   to AAR087, and 2.x documents, whose channels have no messages map, to AAR087 and AAR094
  * @param {import('@stoplight/spectral-core').RulesetFunctionContext} context
  * @returns {Array} Array of error objects
  */
 const UNKNOWN = Symbol("unknown");
-const OPERATIONS_V2 = ["publish", "subscribe"];
-const MAX_DEPTH = 100;
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isRef = (value) => isObject(value) && value.$ref !== undefined;
@@ -42,12 +41,10 @@ const pointerPath = (ref) => {
 
 module.exports = (document, _options, context) => {
   const errors = [];
-  if (!isObject(document) || !has(document, "asyncapi")) {
+  if (!isObject(document) || !has(document, "asyncapi") || !isVersion3Plus(document.asyncapi)) {
     return errors;
   }
 
-  const v3 = isVersion3Plus(document.asyncapi);
-  const where = v3 ? "'messages'" : "'publish' or 'subscribe'";
   const visited = new Set();
 
   const follow = (node, path) => {
@@ -78,18 +75,6 @@ module.exports = (document, _options, context) => {
     return node === UNKNOWN || isObject(node);
   };
 
-  const hasMessageV2 = (value, seen, depth) => {
-    const { node } = follow(value, []);
-    if (node === UNKNOWN) return true;
-    if (!isObject(node)) return false;
-    if (!has(node, "oneOf")) return true;
-    if (seen.has(node) || depth >= MAX_DEPTH) return false;
-    seen.add(node);
-    const { node: items } = follow(node.oneOf, []);
-    if (items === UNKNOWN) return true;
-    return Array.isArray(items) && items.some((item) => hasMessageV2(item, seen, depth + 1));
-  };
-
   const locatable = (path) => {
     const source = context.document;
     if (!source || typeof source.getRangeForJsonPath !== "function") return path;
@@ -103,34 +88,6 @@ module.exports = (document, _options, context) => {
     errors.push({ message, path: locatable([...context.path, ...path]).map(escapeToken) });
   };
 
-  const checkMessagesV3 = (node, at, name) => {
-    if (!has(node, "messages")) {
-      report(`Channel '${name}' must declare at least one message in 'messages'.`, at);
-      return;
-    }
-    const { node: map } = follow(node.messages, []);
-    if (map === UNKNOWN || (isObject(map) && Object.values(map).some(isMessage))) return;
-    report(`The 'messages' of channel '${name}' must declare at least one message.`, [...at, "messages"]);
-  };
-
-  const checkMessagesV2 = (node, at, name) => {
-    const declared = [];
-    for (const operation of OPERATIONS_V2) {
-      if (!has(node, operation)) continue;
-      const target = follow(node[operation], [...at, operation]);
-      if (target.node === UNKNOWN) return;
-      if (!isObject(target.node) || !has(target.node, "message")) continue;
-      if (hasMessageV2(target.node.message, new Set(), 0)) return;
-      declared.push([operation, [...target.path, "message"]]);
-    }
-    if (declared.length === 0) {
-      report(`Channel '${name}' must declare at least one message in 'publish' or 'subscribe'.`, at);
-    }
-    for (const [operation, path] of declared) {
-      report(`The '${operation}.message' of channel '${name}' must declare at least one message.`, path);
-    }
-  };
-
   const checkChannel = (channel, path) => {
     const { node, path: at } = follow(channel, path);
     if (node === UNKNOWN) return;
@@ -138,16 +95,11 @@ module.exports = (document, _options, context) => {
     if (visited.has(channelKey)) return;
     visited.add(channelKey);
 
+    if (!isObject(node) || !has(node, "messages")) return;
+    const { node: map } = follow(node.messages, []);
+    if (map === UNKNOWN || (isObject(map) && Object.values(map).some(isMessage))) return;
     const name = printable(String(at[at.length - 1]));
-    if (!isObject(node)) {
-      report(`Channel '${name}' must be an object declaring at least one message in ${where}.`, at);
-      return;
-    }
-    if (v3) {
-      checkMessagesV3(node, at, name);
-    } else {
-      checkMessagesV2(node, at, name);
-    }
+    report(`The 'messages' of channel '${name}' must declare at least one message.`, [...at, "messages"]);
   };
 
   const eachChannel = (map, path) => {

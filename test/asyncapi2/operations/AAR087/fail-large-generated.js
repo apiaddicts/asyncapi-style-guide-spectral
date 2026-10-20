@@ -20,7 +20,9 @@ for (let i = 0; i < SHARED_COUNT; i++) {
     expected.push([path, "missing", name, "description"]);
   } else if (i % 5 === 3) {
     sharedChannels[name] = { description: `Shared ${i}.`, publish: { message: { oneOf: [] } } };
-    expected.push([`${path}.publish.message`, "emptyMessage", name, "publish"]);
+  } else if (i % 5 === 4) {
+    sharedChannels[name] = { description: `Shared ${i}.`, bindings: { kafka: { bindingVersion: "0.4.0" } } };
+    expected.push([path, "noOperation", name]);
   } else {
     sharedChannels[name] = complete("orders", i);
   }
@@ -45,7 +47,9 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     case 2:
       if (c % 3 === 2) {
         channels[name] = { description: `Events of ${domain}.`, publish: { operationId: `publish${c}`, summary: "No message." } };
-        expected.push([path, "noMessage", name]);
+      } else if (c % 3 === 1) {
+        channels[name] = { description: `Events of ${domain}.`, parameters: { id: { schema: { type: "string" } } } };
+        expected.push([path, "noOperation", name]);
       } else {
         channels[name] = complete(domain, c);
       }
@@ -69,7 +73,7 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     case 5:
       if (c % 10 === 5) {
         channels[name] = { parameters: { id: { schema: { type: "string" } } } };
-        expected.push([path, "missing", name, "description"], [path, "noMessage", name]);
+        expected.push([path, "missing", name, "description"], [path, "noOperation", name]);
       } else {
         channels[name] = complete(domain, c);
       }
@@ -85,7 +89,7 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     default:
       if (c % 14 === 7) {
         channels[name] = { description: `Events of ${domain}.`, messages: { [domain]: message(domain) } };
-        expected.push([path, "noMessage", name]);
+        expected.push([path, "noOperation", name]);
       } else {
         channels[name] = complete(domain, c);
       }

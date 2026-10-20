@@ -7,6 +7,8 @@ const channels = {};
 const operations = {};
 const messages = {};
 const expected = [];
+const expectedNamed = [];
+const NAMED = ["commonHeaders", "tracing"];
 
 const multiFormat = (domain) => ({
   schemaFormat: "application/schema+json;version=draft-07",
@@ -14,21 +16,23 @@ const multiFormat = (domain) => ({
 });
 
 const VARIANTS = {
-  absent: { fields: {}, kind: "missing" },
-  emptyList: { fields: { traits: [] }, kind: "none" },
-  headersOnly: { fields: { traits: [trait("commonHeaders")] }, kind: null },
-  refList: { fields: { traits: { $ref: "#/components/x-trait-lists/standard" } }, kind: null },
-  tuple: { fields: { traits: [[trait("commonHeaders"), { region: "eu" }], [trait("tracing"), {}]] }, kind: null },
-  both: { fields: { traits: [trait("commonHeaders"), trait("tracing")] }, kind: null },
+  absent: { fields: {}, kind: "missing", applied: [] },
+  emptyList: { fields: { traits: [] }, kind: "none", applied: [] },
+  headersOnly: { fields: { traits: [trait("commonHeaders")] }, kind: null, applied: ["commonHeaders"] },
+  refList: { fields: { traits: { $ref: "#/components/x-trait-lists/standard" } }, kind: null, applied: NAMED },
+  tuple: { fields: { traits: [[trait("commonHeaders"), { region: "eu" }], [trait("tracing"), {}]] }, kind: null, applied: NAMED },
+  both: { fields: { traits: [trait("commonHeaders"), trait("tracing")] }, kind: null, applied: NAMED },
   notArray: { fields: { traits: { headers: { type: "object" } } }, kind: "notArray" },
-  dangling: { fields: { traits: [trait("missing")] }, kind: "none" },
-  inline: { fields: { traits: [{ headers: { type: "object", properties: { node: { type: "string" } } } }] }, kind: null },
-  alias: { fields: { traits: [trait("platformDefaults"), trait("tracing")] }, kind: null },
+  dangling: { fields: { traits: [trait("missing")] }, kind: "none", applied: [] },
+  inline: { fields: { traits: [{ headers: { type: "object", properties: { node: { type: "string" } } } }] }, kind: null, applied: [] },
+  alias: { fields: { traits: [trait("platformDefaults"), trait("tracing")] }, kind: null, applied: ["platformDefaults", "headersAlias", "commonHeaders", "tracing"] },
 };
 
 const record = (path, variant) => {
-  const { kind } = VARIANTS[variant];
+  const { kind, applied } = VARIANTS[variant];
   if (kind !== null) expected.push([kind === "missing" ? path : `${path}.traits`, kind]);
+  if (kind === "notArray") expectedNamed.push([`${path}.traits`, kind]);
+  else NAMED.filter((name) => !applied.includes(name)).forEach((name) => expectedNamed.push([kind === "missing" ? path : `${path}.traits`, "trait", name]));
 };
 
 for (let i = 0; i < CHANNEL_COUNT; i++) {
@@ -89,4 +93,5 @@ module.exports = {
     },
   },
   expected: expected.sort(byPath),
+  expectedNamed: expectedNamed.sort(byPath),
 };

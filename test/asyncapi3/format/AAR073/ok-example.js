@@ -95,7 +95,7 @@ module.exports = {
       messages: {
         dispatchSnapshot: {
           name: "dispatchSnapshot",
-          traits: [{ $ref: "./traits/commonHeaders.yaml" }, { $ref: "https://schemas.rides.example.io/asyncapi/traits/tracing.json" }],
+          traits: [{ $ref: "./traits/common.yaml#/components/messageTraits/commonHeaders" }, { $ref: "https://schemas.rides.example.io/asyncapi/traits.json#/components/messageTraits/tracing" }],
           payload: { type: "array", items: { type: "object" } },
         },
         dispatchPaused: { name: "dispatchPaused", traits: [trait("sharedTracing"), trait("commonHeaders"), { headers: { type: "object", properties: { zone: { type: "string" } } } }], payload: { type: "string" } },

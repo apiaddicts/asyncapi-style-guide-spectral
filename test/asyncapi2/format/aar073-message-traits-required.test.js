@@ -1,11 +1,16 @@
-const { linterForRule } = require("../../helpers/utils");
+const { linterForRule, traitRef } = require("../../helpers/utils");
 const {
+  CH,
+  TR,
   REQUIRED_TRAIT_COMPONENTS,
   REQUIRED_TRAIT_CASES,
+  REQUIRED_TRAIT_NAME_CASES,
   REQUIRED_TRAIT_MESSAGES: MSG,
   REQUIRED_TRAIT_PROBES,
   REQUIRED_TRAIT_OPTIONS,
+  byFinding,
   requiredTraitFindings,
+  namedTraitFindings,
   requiredTraitProbeFindings,
 } = require("../../helpers/rules/aar073-message-traits-required");
 const okExample = require("./AAR073/ok-example");
@@ -19,13 +24,14 @@ const NAMED = { "required-traits": "commonHeaders,tracing" };
 const W = "channels.coldchain.cdc.shipments.temperature.v2";
 const R = "channels.coldchain.cmd.reefers.setpoint.v1";
 const S = "channels.coldchain/sensors/{sensorId}/readings";
+const H = "channels.coldchain.sys.gateways.heartbeat.v1";
 const X = "channels.x-coldchain.legacy.feed";
 
-const byPath = (a, b) => a[0].localeCompare(b[0]);
 const only = (results) => results.filter((r) => r.code === RULE);
-const findingsOf = (results) => only(results).map((r) => [r.path.join("."), r.message]).sort(byPath);
+const findingsOf = (results) => only(results).map((r) => [r.path.join("."), r.message]).sort(byFinding);
 const withVersion = (doc, version) => ({ ...doc, asyncapi: version });
-const toFindings = (expected) => expected.map(([path, kind]) => [path, MSG[kind]()]);
+const toFindings = (expected) => expected.map(([path, kind, ...args]) => [path, MSG[kind](...args)]).sort(byFinding);
+const lacks = (path, ...names) => names.map((name) => [path, MSG.trait(name)]);
 
 const FAIL_DEFAULT = [
   [`${W}.publish.message`, MSG.missing()],
@@ -41,7 +47,31 @@ const FAIL_DEFAULT = [
   ["components.messages.customsHold.traits", MSG.notArray()],
   ["components.messages.podSigned.oneOf.0", MSG.missing()],
   ["components.messages.x-legacy-manifest.traits", MSG.none()],
-].sort(byPath);
+].sort(byFinding);
+
+const FAIL_NAMED = [
+  ...lacks(`${W}.publish.message`, CH, TR),
+  ...lacks(`${W}.subscribe.message.oneOf.1.traits`, CH, TR),
+  ...lacks(`${W}.subscribe.message.oneOf.2.traits`, TR),
+  ...lacks(`${W}.subscribe.message.oneOf.3.traits`, CH, TR),
+  ...lacks(`${W}.subscribe.message.oneOf.4.oneOf.0`, CH, TR),
+  [`${R}.publish.message.traits`, MSG.notArray()],
+  ...lacks(`${R}.subscribe.message.traits`, CH, TR),
+  ...lacks(`${S}.publish.message.traits`, CH, TR),
+  ...lacks(`${H}.subscribe.message.traits`, TR),
+  ...lacks(`${X}.publish.message`, CH, TR),
+  ...lacks("components.channels.maintenanceWindows.subscribe.message.traits", CH, TR),
+  ...lacks("components.messages.shipmentDelayed", CH, TR),
+  ...lacks("components.messages.reeferAlarm.traits", CH, TR),
+  ...lacks("components.messages.sensorCalibrated.traits", CH, TR),
+  ["components.messages.customsHold.traits", MSG.notArray()],
+  ...lacks("components.messages.podSigned.oneOf.0", CH, TR),
+  ...lacks("components.messages.x-legacy-manifest.traits", CH, TR),
+  ...lacks("components.messages.temperatureExcursion.traits", TR),
+  ...lacks("components.messages.driverHandover.traits", CH, TR),
+  ...lacks("components.messages.palletScanned.traits", CH),
+  ...lacks("components.messages.customsCleared.traits", TR),
+].sort(byFinding);
 
 const SHARED_DEFAULT = [
   ["components.messages.paymentAuthorized", MSG.missing()],
@@ -54,7 +84,17 @@ const SHARED_DEFAULT = [
   ["components.messages.cyclicList.traits", MSG.none()],
   ["components.messages.sharedEmptyA.traits", MSG.none()],
   ["components.messages.sharedEmptyB.traits", MSG.none()],
-].sort(byPath);
+].sort(byFinding);
+
+const SHARED_NAMED = [
+  ...lacks("components.messages.paymentAuthorized", CH, TR),
+  ...lacks("components.channels.refunds.subscribe.message.traits", CH, TR),
+  ...["paymentCaptured", "fxRateFixed", "escapedTilde", "malformedPercent", "missingSlash", "rootPointer", "nonStringRef", "cyclicList", "sharedEmptyA", "sharedEmptyB"].flatMap((key) =>
+    lacks(`components.messages.${key}.traits`, CH, TR)
+  ),
+  ...lacks("components.messages.tenantChain.traits", TR),
+  ...lacks("components.messages.percentTracing.traits", CH),
+].sort(byFinding);
 
 const UNRELATED_OPTIONS = [
   ["an empty object", {}],
@@ -95,11 +135,13 @@ const withLocation = (extra) => {
 const caseDoc = (fields) => base({ components: { ...REQUIRED_TRAIT_COMPONENTS, messages: { m: { ...bare, ...fields } } } });
 const probeDoc = () => base({ components: { ...REQUIRED_TRAIT_COMPONENTS, messages: Object.fromEntries(Object.entries(REQUIRED_TRAIT_PROBES).map(([key, probe]) => [key, { ...bare, ...probe.fields }])) } });
 
-describe("AAR073 (AsyncAPI 2.x): every message must apply at least one message trait", () => {
+describe("AAR073 (AsyncAPI 2.x): every message must apply at least one message trait and every required trait", () => {
   let linter;
+  let named;
 
   beforeAll(async () => {
     linter = await linterForRule(RULE);
+    named = await linterForRule(RULE, { functionOptions: NAMED });
   });
 
   test("passes a realistic multi-protocol document whose messages apply both organization traits through references, chains, tuples, lists and external files", async () => {
@@ -114,6 +156,9 @@ describe("AAR073 (AsyncAPI 2.x): every message must apply at least one message t
     expect(findingsOf(await linter.run(withVersion(failExample, version)))).toEqual(FAIL_DEFAULT);
     expect(findingsOf(await linter.run(withVersion(failSharedRef, version)))).toEqual(SHARED_DEFAULT);
     expect(findingsOf(await linter.run(withVersion(okExample, version)))).toEqual([]);
+    expect(findingsOf(await named.run(withVersion(failExample, version)))).toEqual(FAIL_NAMED);
+    expect(findingsOf(await named.run(withVersion(failSharedRef, version)))).toEqual(SHARED_NAMED);
+    expect(findingsOf(await named.run(withVersion(okExample, version)))).toEqual([]);
   });
 
   test("treats a version that is not 3.x as 2.x", async () => {
@@ -124,6 +169,7 @@ describe("AAR073 (AsyncAPI 2.x): every message must apply at least one message t
 
   test.each(LOCATIONS)("reports a %s without traits at the message itself", async (_, path, extra) => {
     expect(findingsOf(await linter.run(withLocation(extra)))).toEqual([[path, MSG.missing()]]);
+    expect(findingsOf(await named.run(withLocation(extra)))).toEqual(lacks(path, CH, TR).sort(byFinding));
   });
 
   test("reports with the warn severity and one finding per message", async () => {
@@ -144,6 +190,7 @@ describe("AAR073 (AsyncAPI 2.x): every message must apply at least one message t
         components: { operationTraits: { commonHeaders: { bindings: { kafka: { clientId: { type: "string" } } } }, tracing: { description: "Traced." } } },
       });
       expect(findingsOf(await linter.run(doc))).toEqual([["channels.orders.publish.message", MSG.missing()]]);
+      expect(findingsOf(await named.run(doc))).toEqual(lacks("channels.orders.publish.message", CH, TR));
     });
 
     test("ignores trait-like keys anywhere but the message: payload properties, extensions and orphan components", async () => {
@@ -152,36 +199,74 @@ describe("AAR073 (AsyncAPI 2.x): every message must apply at least one message t
         components: { ...REQUIRED_TRAIT_COMPONENTS, messageTraits: { ...REQUIRED_TRAIT_COMPONENTS.messageTraits, orphan: { traits: [] } } },
       });
       expect(findingsOf(await linter.run(doc))).toEqual([]);
+      expect(findingsOf(await named.run(doc))).toEqual([]);
     });
 
-    test("only needs one valid trait per message, whatever its name", async () => {
+    test("only needs one valid trait per message, whatever its name, when no trait is required", async () => {
       expect(findingsOf(await linter.run(probeDoc()))).toEqual(requiredTraitProbeFindings("components.messages"));
     });
   });
 
-  describe("functionOptions", () => {
-    test.each(REQUIRED_TRAIT_OPTIONS)("an injected required-traits %s changes nothing", async (_, value) => {
+  describe("required-traits", () => {
+    test.each(REQUIRED_TRAIT_OPTIONS)("set to %s", async (_, value, names) => {
       const custom = await linterForRule(RULE, { functionOptions: { "required-traits": value } });
-      expect(findingsOf(await custom.run(probeDoc()))).toEqual(requiredTraitProbeFindings("components.messages"));
+      expect(findingsOf(await custom.run(probeDoc()))).toEqual(requiredTraitProbeFindings("components.messages", names));
     });
 
-    test("an injected required-traits naming both organization traits changes nothing on the realistic, shared and structural documents", async () => {
-      const custom = await linterForRule(RULE, { functionOptions: NAMED });
-      expect(findingsOf(await custom.run(okExample))).toEqual([]);
-      expect(findingsOf(await custom.run(failExample))).toEqual(FAIL_DEFAULT);
-      expect(findingsOf(await custom.run(failSharedRef))).toEqual(SHARED_DEFAULT);
-      expect(findingsOf(await custom.run(okStructuralEdges))).toEqual([]);
+    test.each(REQUIRED_TRAIT_CASES)("with both organization traits required, %s", async (_, fields, __, missing) => {
+      expect(findingsOf(await named.run(caseDoc(fields)))).toEqual(namedTraitFindings("components.messages.m", fields, missing));
+    });
+
+    test.each(REQUIRED_TRAIT_NAME_CASES)("matches pointers against names: %s", async (_, value, fields, missing) => {
+      const custom = await linterForRule(RULE, { functionOptions: { "required-traits": value } });
+      expect(findingsOf(await custom.run(caseDoc(fields)))).toEqual(namedTraitFindings("components.messages.m", fields, missing));
+    });
+
+    test("with both organization traits required, passes the realistic and structural documents and reports every missing trait in the fail and shared documents", async () => {
+      expect(findingsOf(await named.run(okExample))).toEqual([]);
+      expect(findingsOf(await named.run(okStructuralEdges))).toEqual([]);
+      expect(findingsOf(await named.run(failExample))).toEqual(FAIL_NAMED);
+      expect(findingsOf(await named.run(failSharedRef))).toEqual(SHARED_NAMED);
+    });
+
+    test("the array form gives the same findings as the comma-separated string", async () => {
+      const custom = await linterForRule(RULE, { functionOptions: { "required-traits": [CH, TR] } });
+      expect(findingsOf(await custom.run(failExample))).toEqual(FAIL_NAMED);
+      expect(findingsOf(await custom.run(failSharedRef))).toEqual(SHARED_NAMED);
+    });
+
+    test("reports one finding per missing trait and message with the warn severity, and never the generic findings", async () => {
+      const results = only(await named.run(failExample));
+      expect(results).toHaveLength(FAIL_NAMED.length);
+      results.forEach((r) => expect(r.severity).toBe(1));
+      expect(results.filter((r) => r.message === MSG.missing() || r.message === MSG.none())).toEqual([]);
+    });
+
+    test("only checks names the organization requires: a message applying them passes whatever else it applies", async () => {
+      const custom = await linterForRule(RULE, { functionOptions: { "required-traits": "kafkaKey" } });
+      const doc = caseDoc({ traits: [{}, null, traitRef("kafkaKey"), { headers: { type: "object" } }] });
+      expect(findingsOf(await custom.run(doc))).toEqual([]);
+    });
+
+    test("skips a message whose traits list is an external reference", async () => {
+      expect(findingsOf(await named.run(caseDoc({ traits: { $ref: "./shared/message-traits.yaml#/lists/standard" } })))).toEqual([]);
+      expect(findingsOf(await named.run(caseDoc({ traits: { $ref: "#/components/x-trait-lists/external" } })))).toEqual([]);
     });
 
     test.each(UNRELATED_OPTIONS)("ignores options unrelated to the rule: %s", async (_, functionOptions) => {
       const custom = await linterForRule(RULE, { functionOptions });
       expect(findingsOf(await custom.run(failExample))).toEqual(FAIL_DEFAULT);
     });
+
+    test("handles a very large document and reports exactly the generated missing traits", async () => {
+      expect(findingsOf(await named.run(failLargeGenerated.document))).toEqual(toFindings(failLargeGenerated.expectedNamed));
+    });
   });
 
   test("checks a shared message, channel or traits list once per message where it is defined and follows local, chained and escaped pointers", async () => {
     expect(findingsOf(await linter.run(failSharedRef))).toEqual(SHARED_DEFAULT);
     expect(only(await linter.run(failSharedRef)).filter((r) => r.path[0] === "channels")).toEqual([]);
+    expect(only(await named.run(failSharedRef)).filter((r) => r.path[0] === "channels")).toEqual([]);
   });
 
   test("skips null, scalar and array nodes, $ref operations and messages, empty oneOf lists, orphan traits, extensions and 3.x-only structures", async () => {
@@ -199,7 +284,7 @@ describe("AAR073 (AsyncAPI 2.x): every message must apply at least one message t
         ["channels.x-internal.publish.message", MSG.missing()],
         ["components.channels.x-audit.subscribe.message", MSG.missing()],
         ["components.messages.x-legacy", MSG.missing()],
-      ].sort(byPath)
+      ].sort(byFinding)
     );
   });
 
@@ -209,6 +294,7 @@ describe("AAR073 (AsyncAPI 2.x): every message must apply at least one message t
       operations: { sendOrder: { action: "send", channel: { $ref: "#/channels/orders" }, messages: [bare] } },
     });
     expect(findingsOf(await linter.run(doc))).toEqual([]);
+    expect(findingsOf(await named.run(doc))).toEqual([]);
   });
 
   test("handles components set to null or to a scalar", async () => {
@@ -221,6 +307,7 @@ describe("AAR073 (AsyncAPI 2.x): every message must apply at least one message t
     const { asyncapi, ...withoutVersion } = failExample;
     expect(asyncapi).toBe("2.6.0");
     expect(findingsOf(await linter.run(withoutVersion))).toEqual([]);
+    expect(findingsOf(await named.run(withoutVersion))).toEqual([]);
   });
 
   test("returns no results for non-object documents", async () => {

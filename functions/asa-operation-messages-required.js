@@ -1,9 +1,11 @@
 /**
  * @param {object} document - The whole AsyncAPI document (given: "$", resolved: false)
  * @param {object} _options - Unused: every operation must always declare at least one usable message: AsyncAPI 3.x
- *   operations in operations and components.operations in their messages list, 2.x publish and subscribe operations of
- *   the channels in channels and components.channels in their message (following oneOf). A usable message is an object,
- *   a local reference that resolves to one, or an external reference. Operation traits and replies never count
+ *   operations in operations and components.operations in their messages list when they declare it (an operation that
+ *   omits messages takes every message of its channel, and an empty list means none), 2.x publish and subscribe
+ *   operations of the channels in channels and components.channels in their message (following oneOf). A usable message
+ *   is an object, a local reference that resolves to one, or an external reference. Operation traits and replies never
+ *   count
  * @param {import('@stoplight/spectral-core').RulesetFunctionContext} context
  * @returns {Array} Array of error objects
  */
@@ -122,10 +124,7 @@ module.exports = (document, _options, context) => {
       report(`Operation '${name}' must be an object declaring at least one message in 'messages'.`, at);
       return;
     }
-    if (!has(node, "messages")) {
-      report(`Operation '${name}' must declare at least one message in 'messages'.`, at);
-      return;
-    }
+    if (!has(node, "messages")) return;
     const { node: list } = follow(node.messages, []);
     if (list === UNKNOWN || (Array.isArray(list) && list.some(isMessage))) return;
     report(`The 'messages' of operation '${name}' must declare at least one message.`, [...at, "messages"]);

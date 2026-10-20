@@ -52,6 +52,11 @@ module.exports = {
       protocol: "ibmmq",
       bindings: { ibmmq: { groupId: "PRODCLSTR1", cipherSpec: "ANY_TLS12_OR_HIGHER", bindingVersion: "0.1.0" } },
     },
+    mainframeMqSecure: {
+      url: "ibmmq-secure://qm1.quality.es:1415/QM1/LOGISTICS.TLS.SVRCONN",
+      protocol: "ibmmq-secure",
+      bindings: { ibmmq: { groupId: "PRODCLSTR1", cipherSpec: "ANY_TLS13_OR_HIGHER", bindingVersion: "0.1.0" } },
+    },
     erpJms: { url: "tcp://erp-jms.quality.es:61616", protocol: "jms", bindings: { jms: { jmsConnectionFactory: "org.apache.activemq.ActiveMQConnectionFactory" } } },
     customsAnypoint: { url: "https://mq-eu-central-1.anypoint.mulesoft.com/api", protocol: "anypointmq", protocolVersion: "v1" },
     portsSolace: { url: "tcps://ports.messaging.solace.cloud:55443", protocol: "solace", protocolVersion: "smf", bindings: { solace: { msgVpn: "ports", bindingVersion: "0.3.0" } } },

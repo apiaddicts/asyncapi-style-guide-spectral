@@ -7,20 +7,14 @@ const ESCAPES = { "\n": "\\n", "\r": "\\r", "\t": "\\t" };
 const shown = (value) =>
   value.replace(/[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028\u2029\u2060\ufeff]/g, (char) => ESCAPES[char] || `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`);
 
-const WHERE = { 2: "'publish' or 'subscribe'", 3: "'messages'" };
-
 /**
- * @param {number} major - The AsyncAPI major version under test (2 or 3)
- * @returns {object} Expected message builders keyed by finding kind
+ * @returns {object} Expected message builders keyed by finding kind: AAR091 only reports AsyncAPI 3.x messages without a usable message
  */
-const messagesFor = (major) => ({
-  missing: (channel) => `AAR091: Channel '${shown(channel)}' must declare at least one message in ${WHERE[major]}.`,
+const messagesFor = () => ({
   empty: (channel) => `AAR091: The 'messages' of channel '${shown(channel)}' must declare at least one message.`,
-  emptyMessage: (channel, operation) => `AAR091: The '${operation}.message' of channel '${shown(channel)}' must declare at least one message.`,
-  unusable: (channel) => `AAR091: Channel '${shown(channel)}' must be an object declaring at least one message in ${WHERE[major]}.`,
 });
 
-const findingsFor = (major) => findingsFrom(messagesFor(major));
+const findingsFor = () => findingsFrom(messagesFor());
 
 const channelTarget = (name) => ({ $ref: `#/components/x-channels/${name}` });
 const operationTarget = (name) => ({ $ref: `#/components/x-operations/${name}` });
@@ -312,26 +306,17 @@ const MESSAGE_VALUE_CASES = [
   ["cyclic oneOf wrappers without a message", wrapperRef("cycleA"), false],
 ];
 
-const REFERENCE_LANDING = {
-  "#/components/x-channels/cycleA": ["components.x-channels.cycleB", "cycleB"],
-  "#/components/x-channels/list": ["components.x-channels.list", "list"],
-  "#/components/x-channels/text": ["components.x-channels.text", "text"],
-  "#/components/x-channels/nothing": ["components.x-channels.nothing", "nothing"],
-};
-
 const sharedReferenceCases = (major) => {
-  const AT = atOf(major);
   const NAME = NAMES[major];
   const { complete, minimal } = shapesFor(major);
-  const sparse = major === 3 ? [["components.x-channels.sparse.messages", "empty", "sparse"]] : [["components.x-channels.sparse", "missing", "sparse"]];
-  const missing = (name) => [[`components.x-channels.${name}`, "missing", name]];
+  const sparse = major === 3 ? [["components.x-channels.sparse.messages", "empty", "sparse"]] : [];
   return [
     ["a reference to a complete channel", channelTarget("complete"), []],
     ["a reference to a minimal channel", channelTarget("minimal"), []],
     ["a chained reference", channelTarget("alias"), []],
     ["a reference chained twice", channelTarget("aliasTwice"), []],
     ["a reference with siblings, which are ignored", { ...channelTarget("complete"), messages: {}, publish: null }, []],
-    ["a reference to an empty channel with populated siblings, which are ignored", { ...channelTarget("empty"), ...minimal }, missing("empty")],
+    ["a reference to an empty channel with populated siblings, which are ignored and left to AAR087", { ...channelTarget("empty"), ...minimal }, []],
     ["a pointer into an array item", { $ref: "#/components/x-channels/list/0" }, []],
     ["an escaped pointer", { $ref: "#/components/x-channels/a~1b" }, []],
     ["a percent-encoded pointer", { $ref: "#/components/x-channels/with%20space" }, []],
@@ -341,27 +326,19 @@ const sharedReferenceCases = (major) => {
     ["a local alias of an external channel", channelTarget("external"), []],
     ["a reference to a sparse channel", channelTarget("sparse"), sparse],
     ["a chained reference to a sparse channel", channelTarget("sparseAlias"), sparse],
-    ["a reference to an empty channel", channelTarget("empty"), missing("empty")],
-    ["a reference to a channel with only extensions", channelTarget("extensionsOnly"), missing("extensionsOnly")],
-    ["a reference to a channel with only look-alike keys", channelTarget("lookAlikes"), missing("lookAlikes")],
-    ["a reference to a channel whose keys differ in case", channelTarget("caseKeys"), missing("caseKeys")],
-    [`a reference to a channel written for AsyncAPI ${major === 3 ? 2 : 3}`, channelTarget("otherVersion"), missing("otherVersion")],
-    ["a reference to an object that is not a channel", { $ref: "#/info" }, [["info", "missing", "info"]]],
-    ...unusableObjectCases(
-      channelTarget,
-      { text: "retail.cdc.orders.placed.v1", item: complete },
-      () => [[AT, "unusable", NAME]],
-      (ref) => {
-        const [path, name] = REFERENCE_LANDING[ref] || [AT, NAME];
-        return [[path, "unusable", name]];
-      }
-    ),
-    ["a topic name instead of an object", "retail.cdc.orders.placed.v1", [[AT, "unusable", NAME]]],
-    ["a list of channels", [minimal, complete], [[AT, "unusable", NAME]]],
-    ["a pointer past the end of an array", { $ref: "#/components/x-channels/list/3" }, [[AT, "unusable", NAME]]],
-    ["a pointer through a chained channel", { $ref: "#/components/x-channels/alias/messages" }, [[AT, "unusable", NAME]]],
-    ["a self reference", channelTarget("self"), [["components.x-channels.self", "unusable", "self"]]],
-    ["a reference to the channel itself", { $ref: `#/channels/${NAME}` }, [[AT, "unusable", NAME]]],
+    ["a reference to an empty channel, left to AAR087", channelTarget("empty"), []],
+    ["a reference to a channel with only extensions, left to AAR087", channelTarget("extensionsOnly"), []],
+    ["a reference to a channel with only look-alike keys, left to AAR087", channelTarget("lookAlikes"), []],
+    ["a reference to a channel whose keys differ in case, left to AAR087", channelTarget("caseKeys"), []],
+    [`a reference to a channel written for AsyncAPI ${major === 3 ? 2 : 3}`, channelTarget("otherVersion"), []],
+    ["a reference to an object that is not a channel, left to AAR087", { $ref: "#/info" }, []],
+    ...unusableObjectCases(channelTarget, { text: "retail.cdc.orders.placed.v1", item: complete }, () => []).map(([name, value, expected]) => [`${name}, left to AAR087`, value, expected]),
+    ["a topic name instead of an object, left to AAR087", "retail.cdc.orders.placed.v1", []],
+    ["a list of channels, left to AAR087", [minimal, complete], []],
+    ["a pointer past the end of an array, left to AAR087", { $ref: "#/components/x-channels/list/3" }, []],
+    ["a pointer through a chained channel, left to AAR087", { $ref: "#/components/x-channels/alias/messages" }, []],
+    ["a self reference, left to AAR087", channelTarget("self"), []],
+    ["a reference to the channel itself, left to AAR087", { $ref: `#/channels/${NAME}` }, []],
   ];
 };
 
@@ -372,7 +349,6 @@ const channelObjectCasesV3 = () => {
   const AT = atOf(3);
   const NAME = NAMES[3];
   const { complete, minimal } = shapesFor(3);
-  const missing = [[AT, "missing", NAME]];
   const empty = [[`${AT}.messages`, "empty", NAME]];
   const fields = { address: "retail.cdc.orders.placed.v1", description: "Orders placed." };
   return [
@@ -400,17 +376,21 @@ const channelObjectCasesV3 = () => {
     ["a channel whose only message is an inline multi-format Avro message", { messages: { orderPlacedAvro: { name: "orderPlacedAvro", payload: { schemaFormat: "application/vnd.apache.avro;version=1.9.0", schema: AVRO_SCHEMA } } } }, []],
     ["a channel whose only message is an empty object", { messages: { heartbeat: {} } }, []],
     ["a channel whose only message applies traits", { messages: { orderPlaced: { traits: [{ $ref: "#/components/messageTraits/tracing" }] } } }, []],
-    ["an empty channel", {}, missing],
-    ["a channel without messages", fields, missing],
-    ["a channel whose messages are only in the operations", { ...fields, summary: "Operations list the messages." }, missing],
-    ["a channel with a singular message key", { ...fields, message: messageRef("orderPlaced") }, missing],
-    ["a channel with only a payload", { ...fields, payload: { type: "object" } }, missing],
-    ["a channel written for AsyncAPI 2.x", { description: "Orders.", subscribe: { message: messageRef("orderPlaced") }, publish: { message: { oneOf: [messageRef("orderPlaced")] } } }, missing],
-    ["a channel with AsyncAPI 3.x send and receive keys", { ...fields, send: { messages: [messageRef("orderPlaced")] }, receive: { messages: [messageRef("orderPlaced")] } }, missing],
-    ["a channel whose messages key differs in case", { ...fields, Messages: { orderPlaced: messageRef("orderPlaced") }, MESSAGES: { orderPlaced: messageRef("orderPlaced") } }, missing],
-    ["a channel whose messages are an extension", { ...fields, "x-messages": { orderPlaced: messageRef("orderPlaced") } }, missing],
-    ["a channel whose message is only in the bindings", { ...fields, bindings: { kafka: { message: messageRef("orderPlaced") } } }, missing],
-    ["a channel whose message is only in a tag or the external docs", { ...fields, tags: [{ name: "orderPlaced", messages: { orderPlaced: messageRef("orderPlaced") } }] }, missing],
+    ["an empty channel, left to AAR087", {}, []],
+    ["a channel without messages, left to AAR087", fields, []],
+    ["a channel whose messages are only in the operations, left to AAR087", { ...fields, summary: "Operations list the messages." }, []],
+    ["a channel with a singular message key, left to AAR087", { ...fields, message: messageRef("orderPlaced") }, []],
+    ["a channel with only a payload, left to AAR087", { ...fields, payload: { type: "object" } }, []],
+    ["a channel written for AsyncAPI 2.x, left to AAR087", { description: "Orders.", subscribe: { message: messageRef("orderPlaced") }, publish: { message: { oneOf: [messageRef("orderPlaced")] } } }, []],
+    ["a channel with AsyncAPI 3.x send and receive keys, left to AAR087", { ...fields, send: { messages: [messageRef("orderPlaced")] }, receive: { messages: [messageRef("orderPlaced")] } }, []],
+    ["a channel whose messages key differs in case, left to AAR087", { ...fields, Messages: { orderPlaced: messageRef("orderPlaced") }, MESSAGES: { orderPlaced: messageRef("orderPlaced") } }, []],
+    ["a channel whose messages are an extension, left to AAR087", { ...fields, "x-messages": { orderPlaced: messageRef("orderPlaced") } }, []],
+    ["a channel whose message is only in the bindings, left to AAR087", { ...fields, bindings: { kafka: { message: messageRef("orderPlaced") } } }, []],
+    ["a channel whose message is only in a tag or the external docs, left to AAR087", { ...fields, tags: [{ name: "orderPlaced", messages: { orderPlaced: messageRef("orderPlaced") } }] }, []],
+    ["a channel without messages and with a null address, left to AAR087", { address: null, description: "Replies." }, []],
+    ["a channel with null messages", { ...fields, messages: null }, empty],
+    ["a channel with a messages list", { ...fields, messages: [messageRef("orderPlaced")] }, empty],
+    ["a channel with a null address and an empty messages map", { address: null, messages: {} }, empty],
     ["a channel with an empty messages map", { ...fields, messages: {} }, empty],
     ["a channel whose messages are all null", { ...fields, messages: { orderPlaced: null, orderCancelled: null } }, empty],
     ["a channel whose messages are all dangling", { ...fields, messages: { orderPlaced: messageRef("orderPlacedV2"), orderCancelled: messageRef("orderCancelled") } }, empty],
@@ -420,20 +400,16 @@ const channelObjectCasesV3 = () => {
 };
 
 /**
- * @returns {Array} [description, channel, expected] cases for an AsyncAPI 2.x channel written at channels.retail.cdc.orders.placed.v1
+ * @returns {Array} [description, channel] AsyncAPI 2.x channels written at channels.retail.cdc.orders.placed.v1, none of which AAR091 reports
  */
 const channelObjectCasesV2 = () => {
-  const AT = atOf(2);
-  const NAME = NAMES[2];
   const { complete, minimal } = shapesFor(2);
   const DESCRIPTION = { description: "Orders placed." };
-  const missing = [[AT, "missing", NAME]];
-  const emptyAt = (operation, path = `${AT}.${operation}.message`) => [path, "emptyMessage", NAME, operation];
   return [
-    ["a complete inline channel", complete, []],
-    ["a channel with only a subscribe message", minimal, []],
-    ["a channel with only a publish message", { publish: { message: messageRef("orderPlaced") } }, []],
-    ["a channel without description, which does not matter", { subscribe: { operationId: "receiveOrder", message: messageRef("orderPlaced") } }, []],
+    ["a complete inline channel", complete],
+    ["a channel with only a subscribe message", minimal],
+    ["a channel with only a publish message", { publish: { message: messageRef("orderPlaced") } }],
+    ["a channel without description", { subscribe: { operationId: "receiveOrder", message: messageRef("orderPlaced") } }],
     [
       "a channel with every optional field",
       {
@@ -445,42 +421,34 @@ const channelObjectCasesV2 = () => {
         deprecated: false,
         "x-owner": "orders",
       },
-      [],
     ],
-    ["a channel whose message is an Avro message with schemaFormat", { subscribe: { message: { schemaFormat: "application/vnd.apache.avro;version=1.9.0", payload: AVRO_SCHEMA } } }, []],
-    ["a channel whose message only applies traits", { subscribe: { message: { traits: [{ $ref: "#/components/messageTraits/tracing" }] } } }, []],
-    ["an empty channel", {}, missing],
-    ["a channel without operations", { ...DESCRIPTION, parameters: { storeId: { schema: { type: "string" } } } }, missing],
-    ["a channel whose publish has no message", { ...DESCRIPTION, publish: { operationId: "publishOrder", summary: "Publish.", traits: [{ $ref: "#/components/operationTraits/kafka" }], bindings: { kafka: { clientId: "orders" } } } }, missing],
-    ["a channel whose operations are empty objects", { ...DESCRIPTION, publish: {}, subscribe: {} }, missing],
-    ["a channel whose operations are null", { ...DESCRIPTION, publish: null, subscribe: null }, missing],
-    ["a channel whose operations are not objects", { ...DESCRIPTION, publish: "orderPlaced", subscribe: [{ message: messageRef("orderPlaced") }] }, missing],
-    ["a channel whose message is only in an operation trait", { ...DESCRIPTION, subscribe: { traits: [{ message: messageRef("orderPlaced") }] } }, missing],
-    ["a channel whose message is only in the bindings", { ...DESCRIPTION, bindings: { kafka: { message: messageRef("orderPlaced") } } }, missing],
-    ["a channel with an AsyncAPI 3.x messages map", { ...DESCRIPTION, messages: { orderPlaced: messageRef("orderPlaced") } }, missing],
-    ["a channel with AsyncAPI 3.x send and receive keys", { ...DESCRIPTION, send: { message: messageRef("orderPlaced") }, receive: { message: messageRef("orderPlaced") } }, missing],
-    ["a channel whose operation keys differ in case", { ...DESCRIPTION, Publish: { message: messageRef("orderPlaced") }, SUBSCRIBE: { message: messageRef("orderPlaced") } }, missing],
-    ["a channel whose operations are extensions", { ...DESCRIPTION, "x-publish": { message: messageRef("orderPlaced") } }, missing],
-    ["a channel whose operation declares messages instead of message", { ...DESCRIPTION, subscribe: { messages: [messageRef("orderPlaced")] } }, missing],
-    ["a channel with an empty publish message", { ...DESCRIPTION, publish: { message: { oneOf: [] } } }, [emptyAt("publish")]],
-    ["a channel whose only oneOf item is null", { ...DESCRIPTION, subscribe: { message: { oneOf: [null] } } }, [emptyAt("subscribe")]],
-    ["a channel whose only message is dangling", { ...DESCRIPTION, subscribe: { message: messageRef("orderPlacedV2") } }, [emptyAt("subscribe")]],
-    ["a channel with both messages unusable", { ...DESCRIPTION, publish: { message: null }, subscribe: { message: { oneOf: [messageRef("gone")] } } }, [emptyAt("publish"), emptyAt("subscribe")]],
-    ["an unusable publish message next to a usable subscribe message", { ...DESCRIPTION, publish: { message: { oneOf: [null] } }, subscribe: { message: messageRef("orderPlaced") } }, []],
-    ["a usable publish message next to an unusable subscribe message", { ...DESCRIPTION, publish: { message: { oneOf: [messageRef("orderPlaced")] } }, subscribe: { message: "" } }, []],
-    ["an unusable publish message next to a subscribe without message", { ...DESCRIPTION, publish: { message: "orderPlaced" }, subscribe: { operationId: "receiveOrder" } }, [emptyAt("publish")]],
-    ["an operation given as a reference to an operation with a message", { ...DESCRIPTION, subscribe: operationTarget("withMessage") }, []],
-    ["an operation given as a chained reference", { ...DESCRIPTION, subscribe: operationTarget("alias") }, []],
-    ["an operation given as an external reference", { ...DESCRIPTION, subscribe: { $ref: "./shared/operations.yaml#/receiveOrder" } }, []],
-    ["an operation given as a reference to an operation without message", { ...DESCRIPTION, subscribe: operationTarget("withoutMessage") }, missing],
-    ["an operation given as a dangling reference", { ...DESCRIPTION, subscribe: operationTarget("missing") }, missing],
-    ["an operation given as a reference to an operation with an empty message", { ...DESCRIPTION, publish: operationTarget("emptyMessage") }, [emptyAt("publish", "components.x-operations.emptyMessage.message")]],
-    [
-      "both operations given as references to operations without a usable message",
-      { ...DESCRIPTION, publish: operationTarget("emptyMessage"), subscribe: operationTarget("nullItemMessage") },
-      [emptyAt("publish", "components.x-operations.emptyMessage.message"), emptyAt("subscribe", "components.x-operations.nullItemMessage.message")],
-    ],
-    ...sharedReferenceCases(2),
+    ["a channel whose message is an Avro message with schemaFormat", { subscribe: { message: { schemaFormat: "application/vnd.apache.avro;version=1.9.0", payload: AVRO_SCHEMA } } }],
+    ["a channel whose message only applies traits", { subscribe: { message: { traits: [{ $ref: "#/components/messageTraits/tracing" }] } } }],
+    ["an empty channel", {}],
+    ["a channel without operations", { ...DESCRIPTION, parameters: { storeId: { schema: { type: "string" } } } }],
+    ["a channel whose publish has no message", { ...DESCRIPTION, publish: { operationId: "publishOrder", summary: "Publish.", traits: [{ $ref: "#/components/operationTraits/kafka" }], bindings: { kafka: { clientId: "orders" } } } }],
+    ["a channel whose operations are empty objects", { ...DESCRIPTION, publish: {}, subscribe: {} }],
+    ["a channel whose operations are null", { ...DESCRIPTION, publish: null, subscribe: null }],
+    ["a channel whose operations are not objects", { ...DESCRIPTION, publish: "orderPlaced", subscribe: [{ message: messageRef("orderPlaced") }] }],
+    ["a channel whose message is only in an operation trait", { ...DESCRIPTION, subscribe: { traits: [{ message: messageRef("orderPlaced") }] } }],
+    ["a channel whose message is only in the bindings", { ...DESCRIPTION, bindings: { kafka: { message: messageRef("orderPlaced") } } }],
+    ["a channel with an AsyncAPI 3.x messages map", { ...DESCRIPTION, messages: { orderPlaced: messageRef("orderPlaced") } }],
+    ["a channel with an empty AsyncAPI 3.x messages map", { ...DESCRIPTION, messages: {} }],
+    ["a channel with AsyncAPI 3.x send and receive keys", { ...DESCRIPTION, send: { message: messageRef("orderPlaced") }, receive: { message: messageRef("orderPlaced") } }],
+    ["a channel whose operation keys differ in case", { ...DESCRIPTION, Publish: { message: messageRef("orderPlaced") }, SUBSCRIBE: { message: messageRef("orderPlaced") } }],
+    ["a channel whose operations are extensions", { ...DESCRIPTION, "x-publish": { message: messageRef("orderPlaced") } }],
+    ["a channel whose operation declares messages instead of message", { ...DESCRIPTION, subscribe: { messages: [messageRef("orderPlaced")] } }],
+    ["a channel with an empty publish message", { ...DESCRIPTION, publish: { message: { oneOf: [] } } }],
+    ["a channel whose only oneOf item is null", { ...DESCRIPTION, subscribe: { message: { oneOf: [null] } } }],
+    ["a channel whose only message is dangling", { ...DESCRIPTION, subscribe: { message: messageRef("orderPlacedV2") } }],
+    ["a channel with both messages unusable", { ...DESCRIPTION, publish: { message: null }, subscribe: { message: { oneOf: [messageRef("gone")] } } }],
+    ["an unusable publish message next to a subscribe without message", { ...DESCRIPTION, publish: { message: "orderPlaced" }, subscribe: { operationId: "receiveOrder" } }],
+    ["an operation given as a reference to an operation with a message", { ...DESCRIPTION, subscribe: operationTarget("withMessage") }],
+    ["an operation given as an external reference", { ...DESCRIPTION, subscribe: { $ref: "./shared/operations.yaml#/receiveOrder" } }],
+    ["an operation given as a reference to an operation without message", { ...DESCRIPTION, subscribe: operationTarget("withoutMessage") }],
+    ["an operation given as a dangling reference", { ...DESCRIPTION, subscribe: operationTarget("missing") }],
+    ["both operations given as references to operations without a usable message", { ...DESCRIPTION, publish: operationTarget("emptyMessage"), subscribe: operationTarget("nullItemMessage") }],
+    ...sharedReferenceCases(2).map(([name, channel]) => [name, channel]),
   ];
 };
 

@@ -1,6 +1,7 @@
 /**
  * @param {object} document - The whole AsyncAPI document (given: "$", resolved: false)
- * @param {object} _options - Unused: the allowed values are always the SPDX License List identifiers
+ * @param {object} _options - Unused: the allowed values are always the SPDX License List identifiers and the
+ *   SPDX 'LicenseRef-<idstring>' identifiers for licenses outside that list (idstring: letters, digits, '.' and '-')
  * @param {import('@stoplight/spectral-core').RulesetFunctionContext} context
  * @returns {Array} Array of error objects
  */
@@ -8,7 +9,9 @@ const UNKNOWN = Symbol("unknown");
 const INVISIBLE = /[\u200b-\u200d\u2060\ufeff]/g;
 const UNPRINTABLE = /[\u0000-\u001f\u007f-\u009f\u200b-\u200d\u2028\u2029\u2060\ufeff]/g;
 const MAX_SHOWN = 80;
-const SUCH_AS = "such as 'Apache-2.0' or 'MIT'";
+const SUCH_AS = "such as 'Apache-2.0' or 'MIT', or a 'LicenseRef-' identifier";
+const LICENSE_REF_PREFIX = "LicenseRef-";
+const LICENSE_REF = /^LicenseRef-[A-Za-z0-9.-]+$/;
 
 const SPDX_IDS = `
 0BSD 3D-Slicer-1.0 AAL Abstyles AdaCore-doc Adobe-2006 Adobe-Display-PostScript Adobe-Glyph Adobe-Utopia ADSL
@@ -126,9 +129,16 @@ const shown = (value) => {
   return text.replace(UNPRINTABLE, (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`);
 };
 
+const licenseRefFor = (text) => {
+  if (text.slice(0, LICENSE_REF_PREFIX.length).toLowerCase() !== LICENSE_REF_PREFIX.toLowerCase()) return undefined;
+  const canonical = `${LICENSE_REF_PREFIX}${text.slice(LICENSE_REF_PREFIX.length)}`;
+  return LICENSE_REF.test(canonical) ? canonical : undefined;
+};
+
 const suggestionFor = (value) => {
-  const cleaned = value.replace(INVISIBLE, "").trim().toLowerCase();
-  return CANONICAL.get(cleaned) || CANONICAL.get(cleaned.replace(/\s+/g, "-"));
+  const trimmed = value.replace(INVISIBLE, "").trim();
+  const cleaned = trimmed.toLowerCase();
+  return CANONICAL.get(cleaned) || CANONICAL.get(cleaned.replace(/\s+/g, "-")) || licenseRefFor(trimmed);
 };
 
 const isEmpty = (value) => {
@@ -142,7 +152,7 @@ const problemOf = (value) => {
   if (typeof value !== "string") {
     return `The license name must be a string with an SPDX license identifier, ${SUCH_AS}.`;
   }
-  if (ALLOWED.has(value)) return undefined;
+  if (ALLOWED.has(value) || LICENSE_REF.test(value)) return undefined;
   const suggestion = suggestionFor(value);
   if (suggestion !== undefined) {
     return `The license name '${shown(value)}' must be the SPDX license identifier '${suggestion}'.`;

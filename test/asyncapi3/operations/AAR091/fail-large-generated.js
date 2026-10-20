@@ -18,7 +18,6 @@ for (let i = 0; i < SHARED_COUNT; i++) {
   const path = `components.channels.${name}`;
   if (i % 5 === 1) {
     sharedChannels[name] = { address: `shared.${i}`, description: `Shared ${i}.` };
-    expected.push([path, "missing", name]);
   } else if (i % 5 === 3) {
     sharedChannels[name] = { address: `shared.${i}`, messages: { retired: message(`retired${i}`) } };
     expected.push([`${path}.messages`, "empty", name]);
@@ -46,7 +45,9 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     case 2:
       if (c % 3 === 2) {
         channels[name] = { address: `retail.cdc.${domain}.${c}`, description: `Events of ${domain}.` };
-        expected.push([path, "missing", name]);
+      } else if (c % 3 === 1) {
+        channels[name] = { ...complete(domain, c), messages: { [domain]: message(`${domain}Retired`) } };
+        expected.push([`${path}.messages`, "empty", name]);
       } else {
         channels[name] = complete(domain, c);
       }
@@ -62,7 +63,6 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     case 4:
       if (c % 16 === 4) {
         channels[name] = null;
-        expected.push([path, "unusable", name]);
       } else {
         channels[name] = { ...complete(domain, c), "x-team": domain };
       }
@@ -78,7 +78,6 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     case 6:
       if (c % 12 === 6) {
         channels[name] = { $ref: `#/components/channels/retired${c}` };
-        expected.push([path, "unusable", name]);
       } else {
         channels[name] = { $ref: `./partners/${domain}.yaml#/channels/events` };
       }
@@ -86,7 +85,6 @@ for (let c = 0; c < CHANNEL_COUNT; c++) {
     default:
       if (c % 14 === 7) {
         channels[name] = { address: `retail.cdc.${domain}.${c}`, description: `Events of ${domain}.`, subscribe: { message: message(domain) } };
-        expected.push([path, "missing", name]);
       } else {
         channels[name] = complete(domain, c);
       }

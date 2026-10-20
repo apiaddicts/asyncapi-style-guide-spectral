@@ -21,15 +21,16 @@ const SPEC_PROTOCOLS = [
   "googlepubsub",
   "pulsar",
 ];
-const BINDING_PROTOCOLS = ["amqp1", "mqtt5", "nats", "sns", "sqs", "redis", "ros2"];
+const BINDING_PROTOCOLS = ["amqp1", "ibmmq-secure", "mqtt5", "nats", "sns", "sqs", "redis", "ros2"];
 const ALLOWED_PROTOCOLS = [...SPEC_PROTOCOLS, ...BINDING_PROTOCOLS].sort();
+const OPTION = "allowed-protocols";
 
 const ESCAPES = { "\n": "\\n", "\r": "\\r", "\t": "\\t" };
 const shown = (value) =>
   value.replace(/[\u0000-\u001f\u007f-\u009f\u00ad\u200b-\u200f\u2028\u2029\u2060\ufeff]/g, (char) => ESCAPES[char] || `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`);
 
-const EXPECTED_LIST = ALLOWED_PROTOCOLS.map((protocol) => `'${protocol}'`).join(", ");
-const notAllowed = (server, protocol) => `AAR084: Server '${shown(server)}' protocol '${shown(protocol)}' must be an allowed protocol: ${EXPECTED_LIST}.`;
+const listOf = (protocols) => protocols.map((protocol) => `'${shown(protocol)}'`).join(", ");
+const notAllowed = (server, protocol, protocols = ALLOWED_PROTOCOLS) => `AAR084: Server '${shown(server)}' protocol '${shown(protocol)}' must be an allowed protocol: ${listOf(protocols)}.`;
 const notString = (server) => `AAR084: Server '${shown(server)}' protocol must be a string.`;
 
 const PROTOCOL_CASES = {
@@ -208,29 +209,85 @@ const NON_STRING_VALUES = [9092, 0, -1, 1.5, true, false, [], ["kafka"], ["kafka
 const ABSENT_VALUES = [undefined, null];
 const NON_OBJECT_SERVERS = [null, "kafka", "kafka://broker.example.org:9092", 42, true, [], [{ url: "broker.example.org", host: "broker.example.org", protocol: "rabbitmq" }]];
 
-const INJECTED_OPTIONS = [
-  ["an allowed-protocols list", { "allowed-protocols": "kafka-ssl,rabbitmq,Kafka" }],
-  ["an allowed-protocols array", { "allowed-protocols": ["kafka-ssl"] }],
-  ["an allowed-protocols list that drops kafka", { "allowed-protocols": "mqtt" }],
+const IGNORED_OPTIONS = [
   ["a values list like the core enumeration", { values: ["kafka-ssl", "rabbitmq"] }],
   ["an empty values list", { values: [] }],
   ["a case-insensitive flag", { caseSensitive: false, "case-sensitive": false }],
   ["the generic pattern param", { pattern: ".*" }],
   ["the generic fields-to-apply param", { "fields-to-apply": "protocol" }],
   ["an allowed-bindings list", { "allowed-bindings": "kafka" }],
-  ["non-string values", { "allowed-protocols": 42, values: null, pattern: false }],
+  ["a camel-case allowedProtocols list", { allowedProtocols: "kafka-ssl,rabbitmq" }],
+  ["a singular allowed-protocol list", { "allowed-protocol": "kafka-ssl,rabbitmq" }],
+  ["an upper-case ALLOWED-PROTOCOLS list", { "ALLOWED-PROTOCOLS": "kafka-ssl,rabbitmq" }],
+  ["non-string values", { [OPTION]: 42, values: null, pattern: false }],
 ];
+
+const PROBE_PROTOCOLS = [
+  "kafka",
+  "kafka-secure",
+  "mqtt",
+  "amqp",
+  "ibmmq",
+  "ibmmq-secure",
+  "ws",
+  "Kafka",
+  "kafka-ssl",
+  "SASL_SSL",
+  "rabbitmq",
+  "tcp",
+  "mqtts",
+  "kafka streams",
+  "x-custom",
+  " kafka",
+  "",
+];
+
+const SHIPPED_ACCEPTED = ["kafka", "kafka-secure", "mqtt", "amqp", "ibmmq", "ibmmq-secure", "ws"];
+
+const PARAM_CASES = [
+  ["the shipped list written explicitly", ALLOWED_PROTOCOLS.join(","), SHIPPED_ACCEPTED, ALLOWED_PROTOCOLS],
+  ["the shipped list in another order", [...ALLOWED_PROTOCOLS].reverse().join(","), SHIPPED_ACCEPTED, [...ALLOWED_PROTOCOLS].reverse()],
+  ["the shipped list as an array", [...ALLOWED_PROTOCOLS], SHIPPED_ACCEPTED, ALLOWED_PROTOCOLS],
+  ["a single protocol", "kafka", ["kafka"], ["kafka"]],
+  ["the Kafka protocols", "kafka,kafka-secure", ["kafka", "kafka-secure"], ["kafka", "kafka-secure"]],
+  ["ibmmq without its secure variant", "ibmmq", ["ibmmq"], ["ibmmq"]],
+  ["padded entries", "  kafka-secure ,\tmqtt\n", ["kafka-secure", "mqtt"], ["kafka-secure", "mqtt"]],
+  ["an upper-case entry, compared as written", "Kafka", ["Kafka"], ["Kafka"]],
+  ["client-side and custom protocols", "kafka-ssl,SASL_SSL,rabbitmq,tcp", ["kafka-ssl", "SASL_SSL", "rabbitmq", "tcp"], ["kafka-ssl", "SASL_SSL", "rabbitmq", "tcp"]],
+  [
+    "the shipped list plus custom protocols",
+    `${ALLOWED_PROTOCOLS.join(",")},kafka-ssl,mqtts`,
+    [...SHIPPED_ACCEPTED, "kafka-ssl", "mqtts"],
+    [...ALLOWED_PROTOCOLS, "kafka-ssl", "mqtts"],
+  ],
+  ["an entry with an inner space", "kafka streams", ["kafka streams"], ["kafka streams"]],
+  ["an x- name", "x-custom", ["x-custom"], ["x-custom"]],
+  ["an array", ["kafka", "mqtt"], ["kafka", "mqtt"], ["kafka", "mqtt"]],
+  ["an array with comma-separated items and noise", ["kafka,amqp", 42, null, " ws ", {}, ["tcp"]], ["kafka", "amqp", "ws"], ["kafka", "amqp", "ws"]],
+  ["empty entries", "kafka,, ,mqtt,", ["kafka", "mqtt"], ["kafka", "mqtt"]],
+  ["repeated entries", "kafka,kafka , kafka,mqtt,mqtt", ["kafka", "mqtt"], ["kafka", "mqtt"]],
+  ["a protocol absent from the document", "coap", [], ["coap"]],
+  ["every probe protocol but the unlistable ones", PROBE_PROTOCOLS.slice(0, -2).join(","), PROBE_PROTOCOLS.slice(0, -2), PROBE_PROTOCOLS.slice(0, -2)],
+];
+
+const FALLBACK_VALUES = [undefined, "", "   ", ",", " , ,, ", "\t\n", null, 0, 42, true, false, {}, [], [""], [" , "], [null, 7], [{}], [["kafka"]], { [OPTION]: "mqtt" }];
 
 module.exports = {
   SPEC_PROTOCOLS,
   BINDING_PROTOCOLS,
   ALLOWED_PROTOCOLS,
+  OPTION,
   shown,
+  listOf,
   notAllowed,
   notString,
   PROTOCOL_CASES,
   NON_STRING_VALUES,
   ABSENT_VALUES,
   NON_OBJECT_SERVERS,
-  INJECTED_OPTIONS,
+  IGNORED_OPTIONS,
+  PROBE_PROTOCOLS,
+  SHIPPED_ACCEPTED,
+  PARAM_CASES,
+  FALLBACK_VALUES,
 };

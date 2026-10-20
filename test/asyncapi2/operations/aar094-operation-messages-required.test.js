@@ -16,14 +16,14 @@ const {
   traitCases,
   operationObjectCasesFor,
   IGNORED_OPTIONS,
-} = require("../../helpers/rules/aar095-operation-messages-required");
-const okExample = require("./AAR095/ok-example");
-const failExample = require("./AAR095/fail-example");
-const failSharedRef = require("./AAR095/fail-shared-ref");
-const okStructuralEdges = require("./AAR095/ok-structural-edges");
-const failLargeGenerated = require("./AAR095/fail-large-generated");
+} = require("../../helpers/rules/aar094-operation-messages-required");
+const okExample = require("./AAR094/ok-example");
+const failExample = require("./AAR094/fail-example");
+const failSharedRef = require("./AAR094/fail-shared-ref");
+const okStructuralEdges = require("./AAR094/ok-structural-edges");
+const failLargeGenerated = require("./AAR094/fail-large-generated");
 
-const RULE = "asa:AAR095";
+const RULE = "asa:AAR094";
 const OMIT = Symbol("omit");
 const NAME = NAMES[2];
 const AT = atOf(2);
@@ -109,7 +109,7 @@ const base = (channels, extra = {}) => ({
 const withOperation = (operation, channel = {}) => base({ [NAME]: { description: "Orders placed.", ...channel, [ACTION]: operation } });
 const withComponents = (extra) => ({ ...COMPONENTS, ...extra });
 
-describe("AAR095 (AsyncAPI 2.x): every publish and subscribe operation must declare at least one message", () => {
+describe("AAR094 (AsyncAPI 2.x): every publish and subscribe operation must declare at least one message", () => {
   let linter;
 
   beforeAll(async () => {
@@ -139,8 +139,8 @@ describe("AAR095 (AsyncAPI 2.x): every publish and subscribe operation must decl
 
   test("checks the operations map instead when the asyncapi value starts with a major version of 3 or more", async () => {
     for (const version of [3, "3", "3.0.0", "3.1.0", " 3.1.0", "4.0.0"]) {
-      const doc = withVersion(base({ [NAME]: { description: "Orders.", [ACTION]: {}, publish: { message: { oneOf: [] } } } }, { operations: { modern: { action: "send", messages: [USABLE] }, empty: {} } }), version);
-      expect(findingsOf(await linter.run(doc))).toEqual(v3Findings([["operations.empty", "missing", "empty"]]));
+      const doc = withVersion(base({ [NAME]: { description: "Orders.", [ACTION]: {}, publish: { message: { oneOf: [] } } } }, { operations: { modern: { action: "send", messages: [USABLE] }, empty: {}, emptyList: { action: "send", messages: [] } } }), version);
+      expect(findingsOf(await linter.run(doc))).toEqual(v3Findings([["operations.emptyList.messages", "empty", "emptyList"]]));
     }
   });
 
@@ -153,10 +153,10 @@ describe("AAR095 (AsyncAPI 2.x): every publish and subscribe operation must decl
 
   test("names the operation and the channel in every message", async () => {
     expect(findingsOf(await linter.run(base({ [NAME]: { publish: { operationId: "publishOrder" }, subscribe: { message: { oneOf: [] } } } })))).toEqual([
-      [`channels.${NAME}.publish`, `AAR095: The publish operation of channel '${NAME}' must declare a 'message'.`],
-      [`${AT}.message`, `AAR095: The 'message' of the subscribe operation of channel '${NAME}' must declare at least one message.`],
+      [`channels.${NAME}.publish`, `AAR094: The publish operation of channel '${NAME}' must declare a 'message'.`],
+      [`${AT}.message`, `AAR094: The 'message' of the subscribe operation of channel '${NAME}' must declare at least one message.`],
     ]);
-    expect(findingsOf(await linter.run(withOperation(null)))).toEqual([[AT, `AAR095: The subscribe operation of channel '${NAME}' must be an object declaring a 'message'.`]]);
+    expect(findingsOf(await linter.run(withOperation(null)))).toEqual([[AT, `AAR094: The subscribe operation of channel '${NAME}' must be an object declaring a 'message'.`]]);
   });
 
   describe("message values", () => {
@@ -360,7 +360,7 @@ describe("AAR095 (AsyncAPI 2.x): every publish and subscribe operation must decl
         ])
       );
       expect(results.map(([, message]) => message).filter((m) => /[\u0000-\u001f\u200b]/.test(m))).toEqual([]);
-      expect(results.map(([, message]) => message)).toContain("AAR095: The publish operation of channel 'orders\\nplaced' must declare a 'message'.");
+      expect(results.map(([, message]) => message)).toContain("AAR094: The publish operation of channel 'orders\\nplaced' must declare a 'message'.");
     });
   });
 

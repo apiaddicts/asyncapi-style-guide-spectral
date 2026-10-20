@@ -62,6 +62,8 @@ spectral lint your-asyncapi.yaml
 
 ## Rules Reference
 
+Each rule is documented, with noncompliant and compliant examples for AsyncAPI 2.x and 3.x, in [`docs/resources`](docs/resources) (`docs/resources/AARxxx.md`).
+
 ### Security Rules
 
 | Rule | Severity | Description |
@@ -72,9 +74,9 @@ spectral lint your-asyncapi.yaml
 | **AAR043** | `warn` | Each channel operation should define a security scheme. |
 | **AAR064** | `error` | In the Kafka context, each server protocol must be `kafka` or `kafka-ssl` (not `https`, `wss`, etc.). |
 | **AAR081** | `error` | Server names must match the configured naming pattern (default: letters, digits, `-` and `_`). |
-| **AAR082** | `error` | Server names must be approved server types (default: `eventstreams`, `kafka`). |
+| **AAR082** | `error` | Server names must start with an approved server type, alone or followed by `-` or `_` (default: `eventstreams`, `kafka`). |
 | **AAR083** | `error` | Server hosts must match the enterprise host pattern (default: `quality.es` or one of its subdomains). |
-| **AAR084** | `error` | Server protocols must be AsyncAPI transport protocols, such as `kafka`, `kafka-secure`, `amqp` or `mqtt`. |
+| **AAR084** | `error` | Server protocols must be allowed transport protocols (configurable via `allowed-protocols`; default: every AsyncAPI protocol). |
 | **AAR085** | `error` | Server `protocolVersion` values must be approved versions (default: `3.3.0`). |
 | **AAR086** | `error` | Every server must declare a non-empty `url` or `host`, `protocol` and `protocolVersion`. |
 | **AAR089** | `error` | Security schemes applied by servers and operations must be of approved types (default: `scramSha512`, `X509`). |
@@ -93,13 +95,13 @@ spectral lint your-asyncapi.yaml
 | **AAR058** | `warn` | If a channel name contains `.retry.`, it must follow `<topicOriginal>.<consumerGroup>.retry.<n>`. |
 | **AAR061** | `warn` | Producing and consuming operations must share the same `x-scs-function-name` so the JAPI generator links them as one processor. |
 | **AAR062** | `error` | Each consuming operation (v2 `subscribe`, v3 `receive`) must declare a consumer group via `x-scs-group` or `bindings.kafka.groupId`. |
-| **AAR087** | `error` | Every channel must declare a non-empty `address`, `description` and `messages` (2.x: `description` and a `publish` or `subscribe` message). |
+| **AAR087** | `error` | Every channel must declare `address` (`null` if dynamic), a non-empty `description` and `messages` (2.x: `description` and a `publish` or `subscribe` operation). |
 | **AAR088** | `error` | Every channel must list at least one server of the root `servers` object. |
 | **AAR090** | `error` | Every channel must declare a `kafka` binding. |
-| **AAR091** | `error` | Every channel must declare at least one message in `messages`. |
+| **AAR091** | `error` | A 3.x channel's `messages` must include at least one message. |
 | **AAR092** | `error` | Every operation must declare a non-empty `action`, `channel` and `summary` (2.x: `summary`). |
 | **AAR093** | `error` | Every operation must declare a `kafka` binding, directly or through its traits. |
-| **AAR095** | `error` | Every operation must declare at least one message in `messages` (2.x: in `message`). |
+| **AAR094** | `error` | Every operation must declare at least one message (2.x: in `message`; a 3.x operation without `messages` takes its channel's). |
 
 ### Format / Documentation Rules
 
@@ -127,17 +129,17 @@ spectral lint your-asyncapi.yaml
 | **AAR063** | `error` | The root `asyncapi` version must be one of the versions allowed by the organization (configurable via `allowedVersions`; default `2.6.0,3.0.0,3.1.0`). |
 | **AAR065** | `warn` | Message identifiers (`messageId` in 2.x, message key in 3.x) and message names must follow the configured naming convention (default `camelCase`). |
 | **AAR066** | `warn` | Tag names must follow the configured naming convention (default `kebab-case`). |
-| **AAR068** | `error` | Binding keys must be protocols from the allowed list. |
-| **AAR069** | `error` | Protocol bindings must declare the fields required for their protocol. |
+| **AAR068** | `error` | Binding keys must be protocols from the allowed list that exist in the document's AsyncAPI version. |
+| **AAR069** | `error` | Protocol bindings must declare the fields required for their protocol, optionally conditioned on a binding field. |
 | **AAR070** | `error` | Every `bindingVersion` must match the configured pattern (default: a semantic version such as `0.4.0`). |
 | **AAR071** | `warn` | Every message must provide at least one example with a `payload` (or `headers` when it has no payload). |
-| **AAR073** | `warn` | Every message must apply at least one message trait. |
+| **AAR073** | `warn` | Every message must apply at least one message trait and every configured `required-traits` (default: none). |
 | **AAR075** | `error` | The `info` object must declare a non-empty `title`, `version` and `description`. |
 | **AAR076** | `error` | Every Tag object must declare a non-empty `name` and `description`. |
 | **AAR077** | `error` | The `info` object must declare a `contact` with a non-empty `name` and `email`. |
 | **AAR078** | `error` | The `info` object must declare a `license` with a non-empty `name` and `url`. |
 | **AAR079** | `error` | Every External Documentation object must declare a non-empty `description` and `url`. |
-| **AAR080** | `error` | The license `name` must be an [SPDX](https://spdx.org/licenses/) license identifier, such as `Apache-2.0` or `MIT`. |
+| **AAR080** | `error` | The license `name` must be an [SPDX](https://spdx.org/licenses/) license identifier, such as `Apache-2.0` or `MIT`, or a `LicenseRef-` identifier. |
 
 ### Schema Rules
 
@@ -153,7 +155,7 @@ spectral lint your-asyncapi.yaml
 | **AAR060** | `error` | A message's `contentType` (and the document-level `defaultContentType`) must match `application/*+avro`. |
 | **AAR067** | `error` | Message and message trait `contentType` values, and `defaultContentType`, must be valid MIME types from the allowed list. |
 | **AAR072** | `error` | Message example `payload` and `headers` must be valid against the message schemas. |
-| **AAR074** | `warn` | Schema property names and Avro field names must follow the configured naming convention (default `camelCase`). |
+| **AAR074** | `warn` | Schema property names and Avro field names must follow the configured naming convention (default `camelCase`); headers are not checked. |
 
 ---
 
@@ -216,17 +218,17 @@ The ruleset includes 55 custom Spectral functions for complex validation logic:
 | `asa-server-name-pattern` | AAR081 | Validates server names against the configured pattern |
 | `asa-server-types` | AAR082 | Validates server names against the approved server types |
 | `asa-server-host-pattern` | AAR083 | Validates server hosts against the configured pattern |
-| `asa-server-protocol-valid-values` | AAR084 | Checks server protocols against the AsyncAPI transport protocols |
+| `asa-server-protocol-valid-values` | AAR084 | Validates server protocols against the allowed transport protocols |
 | `asa-server-protocol-version-valid-values` | AAR085 | Validates server protocol versions against the approved versions |
 | `asa-server-attributes-required` | AAR086 | Checks the mandatory server fields |
 | `asa-channel-attributes-required` | AAR087 | Checks the mandatory channel fields |
 | `asa-channel-servers-required` | AAR088 | Checks that every channel lists a root server |
 | `asa-channel-security-valid-values` | AAR089 | Validates applied security scheme types against the approved mechanisms |
 | `asa-channel-bindings-required` | AAR090 | Checks that every channel declares a kafka binding |
-| `asa-channel-messages-required` | AAR091 | Checks that every channel declares at least one message |
+| `asa-channel-messages-required` | AAR091 | Checks that 3.x channel messages include at least one message |
 | `asa-operation-attributes-required` | AAR092 | Checks the mandatory operation fields |
 | `asa-operation-bindings-required` | AAR093 | Checks that every operation declares a kafka binding |
-| `asa-operation-messages-required` | AAR095 | Checks that every operation declares at least one message |
+| `asa-operation-messages-required` | AAR094 | Checks that every operation declares at least one message |
 
 ---
 
@@ -259,7 +261,7 @@ apiaddicts-asyncapi-style-guide-spectral/
 │   ├── helpers/
 │   │   ├── utils.js            # linterForRule and small shared helpers
 │   │   ├── casing.js           # Casing fixtures shared by AAR065, AAR066 and AAR074
-│   │   ├── required-fields.js  # Fixtures shared by the required-field rules (AAR075-AAR080, AAR086-AAR088, AAR091, AAR092, AAR095)
+│   │   ├── required-fields.js  # Fixtures shared by the required-field rules (AAR075-AAR080, AAR086-AAR088, AAR091, AAR092, AAR094)
 │   │   └── rules/              # One fixture module per rule (aarNNN-<name>.js)
 │   ├── asyncapi2/           # AsyncAPI 2.x tests
 │   │   ├── security/        # Security rule tests
@@ -339,6 +341,8 @@ This Spectral ruleset is a direct translation of the [sonarasyncapi-rules](https
 | AAR062 | `asa:AAR062` | BUG | MAJOR |
 | AAR063 | `asa:AAR063` | BUG | MAJOR |
 | AAR064 | `asa:AAR064` | VULNERABILITY | CRITICAL |
+
+AAR065 and later rules exist only in this Spectral ruleset. ApiQuality registers its style rules (AAR065, AAR066, AAR071, AAR073, AAR074) as CODE_SMELL / MINOR, AAR089 as VULNERABILITY / CRITICAL and the rest as BUG / MAJOR.
 
 ---
 

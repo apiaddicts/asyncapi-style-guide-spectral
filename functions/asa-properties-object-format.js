@@ -1,7 +1,10 @@
 /**
  * @param {object} document - The whole AsyncAPI document (given: "$", resolved: false)
  * @param {object} options - Function options
- * @param {string} options["naming-convention"] - camelCase (default), snake_case, kebab-case or PascalCase
+ * @param {string} options["naming-convention"] - camelCase (default), snake_case, kebab-case or PascalCase. Applies to
+ *   the schema property names and Avro record field names of message payloads, 2.x channel parameter schemas and
+ *   components.schemas. Message and message trait headers are not checked, nor a components.schemas entry that is
+ *   the target of a headers reference, unless that schema is also reached from a checked place
  * @param {import('@stoplight/spectral-core').RulesetFunctionContext} context
  * @returns {Array} Array of error objects
  */
@@ -210,8 +213,25 @@ module.exports = (document, options, context) => {
       .filter((trait) => trait !== undefined && isObject(trait.node));
   };
 
+  const headerTargets = new Set();
+
+  const multiFormatTargets = (node, path) => {
+    const target = follow(node, path);
+    if (target === undefined) return [];
+    const targets = [JSON.stringify(target.path)];
+    if (isV3 && isObject(target.node) && has(target.node, "schemaFormat") && has(target.node, "schema")) {
+      const schema = follow(target.node.schema, [...target.path, "schema"]);
+      if (schema !== undefined) targets.push(JSON.stringify(schema.path));
+    }
+    return targets;
+  };
+
+  const skipHeaders = (node, path) => {
+    multiFormatTargets(node, path).forEach((target) => headerTargets.add(target));
+  };
+
   const visitTrait = (trait, path) => {
-    if (has(trait, "headers")) walkMultiFormat(trait.headers, [...path, "headers"]);
+    if (has(trait, "headers")) skipHeaders(trait.headers, [...path, "headers"]);
   };
 
   const pending = [];
@@ -224,7 +244,7 @@ module.exports = (document, options, context) => {
     }
     const traits = traitsOf(message, path);
     traits.forEach((trait) => visitTrait(trait.node, trait.path));
-    if (has(message, "headers")) walkMultiFormat(message.headers, [...path, "headers"]);
+    if (has(message, "headers")) skipHeaders(message.headers, [...path, "headers"]);
     if (!has(message, "payload")) return;
     if (isV3) {
       walkMultiFormat(message.payload, [...path, "payload"]);
@@ -295,7 +315,6 @@ module.exports = (document, options, context) => {
 
   const components = document.components;
   if (isObject(components)) {
-    entriesOf(components.schemas).forEach(([key, schema]) => walkMultiFormat(schema, ["components", "schemas", key]));
     entriesOf(components.channels).forEach(([key, channel]) => visitChannel(channel, ["components", "channels", key]));
     entriesOf(components.messages).forEach(([key, message]) => visitMessage(message, ["components", "messages", key]));
     entriesOf(components.messageTraits).forEach(([key, trait]) => {
@@ -320,6 +339,14 @@ module.exports = (document, options, context) => {
     const target = follow(node, path);
     if (target === undefined) continue;
     (kind === "message" ? visitMessage : visitChannel)(target.node, target.path);
+  }
+
+  if (isObject(components)) {
+    entriesOf(components.schemas).forEach(([key, schema]) => {
+      const path = ["components", "schemas", key];
+      if (multiFormatTargets(schema, path).some((target) => headerTargets.has(target))) return;
+      walkMultiFormat(schema, path);
+    });
   }
 
   return errors;

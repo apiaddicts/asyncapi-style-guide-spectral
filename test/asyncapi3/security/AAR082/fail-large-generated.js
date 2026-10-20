@@ -23,9 +23,11 @@ for (let s = 0; s < SERVER_COUNT; s++) {
   const domain = DOMAINS[s % DOMAINS.length];
   const [protocol, port, pathname] = PROTOCOLS[s % PROTOCOLS.length];
   let name;
+  let configuredBase = null;
   switch (s % 6) {
     case 0:
-      name = `${domain}-cluster-${s % 300}`;
+      configuredBase = `${domain}-cluster-${s % 300}`;
+      name = s % 12 === 0 ? configuredBase : `${configuredBase}_dr`;
       break;
     case 1:
       name = `${domain}Server${s}`;
@@ -46,8 +48,8 @@ for (let s = 0; s < SERVER_COUNT; s++) {
     s % 4 === 3
       ? { $ref: `#/components/servers/shared${s % COMPONENT_COUNT}` }
       : { host: `${domain}-${s}.quality.es${port}`, protocol, ...(pathname ? { pathname } : {}), title: `${domain} server ${s}` };
-  expected.push(`servers.${name}`);
-  if (!CONFIGURED_TYPES.includes(name)) expectedConfigured.push(`servers.${name}`);
+  if (s % 6 !== 2) expected.push(`servers.${name}`);
+  if (!CONFIGURED_TYPES.includes(configuredBase)) expectedConfigured.push(`servers.${name}`);
 }
 servers.eventstreams = { host: "es-kafka-bootstrap.apps-pro.quality.es:443", protocol: "kafka-secure" };
 servers.kafka = { host: "kafka.quality.es:9092", protocol: "kafka" };

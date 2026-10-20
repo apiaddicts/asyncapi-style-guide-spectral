@@ -5,6 +5,7 @@ const {
   notApproved,
   NAME_CASES,
   PROBE_NAMES,
+  SHIPPED_ACCEPTED,
   PARAM_CASES,
   FALLBACK_VALUES,
   NON_OBJECT_SERVER_MAPS,
@@ -38,8 +39,10 @@ const FAIL_EXAMPLE_NAMES = [
   "Kafka",
   "EventStreams",
   "event-streams",
-  "kafka-secure",
-  "kafka-dev",
+  "kafkapro",
+  "kafka.pro",
+  "pro-kafka",
+  "Kafka-pro",
   "mqttTelemetry",
   "rabbitmq",
   "x-legacy",
@@ -51,11 +54,11 @@ const FAIL_EXAMPLE_NAMES = [
 ];
 const FAIL_EXAMPLE = FAIL_EXAMPLE_NAMES.map((name) => [`servers.${name}`, notApproved(name)]).sort(byPathAndMessage);
 
-const FAIL_SHARED_REF = ["production", "x-dr", "partner", "cyclic", "Kafka"]
+const FAIL_SHARED_REF = ["production", "x-dr", "partner", "cyclic", "Kafka", "kafka~1dr", "kafka/eu"]
   .map((name) => [`components.x-server-catalog.eu/west~primary.${name}`, notApproved(name)])
   .sort(byPathAndMessage);
 
-describe("AAR082 (AsyncAPI 3.x): every server name must be an approved server type", () => {
+describe("AAR082 (AsyncAPI 3.x): every server name must start with an approved server type", () => {
   let linter;
 
   beforeAll(async () => {
@@ -63,7 +66,7 @@ describe("AAR082 (AsyncAPI 3.x): every server name must be an approved server ty
   });
 
   describe("shipped list", () => {
-    test("passes a realistic document whose servers are named eventstreams and kafka, whatever the names used elsewhere", async () => {
+    test("passes a realistic document whose servers are named eventstreams and kafka, alone or with a - or _ suffix, whatever the names used elsewhere", async () => {
       expect(findingsOf(await linter.run(okExample))).toEqual([]);
     });
 
@@ -100,6 +103,25 @@ describe("AAR082 (AsyncAPI 3.x): every server name must be an approved server ty
     test("checks a whole matrix and reports exactly the names outside the list", async () => {
       const names = [...NAME_CASES.approved, ...NAME_CASES.rejected];
       expect(pathsOf(await linter.run(matrixDoc(names)))).toEqual(NAME_CASES.rejected.map((name) => `servers.${name}`).sort());
+      expect(pathsOf(await linter.run(withVersion(matrixDoc(names), "3.1.0")))).toEqual(NAME_CASES.rejected.map((name) => `servers.${name}`).sort());
+    });
+
+    test("passes one server per type and environment, and reports the names that only look like one", async () => {
+      const names = ["kafka-dev", "kafka-pre", "kafka-pro", "kafka_dr", "eventstreams-pre", "eventstreams_pro", "kafkapro", "pro-kafka", "Kafka-pro", "kafka.pro", "production"];
+      expect(findingsOf(await linter.run(matrixDoc(names)))).toEqual(
+        ["kafkapro", "pro-kafka", "Kafka-pro", "kafka.pro", "production"].map((name) => [`servers.${name}`, notApproved(name)]).sort(byPathAndMessage)
+      );
+    });
+
+    test("reports names with ~0, ~1 or slashes at their own key, also when channels reference them", async () => {
+      const names = ["kafka~1eu", "kafka~0dr", "eu~1west/a", "a/b~c", "kafka-x~1y"];
+      const doc = base({
+        servers: Object.fromEntries(names.map((name) => [name, { host: "kafka.quality.es:9092", protocol: "kafka" }])),
+        channels: { events: { address: "events", servers: names.map((name) => ({ $ref: `#/servers/${name.replace(/~/g, "~0").replace(/\//g, "~1")}` })) } },
+      });
+      const results = only(await linter.run(doc));
+      expect(findingsOf(results)).toEqual(["kafka~1eu", "kafka~0dr", "eu~1west/a", "a/b~c"].map((name) => [`servers.${name}`, notApproved(name)]).sort(byPathAndMessage));
+      results.forEach((r) => expect(r.path).toEqual(["servers", r.path[1]]));
     });
 
     test.each(ENTRY_VALUES.map((value) => [value]))("checks the name whatever the server value, here %p", async (value) => {
@@ -174,21 +196,33 @@ describe("AAR082 (AsyncAPI 3.x): every server name must be an approved server ty
       return PROBE_NAMES.filter((name) => !reported.has(`servers.${name}`));
     };
 
-    test("the shipped list accepts exactly eventstreams and kafka", async () => {
-      expect(await acceptedUnder(undefined)).toEqual(DEFAULT_TYPES);
-      expect(await acceptedUnder("eventstreams,kafka")).toEqual(DEFAULT_TYPES);
+    test("the shipped list accepts exactly eventstreams and kafka, alone or followed by - or _", async () => {
+      expect(DEFAULT_TYPES).toEqual(["eventstreams", "kafka"]);
+      expect(await acceptedUnder(undefined)).toEqual(SHIPPED_ACCEPTED);
+      expect(await acceptedUnder("eventstreams,kafka")).toEqual(SHIPPED_ACCEPTED);
     });
 
-    test.each(PARAM_CASES)("%s accepts exactly the listed names and names the list in every message", async (_, value, accepted, types) => {
+    test.each(PARAM_CASES)("%s accepts exactly the listed types and their suffixed names, and names the list in every message", async (_, value, accepted, types) => {
       expect(await acceptedUnder(value)).toEqual(accepted);
       const configured = await withTypes(value);
       const results = only(await configured.run(matrixDoc(PROBE_NAMES)));
       results.forEach((r) => expect(r.message).toBe(notApproved(r.path[1], types)));
     });
 
-    test("a compliant document fails once the list no longer holds its names", async () => {
+    test.each(PARAM_CASES)("%s behaves alike on AsyncAPI 3.1.0", async (_, value, accepted) => {
+      const configured = await withTypes(value);
+      const reported = new Set(pathsOf(await configured.run(withVersion(matrixDoc(PROBE_NAMES), "3.1.0"))));
+      expect(PROBE_NAMES.filter((name) => !reported.has(`servers.${name}`))).toEqual(accepted);
+    });
+
+    test("a compliant document fails once the list no longer holds its types", async () => {
       const configured = await withTypes("eventstreams");
-      expect(findingsOf(await configured.run(okExample))).toEqual([["servers.kafka", notApproved("kafka", ["eventstreams"])]]);
+      expect(findingsOf(await configured.run(okExample))).toEqual(
+        [
+          ["servers.kafka", notApproved("kafka", ["eventstreams"])],
+          ["servers.kafka-dr", notApproved("kafka-dr", ["eventstreams"])],
+        ].sort(byPathAndMessage)
+      );
     });
 
     test("a failing document passes once the list holds every name it uses that can be approved", async () => {
@@ -201,12 +235,22 @@ describe("AAR082 (AsyncAPI 3.x): every server name must be an approved server ty
       const doc = base({
         servers: {
           production: { host: "kafka-pro.quality.es:9093", protocol: "kafka-secure" },
+          "production-eu": { host: "kafka-pro-eu.quality.es:9093", protocol: "kafka-secure" },
           staging: { host: "kafka-pre.quality.es:9093", protocol: "kafka-secure" },
+          staging_dr: { host: "kafka-pre-dr.quality.es:9093", protocol: "kafka-secure" },
           development: { host: "kafka-dev.quality.es:9092", protocol: "kafka" },
           kafka: { host: "kafka.quality.es:9092", protocol: "kafka" },
+          "kafka-production": { host: "kafka.quality.es:9092", protocol: "kafka" },
         },
       });
-      expect(findingsOf(await configured.run(doc))).toEqual([["servers.kafka", notApproved("kafka", ["production", "staging", "development"])]]);
+      const types = ["production", "staging", "development"];
+      expect(findingsOf(await configured.run(doc))).toEqual(
+        [
+          ["servers.kafka", notApproved("kafka", types)],
+          ["servers.kafka-production", notApproved("kafka-production", types)],
+        ].sort(byPathAndMessage)
+      );
+      expect(findingsOf(await configured.run(withVersion(doc, "3.1.0")))).toEqual(findingsOf(await configured.run(doc)));
     });
 
     test("applies the configured list to a very large document and a very long list", async () => {

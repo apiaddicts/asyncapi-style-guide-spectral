@@ -6,6 +6,7 @@ const {
   messagesFor,
   findingsFor,
   allMissingFor,
+  reportedEmptyV3,
   messageRef,
   shapesFor,
   channelComponentsFor,
@@ -37,14 +38,11 @@ const withVersion = (doc, version) => ({ ...doc, asyncapi: version });
 
 const FAIL = findings([
   ["channels.noAddress", "missing", "noAddress", "address"],
-  ["channels.nullAddress.address", "empty", "nullAddress", "address"],
   ["channels.blankAddress.address", "empty", "blankAddress", "address"],
   ["channels.noDescription", "missing", "noDescription", "description"],
   ["channels.emptyDescription.description", "empty", "emptyDescription", "description"],
   ["channels.zeroWidthDescription.description", "empty", "zeroWidthDescription", "description"],
   ["channels.noMessages", "missing", "noMessages", "messages"],
-  ["channels.emptyMessages.messages", "empty", "emptyMessages", "messages"],
-  ["channels.nullMessages.messages", "empty", "nullMessages", "messages"],
   ...allMissing("channels.emptyChannel", "emptyChannel"),
   ["channels.v2Style", "missing", "v2Style", "address"],
   ["channels.v2Style", "missing", "v2Style", "messages"],
@@ -52,17 +50,14 @@ const FAIL = findings([
   ...allMissing("channels.upperCase", "upperCase"),
   ...allMissing("channels.extensionsOnly", "extensionsOnly"),
   ["channels.addressInBindings", "missing", "addressInBindings", "address"],
-  ["channels.tripReplies.address", "empty", "tripReplies", "address"],
   ["channels.referencedByOperation", "missing", "referencedByOperation", "messages"],
   ["channels.nullChannel", "unusable", "nullChannel"],
   ["channels.stringChannel", "unusable", "stringChannel"],
   ["channels.listChannel", "unusable", "listChannel"],
   ["channels.x-partner", "missing", "x-partner", "description"],
   ["channels.chargerTelemetry", "missing", "chargerTelemetry", "description"],
-  ["channels.chargerTelemetry.messages", "empty", "chargerTelemetry", "messages"],
   ["components.channels.sharedHub", "missing", "sharedHub", "address"],
   ["components.channels.legacyQueue.address", "empty", "legacyQueue", "address"],
-  ["components.channels.legacyQueue.messages", "empty", "legacyQueue", "messages"],
   ["components.channels.nullShared", "unusable", "nullShared"],
 ]);
 
@@ -72,7 +67,6 @@ const SHARED = findings([
   ["components.channels.hop2", "missing", "hop2", "messages"],
   ["components.channels.carrier/eu~dr.address", "empty", "carrier/eu~dr", "address"],
   ["components.channels.north america", "missing", "north america", "address"],
-  ["components.channels.recepci\u00f3n.messages", "empty", "recepci\u00f3n", "messages"],
   ["channels.dangling", "unusable", "dangling"],
   ["components.channels.loopA", "unusable", "loopA"],
   ["components.channels.loopB", "unusable", "loopB"],
@@ -90,7 +84,6 @@ const SHARED = findings([
   ["x-channel-list.0", "missing", "0", "messages"],
   ["channels.fieldRefs.address", "empty", "fieldRefs", "address"],
   ["channels.fieldRefs.description", "empty", "fieldRefs", "description"],
-  ["channels.fieldRefs.messages", "empty", "fieldRefs", "messages"],
 ]);
 
 const base = (channels, extra = {}) => ({
@@ -136,9 +129,9 @@ describe("AAR087 (AsyncAPI 3.x): every channel must populate address, descriptio
       const doc = withVersion(base({ [NAME]: minimal, legacy: { description: "Orders.", subscribe: { message: messageRef("orderPlaced") } }, empty: {} }), version);
       expect(findingsOf(await linter.run(doc))).toEqual(
         v2Findings([
-          [AT, "noMessage", NAME],
+          [AT, "noOperation", NAME],
           ["channels.empty", "missing", "empty", "description"],
-          ["channels.empty", "noMessage", "empty"],
+          ["channels.empty", "noOperation", "empty"],
         ])
       );
     }
@@ -152,23 +145,44 @@ describe("AAR087 (AsyncAPI 3.x): every channel must populate address, descriptio
   });
 
   test("names the channel and the field in every message", async () => {
-    expect(findingsOf(await linter.run(withChannel({ address: null, description: "Orders." })))).toEqual([
+    expect(findingsOf(await linter.run(withChannel({ address: "", description: "Orders." })))).toEqual([
       [AT, "AAR087: Channel 'orderPlaced' must declare 'messages'."],
       [`${AT}.address`, "AAR087: The 'address' of channel 'orderPlaced' must not be empty."],
     ]);
     expect(findingsOf(await linter.run(withChannel(null)))).toEqual([[AT, "AAR087: Channel 'orderPlaced' must be an object declaring 'address', 'description' and 'messages'."]]);
   });
 
+  test.each(["3.0.0", "3.1.0"])("on AsyncAPI %s, accepts a null address, which marks it as unknown, and only requires messages to be present, leaving its content to AAR091", async (version) => {
+    const doc = withVersion(
+      base({
+        dynamic: { address: null, description: "Dynamic address.", messages: { orderPlaced: messageRef("orderPlaced") } },
+        emptyMap: { address: "orders.empty", description: "Empty map.", messages: {} },
+        nullMap: { address: "orders.null", description: "Null map.", messages: null },
+        listMap: { address: "orders.list", description: "List.", messages: [] },
+        danglingMap: { address: "orders.dangling", description: "Dangling.", messages: { $ref: "#/components/x-message-maps/missing" } },
+        dynamicWithoutMessages: { address: null, description: "Dynamic address without messages." },
+        blankAddress: { address: " ", description: "Blank address.", messages: {} },
+      }),
+      version
+    );
+    expect(findingsOf(await linter.run(doc))).toEqual(
+      findings([
+        ["channels.dynamicWithoutMessages", "missing", "dynamicWithoutMessages", "messages"],
+        ["channels.blankAddress.address", "empty", "blankAddress", "address"],
+      ])
+    );
+  });
+
   describe("field values", () => {
     const FIELD_CASES = CHANNEL_VALUE_CASES.flatMap(([label, value, populated]) => FIELDS.map((field) => [field, label, value, populated]));
 
     test.each(FIELD_CASES)("%s set to %s", async (field, _, value, populated) => {
-      const expected = populated ? [] : [[`${AT}.${field}`, MSG.empty(NAME, field)]];
+      const expected = reportedEmptyV3(field, value, populated) ? [[`${AT}.${field}`, MSG.empty(NAME, field)]] : [];
       expect(findingsOf(await linter.run(withChannel({ ...minimal, [field]: value })))).toEqual(expected);
     });
 
     test.each(CHANNEL_VALUE_CASES)("address, description and messages all set to %s", async (_, value, populated) => {
-      const expected = populated ? [] : findings(FIELDS.map((field) => [`${AT}.${field}`, "empty", NAME, field]));
+      const expected = findings(FIELDS.filter((field) => reportedEmptyV3(field, value, populated)).map((field) => [`${AT}.${field}`, "empty", NAME, field]));
       expect(findingsOf(await linter.run(withChannel({ address: value, description: value, messages: value })))).toEqual(expected);
     });
 
@@ -188,7 +202,6 @@ describe("AAR087 (AsyncAPI 3.x): every channel must populate address, descriptio
       expect(findingsOf(await linter.run(doc))).toEqual(
         findings([
           ["components.channels.shared", "missing", "shared", "description"],
-          ["components.channels.shared.messages", "empty", "shared", "messages"],
           ["components.channels.gone", "unusable", "gone"],
         ])
       );

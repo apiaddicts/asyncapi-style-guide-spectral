@@ -33,6 +33,8 @@ module.exports = {
       security: [{ kafkaMtls: [] }],
       "x-server-name": "production",
     },
+    "kafka-dr": { url: "kafka-dr.quality.es:9092", protocol: "kafka", description: "Disaster recovery Kafka cluster.", security: [{ kafkaMtls: [] }] },
+    eventstreams_pre: { url: "es-kafka-bootstrap-eventstreams.apps-pre.quality.es:443", protocol: "kafka-secure", description: "Pre-production Event Streams." },
   },
   channels: {
     "payments.cdc.payment.created.v1": {
