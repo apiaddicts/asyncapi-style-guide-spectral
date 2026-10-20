@@ -98,6 +98,7 @@ spectral lint your-asyncapi.yaml
 | **AAR090** | `error` | Every channel must declare a `kafka` binding. |
 | **AAR091** | `error` | Every channel must declare at least one message in `messages`. |
 | **AAR092** | `error` | Every operation must declare a non-empty `action`, `channel` and `summary` (2.x: `summary`). |
+| **AAR093** | `error` | Every operation must declare a `kafka` binding, directly or through its traits. |
 
 ### Format / Documentation Rules
 
@@ -166,7 +167,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 53 custom Spectral functions for complex validation logic:
+The ruleset includes 54 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -223,6 +224,7 @@ The ruleset includes 53 custom Spectral functions for complex validation logic:
 | `asa-channel-bindings-required` | AAR090 | Checks that every channel declares a kafka binding |
 | `asa-channel-messages-required` | AAR091 | Checks that every channel declares at least one message |
 | `asa-operation-attributes-required` | AAR092 | Checks the mandatory operation fields |
+| `asa-operation-bindings-required` | AAR093 | Checks that every operation declares a kafka binding |
 
 ---
 

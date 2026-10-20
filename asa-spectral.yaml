@@ -68,6 +68,7 @@ functions:
   - asa-channel-bindings-required
   - asa-channel-messages-required
   - asa-operation-attributes-required
+  - asa-operation-bindings-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -1067,3 +1068,13 @@ rules:
     given: "$"
     then:
       function: asa-operation-attributes-required
+
+  asa:AAR093:
+    description: "Every operation must declare a kafka binding, directly or through its traits."
+    message: "AAR093: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar093"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-operation-bindings-required
