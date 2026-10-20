@@ -99,6 +99,7 @@ spectral lint your-asyncapi.yaml
 | **AAR091** | `error` | Every channel must declare at least one message in `messages`. |
 | **AAR092** | `error` | Every operation must declare a non-empty `action`, `channel` and `summary` (2.x: `summary`). |
 | **AAR093** | `error` | Every operation must declare a `kafka` binding, directly or through its traits. |
+| **AAR095** | `error` | Every operation must declare at least one message in `messages` (2.x: in `message`). |
 
 ### Format / Documentation Rules
 
@@ -167,7 +168,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 54 custom Spectral functions for complex validation logic:
+The ruleset includes 55 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -225,6 +226,7 @@ The ruleset includes 54 custom Spectral functions for complex validation logic:
 | `asa-channel-messages-required` | AAR091 | Checks that every channel declares at least one message |
 | `asa-operation-attributes-required` | AAR092 | Checks the mandatory operation fields |
 | `asa-operation-bindings-required` | AAR093 | Checks that every operation declares a kafka binding |
+| `asa-operation-messages-required` | AAR095 | Checks that every operation declares at least one message |
 
 ---
 
@@ -257,7 +259,7 @@ apiaddicts-asyncapi-style-guide-spectral/
 │   ├── helpers/
 │   │   ├── utils.js            # linterForRule and small shared helpers
 │   │   ├── casing.js           # Casing fixtures shared by AAR065, AAR066 and AAR074
-│   │   ├── required-fields.js  # Fixtures shared by the required-field rules (AAR075-AAR080, AAR086-AAR088, AAR091, AAR092)
+│   │   ├── required-fields.js  # Fixtures shared by the required-field rules (AAR075-AAR080, AAR086-AAR088, AAR091, AAR092, AAR095)
 │   │   └── rules/              # One fixture module per rule (aarNNN-<name>.js)
 │   ├── asyncapi2/           # AsyncAPI 2.x tests
 │   │   ├── security/        # Security rule tests

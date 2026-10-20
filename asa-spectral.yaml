@@ -69,6 +69,7 @@ functions:
   - asa-channel-messages-required
   - asa-operation-attributes-required
   - asa-operation-bindings-required
+  - asa-operation-messages-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -1078,3 +1079,13 @@ rules:
     given: "$"
     then:
       function: asa-operation-bindings-required
+
+  asa:AAR095:
+    description: "Every operation must declare at least one message."
+    message: "AAR095: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar095"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-operation-messages-required
