@@ -68,7 +68,7 @@ Each rule is documented, with noncompliant and compliant examples for AsyncAPI 2
 
 | Rule | Severity | Description |
 |------|----------|-------------|
-| **AAR001** | `error` | A secure protocol (https, wss, amqps, etc.) is mandatory for all servers. |
+| **AAR001** | `error` | Server protocols must match the secure protocol pattern (`pattern`; default `^(https\|wss\|amqps\|kafka-secure\|secure-mqtt)$`). |
 | **AAR008** | `error` | The `servers` section must be defined in the AsyncAPI document. |
 | **AAR018** | `warn` | Security schemes must be among allowed types and must be complete (all required fields). |
 | **AAR043** | `warn` | Each channel operation should define a security scheme. |
@@ -174,6 +174,7 @@ The ruleset includes 55 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
+| `asa-server-protocol-secure` | AAR001 | Validates that each root server protocol matches the secure protocol pattern |
 | `asa-check-security-schemes` | AAR018 | Validates security scheme types and completeness |
 | `asa-description-format` | AAR036 | Checks description starts uppercase, ends with period |
 | `asa-duplicate-operation-id` | AAR013 | Detects duplicate operationId values across channels |
@@ -287,7 +288,7 @@ apiaddicts-asyncapi-style-guide-spectral/
 npm test
 
 # Run a specific test file
-npx jest test/asyncapi2/security/aar001.test.js
+npx jest test/asyncapi2/security/aar001-server-protocol-secure.test.js
 ```
 
 ---
