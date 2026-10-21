@@ -40,6 +40,7 @@ functions:
   - asa-channel-naming-convention
   - asa-avro-namespace-pattern
   - asa-numeric-format
+  - asa-server-protocol-secure
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -48,20 +49,20 @@ rules:
 
   # ---------------------------------------------------------------------------
   # AAR001 - MandatoryHttpsProtocol
-  # Protocol HTTPS is mandatory for all servers.
+  # Every server must use a secure protocol matching the configured pattern.
   # Severity: error (CRITICAL / VULNERABILITY in SonarQube)
   # ---------------------------------------------------------------------------
   asa:AAR001:
-    description: "Servers must use a secure protocol."
-    message: "AAR001: Server must use a secure protocol (https, wss, amqps, etc). Found '{{value}}'."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar001"
+    description: "The protocol of every server in the root 'servers' object must match the configured secure protocol pattern (default: https, wss, amqps, kafka-secure or secure-mqtt)."
+    message: "AAR001: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR001.md"
     severity: error
     given: "$.servers[*]"
     then:
       field: "protocol"
-      function: pattern
+      function: asa-server-protocol-secure
       functionOptions:
-        match: "^(https|wss|amqps|kafka-secure|secure-mqtt)$"
+        pattern: "^(https|wss|amqps|kafka-secure|secure-mqtt)$"
 
   # ---------------------------------------------------------------------------
   # AAR008 - DefinedServer

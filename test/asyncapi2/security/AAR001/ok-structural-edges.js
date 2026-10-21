@@ -1,0 +1,62 @@
+module.exports = {
+  asyncapi: "2.6.0",
+  info: { title: "Retail Structural Edges", version: "1.0.0", description: "Nodes the rule must skip.", "x-protocol": "http" },
+  "x-servers": { rogue: { url: "rogue.quality.es:9092", protocol: "kafka" } },
+  servers: {
+    nullServer: null,
+    scalarServer: "kafka",
+    numberServer: 9093,
+    booleanServer: false,
+    arrayServer: [{ url: "legacy.quality.es", protocol: "http" }, "tcp"],
+    emptyServer: {},
+    missingProtocol: { url: "kafka.quality.es:9092", description: "No protocol at all." },
+    nullProtocol: { url: "kafka.quality.es:9092", protocol: null },
+    numericProtocol: { url: "kafka.quality.es:9092", protocol: 9092 },
+    booleanProtocol: { url: "kafka.quality.es:9092", protocol: true },
+    listProtocol: { url: "kafka.quality.es:9092", protocol: ["http"] },
+    mapProtocol: { url: "kafka.quality.es:9092", protocol: { name: "http" } },
+    extensionProtocolOnly: { url: "kafka.quality.es:9093", protocol: "kafka-secure", "x-protocol": "kafka", "x-protocols": ["http", "ws"] },
+    protocolVersionOnly: { url: "kafka.quality.es:9092", protocolVersion: "http" },
+    capitalizedField: { url: "kafka.quality.es:9093", protocol: "kafka-secure", Protocol: "http", PROTOCOL: "ws" },
+    bindingsAndVariables: {
+      url: "{scheme}://mqtt.quality.es:8883",
+      protocol: "secure-mqtt",
+      variables: { scheme: { enum: ["mqtts"], default: "mqtts" }, protocol: { enum: ["mqtt", "tcp"], default: "mqtt" } },
+      bindings: {
+        mqtt: { clientId: "store-gateway", lastWill: { topic: "stores/status", qos: 1, message: "offline", retain: false }, bindingVersion: "0.1.0" },
+        kafka: { protocol: "SASL_PLAINTEXT", schemaRegistryUrl: "http://10.0.0.1:8081", bindingVersion: "0.4.0" },
+      },
+    },
+    danglingRef: { $ref: "#/components/servers/doesNotExist" },
+    selfRef: { $ref: "#/servers/selfRef" },
+    secureRef: { $ref: "#/components/servers/secureShared" },
+  },
+  channels: {
+    "stores/{storeId}/status": {
+      servers: ["nullServer", "missingProtocol", "notDeclared"],
+      parameters: { storeId: { schema: { type: "string", enum: ["http", "ws"], default: "http" } } },
+      bindings: { ws: { headers: { type: "object", properties: { protocol: { type: "string", const: "ws" } } }, bindingVersion: "0.1.0" } },
+      subscribe: {
+        operationId: "receiveStoreStatus",
+        bindings: { sns: { consumers: [{ protocol: "http", endpoint: { url: "http://hooks.quality.es" }, rawMessageDelivery: false }] } },
+        message: {
+          headers: { type: "object", properties: { protocol: { type: "string", default: "http" } } },
+          payload: { type: "object", properties: { servers: { type: "object", properties: { protocol: { const: "kafka" } } } } },
+          examples: [{ headers: { protocol: "http" }, payload: { servers: { protocol: "kafka" } } }],
+        },
+      },
+    },
+  },
+  components: {
+    servers: {
+      secureShared: { url: "shared.quality.es:9093", protocol: "kafka-secure" },
+      unreferencedHttp: { url: "unreferenced.quality.es", protocol: "http" },
+      unreferencedKafka: { url: "unreferenced.quality.es:9092", protocol: "kafka" },
+      scalar: "tcp",
+      list: ["http"],
+    },
+    schemas: { Server: { type: "object", properties: { protocol: { type: "string", default: "http", enum: ["ws"] } } } },
+    messages: { serverMoved: { payload: { type: "object", properties: { protocol: { type: "string", examples: ["kafka"] } } } } },
+    messageTraits: { transport: { headers: { type: "object", properties: { protocol: { type: "string", enum: ["mqtt"] } } } } },
+  },
+};

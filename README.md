@@ -66,7 +66,7 @@ spectral lint your-asyncapi.yaml
 
 | Rule | Severity | Description |
 |------|----------|-------------|
-| **AAR001** | `error` | A secure protocol (https, wss, amqps, etc.) is mandatory for all servers. |
+| **AAR001** | `error` | Server protocols must match the secure protocol pattern (`pattern`; default `^(https\|wss\|amqps\|kafka-secure\|secure-mqtt)$`). |
 | **AAR008** | `error` | The `servers` section must be defined in the AsyncAPI document. |
 | **AAR018** | `warn` | Security schemes must be among allowed types and must be complete (all required fields). |
 | **AAR043** | `warn` | Each channel operation should define a security scheme. |
@@ -138,7 +138,7 @@ All rules support **AsyncAPI 2.x** by default. Rules that differ structurally fo
 
 ## Custom Functions
 
-The ruleset includes 24 custom Spectral functions for complex validation logic:
+The ruleset includes 26 custom Spectral functions for complex validation logic:
 
 | Function | Used by | Purpose |
 |----------|---------|---------|
@@ -167,6 +167,7 @@ The ruleset includes 24 custom Spectral functions for complex validation logic:
 | `asa-subscribe-group-required` | AAR062 | Validates that each consuming operation declares a consumer group |
 | `asa-asyncapi-version-allowed` | AAR063 | Validates that the root `asyncapi` version is one of the allowed versions |
 | `asa-kafka-protocol-required` | AAR064 | Validates that each server protocol is `kafka` or `kafka-ssl` |
+| `asa-server-protocol-secure` | AAR001 | Validates that each root server protocol matches the secure protocol pattern |
 
 ---
 
@@ -221,7 +222,7 @@ apiaddicts-asyncapi-style-guide-spectral/
 npm test
 
 # Run a specific test file
-npx jest test/asyncapi2/security/aar001.test.js
+npx jest test/asyncapi2/security/aar001-server-protocol-secure.test.js
 ```
 
 ---
