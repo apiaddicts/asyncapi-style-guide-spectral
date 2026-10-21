@@ -40,6 +40,36 @@ functions:
   - asa-channel-naming-convention
   - asa-avro-namespace-pattern
   - asa-numeric-format
+  - asa-message-format
+  - asa-tags-format
+  - asa-content-type-values
+  - asa-binding-types
+  - asa-binding-required-properties
+  - asa-binding-version-format
+  - asa-message-examples-required
+  - asa-message-examples-schema
+  - asa-message-traits-required
+  - asa-properties-object-format
+  - asa-info-attributes-required
+  - asa-tag-properties-required
+  - asa-contact-attributes-required
+  - asa-license-attributes-required
+  - asa-external-docs-attributes-required
+  - asa-license-valid-values
+  - asa-server-host-pattern
+  - asa-server-types
+  - asa-server-name-pattern
+  - asa-server-protocol-valid-values
+  - asa-server-protocol-version-valid-values
+  - asa-server-attributes-required
+  - asa-channel-attributes-required
+  - asa-channel-servers-required
+  - asa-channel-security-valid-values
+  - asa-channel-bindings-required
+  - asa-channel-messages-required
+  - asa-operation-attributes-required
+  - asa-operation-bindings-required
+  - asa-operation-messages-required
 extends: ["spectral:asyncapi"]
 rules:
   # ===========================================================================
@@ -54,7 +84,7 @@ rules:
   asa:AAR001:
     description: "Servers must use a secure protocol."
     message: "AAR001: Server must use a secure protocol (https, wss, amqps, etc). Found '{{value}}'."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar001"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR001.md"
     severity: error
     given: "$.servers[*]"
     then:
@@ -71,7 +101,7 @@ rules:
   asa:AAR008:
     description: "The 'servers' section should be defined."
     message: "AAR008: The AsyncAPI document must define at least one server in the 'servers' object."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar008"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR008.md"
     severity: error
     given: "$"
     then:
@@ -86,7 +116,7 @@ rules:
   asa:AAR018:
     description: "The security scheme must be among those allowed by the organization and must be complete."
     message: "AAR018: The security scheme must be among those allowed by the organization and must be complete"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar018"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR018.md"
     severity: warn
     given: "$.components.securitySchemes[*]"
     then:
@@ -115,7 +145,7 @@ rules:
   asa:AAR043:
     description: "It is recommended to add the security scheme to be used to each channel."
     message: "AAR043: Channel '{{property}}' should define a security scheme in its operations or bindings."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar043"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR043.md"
     severity: warn
     given: "$.channels[*][publish,subscribe]"
     then:
@@ -134,7 +164,7 @@ rules:
   asa:AAR009:
     description: "Each operation should have at least one tag."
     message: "AAR009: Operation must declare at least one tag."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar009"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR009.md"
     severity: error
     given:
       - "$.channels[*][publish,subscribe]"
@@ -151,7 +181,7 @@ rules:
   asa:AAR010:
     description: "Tags should be documented with a description."
     message: "AAR010: Tag '{{value}}' should have a 'description' field."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar010"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR010.md"
     severity: warn
     given:
       - "$.channels[*][publish,subscribe].tags[*]"
@@ -164,7 +194,7 @@ rules:
   asa:AAR040:
     description: "Any server referenced by a channel must be defined in the root 'servers' object."
     message: "AAR040: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar040"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR040.md"
     severity: warn
     given: "$"
     then:
@@ -178,7 +208,7 @@ rules:
   asa:AAR041:
     description: "It is recommended to add the servers and channels to components for reusability."
     message: "AAR041: Consider defining reusable server and channel references in 'components'."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar041"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR041.md"
     severity: info
     given: "$.components"
     then:
@@ -199,7 +229,7 @@ rules:
   asa:AAR011:
     description: "License should be documented in the info object."
     message: "AAR011: The 'info' object must contain a 'license' field."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar011"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR011.md"
     severity: warn
     given: "$.info"
     then:
@@ -214,7 +244,7 @@ rules:
   asa:AAR012:
     description: "Each operation should declare an operationId."
     message: "AAR012: Operation must declare an 'operationId'."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar012"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR012.md"
     severity: warn
     given:
       - "$.channels[*][publish,subscribe]"
@@ -231,7 +261,7 @@ rules:
   asa:AAR013:
     description: "There cannot be two operations with the same operationId."
     message: "AAR013: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar013"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR013.md"
     severity: error
     given: "$"
     then:
@@ -245,7 +275,7 @@ rules:
   asa:AAR015:
     description: "API should indicate the contact in the info object."
     message: "AAR015: The 'info' object must contain a 'contact' section."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar015"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR015.md"
     severity: warn
     given: "$.info"
     then:
@@ -259,7 +289,7 @@ rules:
   # ---------------------------------------------------------------------------
   asa:AAR016:
     description: "Contact object must be complete (name, url, email)."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar016"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR016.md"
     severity: warn
     given: "$.info.contact"
     then:
@@ -281,7 +311,7 @@ rules:
   asa:AAR017:
     description: "The license object must have the 'url' field."
     message: "AAR017: The 'license' object must include a 'url' field."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar017"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR017.md"
     severity: warn
     given: "$.info.license"
     then:
@@ -296,7 +326,7 @@ rules:
   asa:AAR019:
     description: "The AsyncAPI document should define an 'id' field."
     message: "AAR019: The AsyncAPI document should define an 'id' field."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar019"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR019.md"
     severity: warn
     given: "$"
     then:
@@ -311,7 +341,7 @@ rules:
   asa:AAR021:
     description: "Provide a summary for each operation."
     message: "AAR021: Operation must have a 'summary' field."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar021"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR021.md"
     severity: warn
     given:
       - "$.channels[*][publish,subscribe]"
@@ -328,7 +358,7 @@ rules:
   asa:AAR022:
     description: "Operation description must differ from its summary."
     message: "AAR022: The 'description' field must not be identical to the 'summary' field."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar022"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR022.md"
     severity: warn
     given: "$.channels[*][publish,subscribe]"
     then:
@@ -346,7 +376,7 @@ rules:
   asa:AAR024:
     description: "Each message must declare a contentType unless it is an Avro message (auto-detected via schemaFormat)."
     message: "AAR024: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar024"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR024.md"
     severity: error
     resolved: false
     given: "$"
@@ -361,7 +391,7 @@ rules:
   asa:AAR026:
     description: "Message schemas are recommended to be found in components."
     message: "AAR026: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar026"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR026.md"
     severity: info
     given: "$.channels[*][publish,subscribe].message"
     then:
@@ -375,7 +405,7 @@ rules:
   asa:AAR029:
     description: "Each channel and operation must have a description."
     message: "AAR029: This element must have a 'description' field that explains its purpose."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar029"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR029.md"
     severity: warn
     given:
       - "$.channels[*]"
@@ -393,7 +423,7 @@ rules:
   asa:AAR031:
     description: "All examples in message objects should follow payload and headers schemas."
     message: "AAR031: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar031"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR031.md"
     severity: warn
     given: "$.components.messages[*]"
     then:
@@ -408,7 +438,7 @@ rules:
   asa:AAR032:
     description: "Numeric properties should declare a value restriction (minimum, maximum, format, enum or const)."
     message: "AAR032: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar032"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR032.md"
     severity: warn
     given:
       - "$.components.schemas[*]..properties[*]"
@@ -427,7 +457,7 @@ rules:
   asa:AAR033:
     description: "String properties should declare a value restriction (minLength, maxLength, pattern, enum, const or format)."
     message: "AAR033: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar033"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR033.md"
     severity: warn
     given:
       - "$.components.schemas[*]..properties[*]"
@@ -446,7 +476,7 @@ rules:
   asa:AAR034:
     description: "Numeric types require a valid format (int32, int64, float, double)."
     message: "AAR034: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar034"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR034.md"
     severity: warn
     given:
       - "$.components.schemas[*]..properties[*]"
@@ -465,7 +495,7 @@ rules:
   asa:AAR035:
     description: "It is recommended to have a title per message."
     message: "AAR035: Message should have a 'title' field."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar035"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR035.md"
     severity: info
     given:
       - "$.components.messages[*]"
@@ -483,7 +513,7 @@ rules:
   asa:AAR036:
     description: "The description must begin with a capital letter and end with a period."
     message: "AAR036: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar036"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR036.md"
     severity: warn
     given:
       - "$.info"
@@ -503,7 +533,7 @@ rules:
   asa:AAR037:
     description: "You must specify the version of the binding."
     message: "AAR037: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar037"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR037.md"
     severity: warn
     given:
       - "$.servers[*].bindings[*]"
@@ -521,7 +551,7 @@ rules:
   asa:AAR042:
     description: "It is recommended to have a unique identifier per message."
     message: "AAR042: Message should have a 'messageId' field for unique identification."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar042"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR042.md"
     severity: info
     given:
       - "$.components.messages[*]"
@@ -538,7 +568,7 @@ rules:
   asa:AAR050:
     description: "The info.title field must exist and not be empty."
     message: "AAR050: The 'info' object must contain a non-empty 'title' field."
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar050"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR050.md"
     severity: error
     given: "$.info"
     then:
@@ -548,7 +578,7 @@ rules:
   asa:AAR051:
     description: "Every operation must be identified by a camelCase name: the 'operationId' field in AsyncAPI 2.x, the key of the operation in the 'operations' map in AsyncAPI 3.x."
     message: "AAR051: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar051"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR051.md"
     severity: error
     resolved: false
     given: "$"
@@ -558,7 +588,7 @@ rules:
   asa:AAR052:
     description: "The namespace of a named Avro schema (record, enum or fixed) is required and must follow the corporate pattern: org.madrid.<cod_poaps>.<classification>.<domain> for application schemas, or org.madrid.common.<domain> for common schemas."
     message: "AAR052: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar052"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR052.md"
     severity: error
     resolved: false
     given:
@@ -571,7 +601,7 @@ rules:
   asa:AAR053:
     description: "The channel/topic name must follow the corporate naming pattern: <cod_poaps>.<classification>.<domain>.<origin>.<scope>[.<version>]."
     message: "AAR053: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar053"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR053.md"
     severity: error
     given: "$.channels[*]"
     then:
@@ -582,7 +612,7 @@ rules:
   asa:AAR054:
     description: "The second segment of the channel/topic name (classification) must be one of: cdc (Change Data Capture), cmd (Command that triggers a domain modification) or sys (internal system topic, not intended for public consumption)."
     message: "AAR054: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar054"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR054.md"
     severity: error
     given: "$.channels[*]"
     then:
@@ -593,7 +623,7 @@ rules:
   asa:AAR055:
     description: "When the x-payload-references extension exists, each item must contain three required, non-empty fields: 'subject' (schema name in the registry), 'ref' (SVN URL of the .avsc file) and 'referenceName' (fully qualified Avro type name, e.g. org.madrid.core.payload.alumnos.Ciudadano)."
     message: "AAR055: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar055"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR055.md"
     severity: warn
     given: "$..x-payload-references"
     then:
@@ -602,7 +632,7 @@ rules:
   asa:AAR056:
     description: "When the payload uses Avro (schemaFormat contains 'application/vnd.apache.avro'), schemaFormat must be exactly 'application/vnd.apache.avro;version=1.9.0', the standard version used across the style guide examples."
     message: "AAR056: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar056"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR056.md"
     severity: error
     given: "$..schemaFormat"
     then:
@@ -611,7 +641,7 @@ rules:
   asa:AAR057:
     description: "At least one channel must be documented as an error topic following the pattern '<topicOriginal>.[<consumerGroup>.]error.<n>' (e.g. 'beca.cmd.alumnos.solicitud.beca.grupo1.error.1'), required by Spring for error-topic routing. The consumer group is part of the name only when there is more than one consumer."
     message: "AAR057: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar057"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR057.md"
     severity: error
     given: "$"
     then:
@@ -620,7 +650,7 @@ rules:
   asa:AAR058:
     description: "If a channel name contains '.retry.', it must follow the pattern '<topicOriginal>.<consumerGroup>.retry.<n>' (e.g. 'beca.cmd.alumnos.solicitud.beca.grupo1.retry.1'), required by Spring for automatic retry reprocessing."
     message: "AAR058: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar058"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR058.md"
     severity: warn
     given: "$.channels[*]"
     then:
@@ -629,7 +659,7 @@ rules:
   asa:AAR059:
     description: "The 'name' field of every Avro record (including records nested inside fields[].type, unions, arrays and maps) must be in CamelCase with an uppercase first letter (e.g. SolicitudComunicacion, ResultadoComunicacionMail)."
     message: "AAR059: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar059"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR059.md"
     severity: error
     resolved: false
     given: "$..[?(@ && @.type=='record')]"
@@ -639,7 +669,7 @@ rules:
   asa:AAR060:
     description: "A message's contentType (and the document-level defaultContentType) must match 'application/*+avro' so Confluent's KafkaAvroDeserializer can deserialize the payload."
     message: "AAR060: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar060"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR060.md"
     severity: error
     resolved: false
     given: "$"
@@ -649,7 +679,7 @@ rules:
   asa:AAR061:
     description: "Paired processor operations (v2 publish/subscribe, v3 send/receive) must share the same x-scs-function-name so the JAPI generator links them as a single processor."
     message: "AAR061: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar061"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR061.md"
     severity: warn
     resolved: false
     given: "$"
@@ -659,7 +689,7 @@ rules:
   asa:AAR062:
     description: "Each consuming operation (v2 subscribe, v3 action: receive) must declare a consumer group via x-scs-group or bindings.kafka.groupId so the messaging platform can bind it to a durable, load-balanced consumer group."
     message: "AAR062: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar062"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR062.md"
     severity: error
     resolved: false
     given: "$"
@@ -669,7 +699,7 @@ rules:
   asa:AAR063:
     description: "The root asyncapi version must be one of the versions allowed by the organization. The allow-list is configurable via the allowedVersions option (comma-separated); default: 2.6.0,3.0.0,3.1.0."
     message: "AAR063: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar063"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR063.md"
     severity: error
     resolved: false
     given: "$"
@@ -681,7 +711,7 @@ rules:
   asa:AAR064:
     description: "In the Kafka context, each server protocol must be 'kafka' or 'kafka-ssl'. Other protocols such as https or wss are not permitted."
     message: "AAR064: {{error}}"
-    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral#aar064"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR064.md"
     severity: error
     resolved: false
     given:
@@ -689,3 +719,379 @@ rules:
       - "$.components.servers[*]"
     then:
       function: asa-kafka-protocol-required
+
+  asa:AAR065:
+    description: "Message identifiers (messageId in AsyncAPI 2.x, the message key in 3.x) and message names, including those in message traits, must follow the configured naming convention (default: camelCase)."
+    message: "AAR065: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR065.md"
+    severity: warn
+    resolved: false
+    given: "$"
+    then:
+      function: asa-message-format
+      functionOptions:
+        naming-convention: camelCase
+
+  asa:AAR066:
+    description: "Tag names must follow the configured naming convention (default: kebab-case)."
+    message: "AAR066: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR066.md"
+    severity: warn
+    resolved: false
+    given: "$"
+    then:
+      function: asa-tags-format
+      functionOptions:
+        naming-convention: kebab-case
+
+  asa:AAR067:
+    description: "Message and message trait contentType values, and the defaultContentType, must be valid MIME types from the allowed list."
+    message: "AAR067: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR067.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-content-type-values
+      functionOptions:
+        allowed-content-types: "application/json,application/*+json,application/xml,application/*+xml,text/xml,text/plain,text/csv,application/octet-stream,application/avro,application/*+avro,application/protobuf,application/x-protobuf,application/cbor,application/yaml"
+
+  asa:AAR068:
+    description: "Binding keys must be protocols from the allowed list (default: all AsyncAPI protocol bindings) that exist in the document's AsyncAPI version."
+    message: "AAR068: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR068.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-binding-types
+      functionOptions:
+        allowed-bindings: "http,ws,kafka,anypointmq,amqp,amqp1,mqtt,mqtt5,nats,jms,sns,solace,sqs,stomp,redis,mercure,ibmmq,googlepubsub,pulsar,ros2"
+
+  asa:AAR069:
+    description: "Protocol bindings must declare the fields required for their protocol (default: the fields mandatory in the AsyncAPI binding specifications)."
+    message: "AAR069: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR069.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-binding-required-properties
+      functionOptions:
+        required_binding_props: >-
+          server.jms.jmsConnectionFactory,
+          server.jms.properties.name,
+          server.jms.properties.value,
+          channel.amqp.exchange?is!=queue,
+          channel.amqp.queue?is=queue,
+          channel.googlepubsub.schemaSettings,
+          channel.googlepubsub.schemaSettings.encoding,
+          channel.googlepubsub.schemaSettings.name,
+          channel.ibmmq.queue?destinationType=queue,
+          channel.ibmmq.queue.objectName,
+          channel.pulsar.namespace,
+          channel.pulsar.persistence,
+          channel.sns.name,
+          channel.sns.ordering.type,
+          channel.sns.policy.statements,
+          channel.sns.policy.statements.effect,
+          channel.sns.policy.statements.principal,
+          channel.sns.policy.statements.action,
+          channel.sqs.queue,
+          channel.sqs.queue.name,
+          channel.sqs.queue.fifoQueue,
+          channel.sqs.queue.redrivePolicy.deadLetterQueue,
+          channel.sqs.queue.policy.statements,
+          channel.sqs.queue.policy.statements.effect,
+          channel.sqs.queue.policy.statements.principal,
+          channel.sqs.queue.policy.statements.action,
+          channel.sqs.deadLetterQueue.name,
+          channel.sqs.deadLetterQueue.fifoQueue,
+          channel.sqs.deadLetterQueue.redrivePolicy.deadLetterQueue,
+          channel.sqs.deadLetterQueue.policy.statements,
+          channel.sqs.deadLetterQueue.policy.statements.effect,
+          channel.sqs.deadLetterQueue.policy.statements.principal,
+          channel.sqs.deadLetterQueue.policy.statements.action,
+          operation.ros2.role,
+          operation.ros2.node,
+          operation.sns.consumers,
+          operation.sns.consumers.protocol,
+          operation.sns.consumers.endpoint,
+          operation.sns.consumers.rawMessageDelivery,
+          operation.sns.consumers.redrivePolicy.deadLetterQueue,
+          operation.sqs.queues,
+          operation.sqs.queues.name,
+          operation.sqs.queues.redrivePolicy.deadLetterQueue,
+          operation.sqs.queues.policy.statements,
+          operation.sqs.queues.policy.statements.effect,
+          operation.sqs.queues.policy.statements.principal,
+          operation.sqs.queues.policy.statements.action,
+          message.googlepubsub.schema.name
+
+  asa:AAR070:
+    description: "The bindingVersion of every binding must match the configured pattern (default: a semantic version such as 0.4.0)."
+    message: "AAR070: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR070.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-binding-version-format
+      functionOptions:
+        pattern: "^\\d+\\.\\d+\\.\\d+$"
+
+  asa:AAR071:
+    description: "Every message must provide at least one example with a payload, or with headers when the message has no payload."
+    message: "AAR071: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR071.md"
+    severity: warn
+    resolved: false
+    given: "$"
+    then:
+      function: asa-message-examples-required
+
+  asa:AAR072:
+    description: "Message example payloads and headers must be valid against the message schemas, read according to their schemaFormat."
+    message: "AAR072: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR072.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-message-examples-schema
+
+  asa:AAR073:
+    description: "Every message must apply at least one message trait and every trait required by the organization (default: none)."
+    message: "AAR073: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR073.md"
+    severity: warn
+    resolved: false
+    given: "$"
+    then:
+      function: asa-message-traits-required
+      functionOptions:
+        required-traits: ""
+
+  asa:AAR074:
+    description: "Schema property names and Avro record field names must follow the configured naming convention (default: camelCase). Message headers are not checked."
+    message: "AAR074: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR074.md"
+    severity: warn
+    resolved: false
+    given: "$"
+    then:
+      function: asa-properties-object-format
+      functionOptions:
+        naming-convention: camelCase
+
+  asa:AAR075:
+    description: "The info object must declare a non-empty title, version and description."
+    message: "AAR075: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR075.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-info-attributes-required
+
+  asa:AAR076:
+    description: "Every Tag object must declare a non-empty name and description."
+    message: "AAR076: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR076.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-tag-properties-required
+
+  asa:AAR077:
+    description: "The info object must declare a contact object with a non-empty name and email."
+    message: "AAR077: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR077.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-contact-attributes-required
+
+  asa:AAR078:
+    description: "The info object must declare a license object with a non-empty name and url."
+    message: "AAR078: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR078.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-license-attributes-required
+
+  asa:AAR079:
+    description: "Every External Documentation object must declare a non-empty description and url."
+    message: "AAR079: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR079.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-external-docs-attributes-required
+
+  asa:AAR080:
+    description: "The license name must be an SPDX license identifier, such as Apache-2.0 or MIT, or a LicenseRef- identifier for a license outside the SPDX list."
+    message: "AAR080: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR080.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-license-valid-values
+
+  asa:AAR081:
+    description: "Every server name, the key of each entry in servers, must match the organization's naming pattern (default: letters, digits, hyphens and underscores)."
+    message: "AAR081: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR081.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-server-name-pattern
+      functionOptions:
+        pattern: "^[A-Za-z0-9_-]+$"
+
+  asa:AAR082:
+    description: "Every server name, the key of each entry in servers, must start with one of the configured server types, alone or followed by '-' or '_' (default: eventstreams, kafka)."
+    message: "AAR082: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR082.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-server-types
+      functionOptions:
+        allowed-server-types: "eventstreams,kafka"
+
+  asa:AAR083:
+    description: "Every server host, including every value its server variables can take, must match the enterprise host pattern (default: quality.es or one of its subdomains)."
+    message: "AAR083: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR083.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-server-host-pattern
+      functionOptions:
+        pattern: "^([a-zA-Z0-9-]+\\.)?quality\\.es$"
+
+  asa:AAR084:
+    description: "Every server protocol must be one of the configured transport protocols (default: every protocol named by AsyncAPI and its bindings)."
+    message: "AAR084: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR084.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-server-protocol-valid-values
+      functionOptions:
+        allowed-protocols: "amqp,amqp1,amqps,anypointmq,googlepubsub,http,https,ibmmq,ibmmq-secure,jms,kafka,kafka-secure,mercure,mqtt,mqtt5,nats,pulsar,redis,ros2,secure-mqtt,sns,solace,sqs,stomp,stomps,ws,wss"
+
+  asa:AAR085:
+    description: "Every server protocolVersion must be one of the configured approved versions (default: 3.3.0)."
+    message: "AAR085: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR085.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-server-protocol-version-valid-values
+      functionOptions:
+        valid-versions: "3.3.0"
+
+  asa:AAR086:
+    description: "Every server must declare a non-empty url or host, protocol and protocolVersion."
+    message: "AAR086: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR086.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-server-attributes-required
+
+  asa:AAR087:
+    description: "Every channel must declare an address (null when it is dynamic), a non-empty description and messages; in AsyncAPI 2.x, a non-empty description and a publish or subscribe operation."
+    message: "AAR087: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR087.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-channel-attributes-required
+
+  asa:AAR088:
+    description: "Every channel must declare servers listing at least one server defined in the root servers object."
+    message: "AAR088: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR088.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-channel-servers-required
+
+  asa:AAR089:
+    description: "Every security scheme applied by servers, operations and operation traits must be of one of the configured approved types (default: scramSha512, X509)."
+    message: "AAR089: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR089.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-channel-security-valid-values
+      functionOptions:
+        allowed-security-types: "scramSha512,X509"
+
+  asa:AAR090:
+    description: "Every channel must declare a kafka binding."
+    message: "AAR090: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR090.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-channel-bindings-required
+
+  asa:AAR091:
+    description: "Every AsyncAPI 3.x channel that declares messages must include at least one message."
+    message: "AAR091: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR091.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-channel-messages-required
+
+  asa:AAR092:
+    description: "Every operation must declare a non-empty action, channel and summary."
+    message: "AAR092: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR092.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-operation-attributes-required
+
+  asa:AAR093:
+    description: "Every operation must declare a kafka binding, directly or through its traits."
+    message: "AAR093: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR093.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-operation-bindings-required
+
+  asa:AAR094:
+    description: "Every operation must declare at least one message; an AsyncAPI 3.x operation that omits messages takes those of its channel."
+    message: "AAR094: {{error}}"
+    documentationUrl: "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/blob/main/docs/resources/AAR094.md"
+    severity: error
+    resolved: false
+    given: "$"
+    then:
+      function: asa-operation-messages-required

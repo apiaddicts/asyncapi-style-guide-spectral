@@ -1,0 +1,155 @@
+module.exports = {
+  asyncapi: "2.6.0",
+  id: "urn:es:quality:logistics:event-mesh",
+  info: {
+    title: "Quality Logistics Event Mesh",
+    version: "4.3.0",
+    description: "Shipments, fleet telemetry, warehouse robots, customs filings and billing events across every broker of the logistics group.",
+    contact: { name: "Integration Platform", email: "integration@quality.es", url: "https://integration.quality.es" },
+    license: { name: "Apache-2.0", url: "https://www.apache.org/licenses/LICENSE-2.0" },
+    "x-protocol": "rabbitmq",
+  },
+  defaultContentType: "application/json",
+  servers: {
+    shipmentsKafka: {
+      url: "kafka.quality.es:9092",
+      protocol: "kafka",
+      protocolVersion: "3.6.0",
+      description: "Shipment events cluster.",
+      bindings: { kafka: { schemaRegistryUrl: "https://registry.quality.es", schemaRegistryVendor: "confluent", bindingVersion: "0.4.0" } },
+    },
+    shipmentsKafkaSecure: {
+      url: "kafka.quality.es:9093",
+      protocol: "kafka-secure",
+      protocolVersion: "3.6.0",
+      security: [{ saslScram: [] }],
+      "x-protocol": "SASL_SSL",
+      "x-legacy-protocol": "kafka-ssl",
+    },
+    fleetMqtt: {
+      url: "mqtt.quality.es:{port}",
+      protocol: "mqtt",
+      protocolVersion: "3.1.1",
+      variables: { port: { enum: ["1883", "8883"], default: "1883" }, protocol: { enum: ["mqtts", "tcp"], default: "mqtts" } },
+      bindings: { mqtt: { clientId: "fleet-gateway", cleanSession: true, keepAlive: 60, bindingVersion: "0.1.0" } },
+    },
+    fleetMqttSecure: { url: "mqtt.quality.es:8883", protocol: "secure-mqtt", protocolVersion: "5" },
+    fleetMqtt5: { url: "mqtt5.quality.es:1883", protocol: "mqtt5", protocolVersion: "5.0" },
+    warehouseAmqp: {
+      url: "amqp://rabbit.quality.es:5672/%2Fwarehouse",
+      protocol: "amqp",
+      protocolVersion: "0.9.1",
+      bindings: { amqp: { "x-protocol": "amqp091" } },
+    },
+    warehouseAmqps: { url: "amqps://rabbit.quality.es:5671/%2Fwarehouse", protocol: "amqps", protocolVersion: "0.9.1", security: [{ userPassword: [] }] },
+    serviceBus: { url: "logistics.servicebus.windows.net", protocol: "amqp1", protocolVersion: "1.0", description: "Azure Service Bus over AMQP 1.0." },
+    trackingWebhooks: { url: "http://hooks.quality.es/tracking", protocol: "http", protocolVersion: "1.1" },
+    trackingWebhooksTls: { url: "https://hooks.quality.es/tracking", protocol: "https", protocolVersion: "2" },
+    dashboardWs: { url: "ws://live.quality.es/stream", protocol: "ws" },
+    dashboardWss: { url: "wss://live.quality.es/stream", protocol: "wss", bindings: { ws: { "x-protocol": "socket.io" } } },
+    mainframeMq: {
+      url: "ibmmq://qm1.quality.es:1414/QM1/LOGISTICS.SVRCONN",
+      protocol: "ibmmq",
+      bindings: { ibmmq: { groupId: "PRODCLSTR1", cipherSpec: "ANY_TLS12_OR_HIGHER", bindingVersion: "0.1.0" } },
+    },
+    mainframeMqSecure: {
+      url: "ibmmq-secure://qm1.quality.es:1415/QM1/LOGISTICS.TLS.SVRCONN",
+      protocol: "ibmmq-secure",
+      bindings: { ibmmq: { groupId: "PRODCLSTR1", cipherSpec: "ANY_TLS13_OR_HIGHER", bindingVersion: "0.1.0" } },
+    },
+    erpJms: { url: "tcp://erp-jms.quality.es:61616", protocol: "jms", bindings: { jms: { jmsConnectionFactory: "org.apache.activemq.ActiveMQConnectionFactory" } } },
+    customsAnypoint: { url: "https://mq-eu-central-1.anypoint.mulesoft.com/api", protocol: "anypointmq", protocolVersion: "v1" },
+    portsSolace: { url: "tcps://ports.messaging.solace.cloud:55443", protocol: "solace", protocolVersion: "smf", bindings: { solace: { msgVpn: "ports", bindingVersion: "0.3.0" } } },
+    customsStomp: { url: "stomp://customs.quality.es:61613", protocol: "stomp", protocolVersion: "1.2" },
+    customsStomps: { url: "stomp+ssl://customs.quality.es:61614", protocol: "stomps", protocolVersion: "1.2" },
+    liveMercure: { url: "https://mercure.quality.es/.well-known/mercure", protocol: "mercure" },
+    analyticsPubSub: { url: "https://pubsub.googleapis.com", protocol: "googlepubsub", protocolVersion: "1" },
+    archivePulsar: { url: "pulsar+ssl://pulsar.quality.es:6651", protocol: "pulsar", protocolVersion: "3.1" },
+    notificationsSns: { url: "https://sns.eu-west-1.amazonaws.com", protocol: "sns" },
+    invoicesSqs: { url: "https://sqs.eu-west-1.amazonaws.com/123456789012", protocol: "sqs" },
+    routingNats: { url: "nats://nats.quality.es:4222", protocol: "nats", protocolVersion: "2.10" },
+    cacheRedis: { url: "redis://cache.quality.es:6379", protocol: "redis", protocolVersion: "7" },
+    robotsRos2: { url: "ros2://robots.quality.es", protocol: "ros2", bindings: { ros2: { rmwImplementation: "rmw_fastrtps_cpp", domainId: 12 } } },
+    "x-dr": { url: "kafka-dr.quality.es:9093", protocol: "kafka-secure", description: "Disaster recovery cluster." },
+    shared: { $ref: "#/components/servers/regional" },
+    partnerExternal: { $ref: "./partner-servers.yaml#/servers/partner" },
+    migratedTo3x: { host: "kafka.quality.es:9092", pathname: "/v3", protocol: "kafka" },
+  },
+  channels: {
+    "logistics.cdc.shipments.dispatched.v1": {
+      servers: ["shipmentsKafka", "shipmentsKafkaSecure"],
+      parameters: {},
+      subscribe: {
+        operationId: "receiveShipmentDispatched",
+        bindings: { kafka: { groupId: { type: "string", enum: ["logistics-dispatch"] }, bindingVersion: "0.4.0" } },
+        message: { $ref: "#/components/messages/shipmentDispatched" },
+      },
+    },
+    "fleet/{truckId}/telemetry": {
+      servers: ["fleetMqtt", "fleetMqttSecure", "fleetMqtt5"],
+      parameters: { truckId: { description: "Truck plate.", schema: { type: "string", enum: ["tcp", "udp"] } } },
+      publish: {
+        operationId: "sendTruckTelemetry",
+        bindings: { mqtt: { qos: 1, retain: false, bindingVersion: "0.1.0" } },
+        message: {
+          oneOf: [
+            { $ref: "#/components/messages/truckTelemetry" },
+            { name: "truckHeartbeat", payload: { type: "object", properties: { protocol: { type: ["string", "null"], enum: ["mqtts", null] } } } },
+          ],
+        },
+      },
+    },
+    "billing.cmd.invoices.issue.v1": {
+      servers: ["notificationsSns", "invoicesSqs"],
+      publish: {
+        operationId: "issueInvoice",
+        bindings: {
+          sns: {
+            consumers: [
+              { protocol: "sqs", endpoint: { name: "invoices-queue" }, rawMessageDelivery: true },
+              { protocol: "email-json", endpoint: { url: "mailto:billing@quality.es" }, rawMessageDelivery: false },
+              { protocol: "lambda", endpoint: { arn: "arn:aws:lambda:eu-west-1:123456789012:function:invoice" }, rawMessageDelivery: false },
+            ],
+            bindingVersion: "0.1.0",
+          },
+          http: { type: "request", method: "POST", bindingVersion: "0.1.0" },
+        },
+        message: {
+          name: "issueInvoice",
+          headers: { type: "object", properties: { "x-protocol": { type: "string", const: "ftp" } } },
+          payload: { $ref: "#/components/schemas/Endpoint" },
+          examples: [{ name: "smtp", payload: { protocol: "smtp", host: "mail.quality.es" } }],
+        },
+      },
+    },
+  },
+  components: {
+    servers: {
+      regional: { url: "kafka-regional.quality.es:9093", protocol: "kafka-secure" },
+      sandbox: { url: "localhost:5672", protocol: "amqp", description: "Local sandbox." },
+    },
+    schemas: {
+      Endpoint: {
+        type: "object",
+        properties: { protocol: { type: "string", default: "rabbitmq", enum: ["rabbitmq", "activemq", "smtp"] }, host: { type: "string" } },
+      },
+      AvroEndpoint: { type: "record", name: "Endpoint", fields: [{ name: "protocol", type: ["null", "string"], default: null }] },
+    },
+    messages: {
+      shipmentDispatched: {
+        name: "shipmentDispatched",
+        schemaFormat: "application/vnd.apache.avro;version=1.9.0",
+        payload: { type: "record", name: "ShipmentDispatched", fields: [{ name: "protocol", type: { type: "enum", name: "Protocol", symbols: ["TCP", "UDP"] } }] },
+        traits: [{ $ref: "#/components/messageTraits/routing" }],
+      },
+      truckTelemetry: { name: "truckTelemetry", payload: { type: "object", properties: { protocol: { type: "string", examples: ["coap"] } } } },
+    },
+    messageTraits: { routing: { headers: { type: "object", properties: { protocol: { type: "string", default: "grpc" } } } } },
+    securitySchemes: {
+      saslScram: { type: "scramSha512", description: "SASL/SCRAM over TLS." },
+      userPassword: { type: "userPassword" },
+    },
+    "x-servers": { legacy: { url: "legacy.example.org", protocol: "tcp" } },
+  },
+  "x-servers": { rogue: { url: "rogue.example.org", protocol: "rabbitmq" } },
+};

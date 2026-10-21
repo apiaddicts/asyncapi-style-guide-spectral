@@ -1,0 +1,70 @@
+module.exports = {
+  asyncapi: "3.0.0",
+  info: { title: "Quality Logistics Backbone", version: "1.0.0", tags: [{ name: "logistics" }] },
+  servers: {
+    production: { host: "kafka.quality.es:9093", protocol: "kafka-secure", bindings: { kafka: null } },
+    depots: { host: "mqtt.quality.es:8883", protocol: "secure-mqtt", bindings: {} },
+  },
+  channels: {
+    shipmentDispatched: {
+      address: "logistics.cdc.shipments.dispatched.v1",
+      bindings: { kafka: null, amqp: {} },
+      parameters: { region: { description: "", enum: ["eu", "latam"] } },
+      messages: {
+        shipmentDispatched: {
+          bindings: { kafka: null },
+          payload: { type: "object", properties: { carrier: { type: ["string", "null"] }, bindings: { type: "object" } } },
+          traits: [{ $ref: "#/components/messageTraits/nullKafka" }],
+        },
+      },
+      publish: { bindings: {} },
+      subscribe: { bindings: { kafka: null } },
+    },
+    parcelScanned: { address: null, bindings: {}, messages: { parcelAvro: { $ref: "#/components/messages/parcelAvro" } } },
+    silent: { address: "logistics.cdc.silent.v1", bindings: { kafka: [] } },
+    unusable: null,
+    text: "logistics.cdc.text.v1",
+  },
+  operations: {
+    receiveShipment: {
+      action: "receive",
+      channel: { $ref: "#/channels/shipmentDispatched" },
+      bindings: { kafka: {} },
+      traits: [{}, { description: "" }, { $ref: "#/components/operationTraits/nullKafka" }],
+      messages: [{ $ref: "#/channels/shipmentDispatched/messages/shipmentDispatched" }],
+      reply: { address: { location: "$message.header#/replyTo" }, channel: { $ref: "#/channels/parcelScanned" }, bindings: { kafka: null } },
+    },
+    sendParcel: { action: "send", channel: { $ref: "#/channels/parcelScanned" }, traits: [{ $ref: "#/components/operationTraits/kafka" }] },
+    sendExternal: { $ref: "./shared/operations.yaml#/sendParcel" },
+  },
+  components: {
+    channels: { reusable: { address: "", bindings: { kafka: "x" } }, nullChannel: null },
+    operations: { reusable: { action: "send", bindings: { kafka: { clientId: { type: "string" } } } } },
+    replies: { blank: { channel: { $ref: "#/channels/parcelScanned" }, bindings: {} } },
+    operationBindings: { unused: {}, unusedNull: { kafka: null }, unusedText: { kafka: "kafka" } },
+    operationTraits: {
+      kafka: { bindings: { kafka: {} } },
+      nullKafka: { bindings: { kafka: null } },
+      unusedNull: { bindings: { kafka: null } },
+      unusedEmpty: { bindings: {} },
+    },
+    channelBindings: { nullKafka: { kafka: null } },
+    messageBindings: { noKafka: {} },
+    serverBindings: { nullKafka: { kafka: null } },
+    messageTraits: { nullKafka: { bindings: { kafka: null } } },
+    messages: {
+      parcelAvro: {
+        bindings: { kafka: null },
+        payload: { schemaFormat: "application/vnd.apache.avro;version=1.9.0", schema: { type: "record", name: "Parcel", fields: [{ name: "carrier", type: ["null", "string"], default: null }] } },
+      },
+      orphan: { bindings: {} },
+    },
+    schemas: { Shipment: { type: "object", properties: { bindings: { type: "string" } } } },
+    parameters: { region: { description: "", enum: ["eu"] } },
+    correlationIds: { blank: { location: "$message.header#/id", description: "" } },
+    servers: { backup: { host: "kafka-backup.quality.es:9093", protocol: "kafka", bindings: { kafka: null } } },
+    "x-operations": { draft: {}, blank: { bindings: {} } },
+  },
+  "x-operations": { drafts: { action: "send" }, blank: { bindings: { kafka: null } } },
+  "x-operation-list": [{}, null],
+};
