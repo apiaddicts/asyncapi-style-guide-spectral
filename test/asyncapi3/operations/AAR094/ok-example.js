@@ -1,0 +1,123 @@
+const channel = (name) => ({ $ref: `#/channels/${name}` });
+const message = (channelName, name) => ({ $ref: `#/channels/${channelName}/messages/${name}` });
+const trait = (name) => ({ $ref: `#/components/operationTraits/${name}` });
+
+module.exports = {
+  asyncapi: "3.0.0",
+  id: "urn:es:quality:mobility:ride-events",
+  info: {
+    title: "Quality Mobility Ride Events",
+    version: "6.1.0",
+    description: "Ride requests, driver telemetry, payments and dispatch commands of the mobility platform.",
+    contact: { name: "Mobility Integration", email: "mobility@quality.es" },
+    license: { name: "Apache-2.0", url: "https://www.apache.org/licenses/LICENSE-2.0" },
+  },
+  defaultContentType: "application/json",
+  servers: {
+    production: {
+      host: "kafka.mobility.quality.es:9093",
+      protocol: "kafka-secure",
+      protocolVersion: "3.3.0",
+      security: [{ $ref: "#/components/securitySchemes/saslScram" }],
+      bindings: { kafka: { schemaRegistryUrl: "https://schema-registry.quality.es", schemaRegistryVendor: "confluent", bindingVersion: "0.5.0" } },
+    },
+    vehicles: { host: "mqtt.mobility.quality.es:8883", protocol: "secure-mqtt", protocolVersion: "5.0" },
+    dispatch: { host: "rabbit.mobility.quality.es:5671", pathname: "/mobility", protocol: "amqps", protocolVersion: "0.9.1" },
+    console: { host: "console.mobility.quality.es", pathname: "/ws", protocol: "wss" },
+  },
+  channels: {
+    rideRequested: {
+      address: "mobility.cdc.rides.requested.v1",
+      description: "Ride requests.",
+      servers: [{ $ref: "#/servers/production" }],
+      messages: { rideRequested: { $ref: "#/components/messages/rideRequested" }, rideRequestedAvro: { $ref: "#/components/messages/rideRequestedAvro" } },
+      bindings: { kafka: { topic: "mobility.cdc.rides.requested.v1", partitions: 24, replicas: 3, bindingVersion: "0.5.0" } },
+    },
+    rideReplies: { address: null, description: "Dynamic ride replies.", messages: { rideAccepted: { $ref: "#/components/messages/rideAccepted" } } },
+    vehicleTelemetry: {
+      address: "vehicles/{vehicleId}/telemetry",
+      description: "Vehicle telemetry bridged to Kafka.",
+      servers: [{ $ref: "#/servers/vehicles" }],
+      parameters: { vehicleId: { description: "Vehicle plate.", enum: ["1234ABC", "5678DEF"], default: "1234ABC", location: "$message.payload#/vehicleId" } },
+      messages: { telemetry: { $ref: "#/components/messages/telemetry" } },
+    },
+    dispatchCommands: { address: "mobility.cmd.dispatch.v1", servers: [{ $ref: "#/servers/dispatch" }], messages: { dispatch: { $ref: "#/components/messages/dispatch" } } },
+    paymentCaptured: {
+      address: "mobility.cdc.payments.captured.v1",
+      messages: { paymentCaptured: { $ref: "#/components/messages/paymentCaptured" }, "payment/refunded": { $ref: "#/components/messages/paymentCaptured" }, "reembolso tarjeta": { $ref: "#/components/messages/paymentCaptured" } },
+    },
+    console: { address: "/console", servers: [{ $ref: "#/servers/console" }], messages: { consoleEvent: { name: "consoleEvent", payload: { type: ["object", "null"] } } } },
+    "x-partner": { address: "mobility.cdc.partner.v1", messages: { rideRequested: { $ref: "#/components/messages/rideRequested" } } },
+    shared: { $ref: "#/components/channels/sharedRides" },
+  },
+  operations: {
+    receiveRideRequested: {
+      action: "receive",
+      channel: channel("rideRequested"),
+      summary: "Receive ride requests.",
+      security: [{ $ref: "#/components/securitySchemes/saslScram" }],
+      bindings: { kafka: { groupId: { type: "string", enum: ["dispatch"] }, bindingVersion: "0.5.0" } },
+      traits: [trait("observability")],
+      messages: [message("rideRequested", "rideRequested"), message("rideRequested", "rideRequestedAvro")],
+      reply: { address: { location: "$message.header#/replyTo" }, channel: channel("rideReplies"), messages: [message("rideReplies", "rideAccepted")] },
+    },
+    sendRideRequested: { action: "send", channel: channel("rideRequested"), summary: "Publish ride requests.", messages: [message("rideRequested", "rideRequested")] },
+    sendRideRequestedAvro: { action: "send", channel: channel("rideRequested"), messages: [message("rideRequested", "rideRequestedAvro")] },
+    receiveTelemetry: {
+      action: "receive",
+      channel: channel("vehicleTelemetry"),
+      bindings: { mqtt: { qos: 1, bindingVersion: "0.2.0" } },
+      messages: [message("vehicleTelemetry", "telemetry")],
+    },
+    sendDispatch: {
+      action: "send",
+      channel: channel("dispatchCommands"),
+      bindings: { amqp: { deliveryMode: 2, bindingVersion: "0.3.0" } },
+      messages: [message("dispatchCommands", "dispatch")],
+      reply: { channel: channel("rideReplies") },
+    },
+    receivePaymentEscaped: { action: "receive", channel: channel("paymentCaptured"), messages: [{ $ref: "#/channels/paymentCaptured/messages/payment~1refunded" }] },
+    receivePaymentEncoded: { action: "receive", channel: channel("paymentCaptured"), messages: [{ $ref: "#/channels/paymentCaptured/messages/reembolso%20tarjeta" }, message("paymentCaptured", "paymentCaptured")] },
+    receiveConsole: { action: "receive", channel: channel("console"), messages: [message("console", "consoleEvent")] },
+    sendSharedList: { action: "send", channel: channel("rideRequested"), messages: { $ref: "#/components/x-message-lists/rides" } },
+    sendExternalList: { action: "send", channel: channel("rideRequested"), messages: { $ref: "./shared/ride-messages.yaml#/requested" } },
+    sendExternalEntry: { action: "send", channel: channel("rideRequested"), messages: [{ $ref: "./shared/ride-messages.yaml#/rideRequested" }] },
+    receiveShared: { $ref: "#/components/operations/receiveRides" },
+    receiveSharedAgain: { $ref: "#/components/operations/receiveRides" },
+    receiveExternal: { $ref: "./shared/operations.yaml#/receiveRides" },
+    "x-partnerSync": { action: "send", channel: channel("x-partner"), messages: [message("x-partner", "rideRequested")] },
+    "drivers/eu~west": { action: "receive", channel: channel("rideRequested"), messages: [message("rideRequested", "rideRequested")] },
+  },
+  components: {
+    channels: { sharedRides: { address: "mobility.cdc.rides.shared.v1", messages: { rideRequested: { $ref: "#/components/messages/rideRequested" } } } },
+    operations: {
+      receiveRides: { action: "receive", channel: channel("rideRequested"), messages: [message("rideRequested", "rideRequested")] },
+      archiveRides: { action: "receive", channel: { $ref: "#/components/channels/sharedRides" }, messages: [{ $ref: "#/components/channels/sharedRides/messages/rideRequested" }] },
+    },
+    "x-message-lists": { rides: [message("rideRequested", "rideRequested"), message("rideRequested", "rideRequestedAvro")] },
+    securitySchemes: { saslScram: { type: "scramSha512", description: "SASL SCRAM credentials." } },
+    operationTraits: { observability: { description: "Traced through the platform collector.", tags: [{ name: "observability" }] } },
+    messages: {
+      rideRequested: {
+        name: "rideRequested",
+        title: "Ride requested",
+        contentType: "application/json",
+        correlationId: { location: "$message.header#/correlationId" },
+        headers: { type: "object", properties: { correlationId: { type: "string" } } },
+        payload: { type: "object", required: ["rideId"], properties: { rideId: { type: "string" }, promoCode: { type: ["string", "null"] } } },
+      },
+      rideRequestedAvro: {
+        name: "rideRequestedAvro",
+        contentType: "application/vnd.apache.avro+json",
+        payload: {
+          schemaFormat: "application/vnd.apache.avro;version=1.9.0",
+          schema: { type: "record", name: "RideRequested", namespace: "es.quality.mobility", fields: [{ name: "rideId", type: "string" }, { name: "promoCode", type: ["null", "string"], default: null }] },
+        },
+      },
+      rideAccepted: { name: "rideAccepted", payload: { type: "object", properties: { rideId: { type: "string" } } } },
+      telemetry: { name: "telemetry", payload: { type: "object", properties: { speed: { type: ["number", "null"] } } } },
+      dispatch: { name: "dispatch", payload: { type: "object", properties: { driverId: { type: "string" } } } },
+      paymentCaptured: { name: "paymentCaptured", payload: { schemaFormat: "application/vnd.aai.asyncapi+json;version=3.0.0", schema: { type: "object", properties: { amount: { type: "number" } } } } },
+    },
+  },
+};

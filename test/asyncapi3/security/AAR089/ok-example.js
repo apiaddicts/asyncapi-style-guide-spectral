@@ -1,0 +1,131 @@
+const scheme = (name) => ({ $ref: `#/components/securitySchemes/${name}` });
+
+module.exports = {
+  asyncapi: "3.0.0",
+  id: "urn:es:quality:fleet:telemetry",
+  info: {
+    title: "Quality Fleet Telemetry Platform",
+    version: "5.3.0",
+    description: "Vehicle telemetry, dispatch commands and driver notifications over Kafka, MQTT and WebSockets, secured with SASL/SCRAM-SHA-512 and client certificates.",
+    contact: { name: "Fleet Platform", email: "fleet-platform@quality.es" },
+    license: { name: "Apache-2.0", url: "https://www.apache.org/licenses/LICENSE-2.0" },
+    tags: [{ name: "security", description: "plain" }],
+    "x-security": [{ type: "plain" }],
+  },
+  defaultContentType: "application/json",
+  servers: {
+    fleetKafka: {
+      host: "kafka-fleet.quality.es:9093",
+      protocol: "kafka-secure",
+      protocolVersion: "3.3.0",
+      description: "Production cluster, SCRAM credentials or a client certificate.",
+      security: [scheme("saslScram"), scheme("mtls")],
+      bindings: { kafka: { schemaRegistryUrl: "https://registry.quality.es", schemaRegistryVendor: "confluent", bindingVersion: "0.5.0", "x-sasl-mechanism": "PLAIN" } },
+    },
+    fleetKafkaDr: {
+      host: "{cluster}.quality.es:{port}",
+      protocol: "kafka-secure",
+      security: [scheme("scramAlias"), { type: "X509", description: "Inline client certificate." }],
+      variables: { cluster: { enum: ["kafka-dr-a", "kafka-dr-b"], default: "kafka-dr-a" }, port: { enum: ["9093", "9094"], default: "9093" }, security: { default: "plain" } },
+    },
+    vehiclesMqtt: { host: "mqtt.quality.es:8883", protocol: "secure-mqtt", security: [scheme("mtls")], bindings: { mqtt: { clientId: "fleet-gw", cleanSession: true, bindingVersion: "0.2.0" } } },
+    driversWs: { host: "ws.quality.es", pathname: "/drivers", protocol: "wss", description: "No security declared." },
+    publicDocs: { host: "docs.quality.es", protocol: "https", security: [] },
+    "x-mirror": { host: "kafka-mirror.quality.es:9093", protocol: "kafka-secure", security: [scheme("saslScram")] },
+    shared: { $ref: "#/components/servers/regional" },
+    sharedAgain: { $ref: "#/components/servers/regional" },
+    partnerExternal: { $ref: "./partner-servers.yaml#/servers/telematics" },
+  },
+  channels: {
+    vehicleTelemetry: {
+      address: "fleet.cdc.vehicle-telemetry.v1",
+      description: "Vehicle position and engine telemetry.",
+      servers: [{ $ref: "#/servers/fleetKafka" }, { $ref: "#/servers/fleetKafkaDr" }],
+      messages: { telemetry: { $ref: "#/components/messages/telemetry" } },
+    },
+    dispatchCommands: {
+      address: "fleet/{vehicleId}/dispatch",
+      description: "Dispatch commands to vehicles.",
+      parameters: { vehicleId: { description: "Vehicle identifier.", enum: ["v-1", "v-2"] } },
+      messages: { dispatch: { $ref: "#/components/messages/dispatch" } },
+    },
+    dispatchReplies: { address: null, description: "Dynamic reply channel.", messages: { ack: { $ref: "#/components/messages/ack" } } },
+    driverNotifications: { address: "drivers.notifications", messages: { notification: { payload: { type: "object", properties: { security: { type: "string", enum: ["plain"] } } } } } },
+  },
+  operations: {
+    receiveVehicleTelemetry: {
+      action: "receive",
+      channel: { $ref: "#/channels/vehicleTelemetry" },
+      security: [scheme("saslScram")],
+      traits: [{ $ref: "#/components/operationTraits/telemetryConsumer" }, { security: [scheme("mtls")], description: "Inline trait." }],
+      messages: [{ $ref: "#/channels/vehicleTelemetry/messages/telemetry" }],
+      bindings: { kafka: { groupId: { type: "string", enum: ["fleet-analytics"] }, bindingVersion: "0.5.0" } },
+    },
+    sendDispatch: {
+      action: "send",
+      channel: { $ref: "#/channels/dispatchCommands" },
+      security: [scheme("mtls"), { type: "scramSha512", description: "Inline SCRAM." }],
+      messages: [{ $ref: "#/channels/dispatchCommands/messages/dispatch" }],
+      reply: {
+        channel: { $ref: "#/channels/dispatchReplies" },
+        address: { location: "$message.header#/replyTo" },
+        messages: [{ $ref: "#/channels/dispatchReplies/messages/ack" }],
+        "x-security": [{ type: "plain" }],
+      },
+    },
+    sendNotification: { action: "send", channel: { $ref: "#/channels/driverNotifications" }, security: [], "x-security": [{ type: "plain" }] },
+    "x-audit": { action: "send", channel: { $ref: "#/channels/vehicleTelemetry" }, security: [scheme("mtls")] },
+    sharedConsumer: { $ref: "#/components/operations/archiveConsumer" },
+    sharedConsumerAgain: { $ref: "#/components/operations/archiveConsumer" },
+    partnerExternal: { $ref: "./partner-operations.yaml#/operations/telematics" },
+  },
+  components: {
+    securitySchemes: {
+      saslScram: { type: "scramSha512", description: "SASL/SCRAM-SHA-512 with credentials from the vault." },
+      mtls: { type: "X509", description: "Client certificate issued by the fleet CA." },
+      scramAlias: { $ref: "#/components/securitySchemes/saslScram" },
+      saslPlain: { type: "plain", description: "Defined for the sandbox, never applied." },
+      oauth: { type: "oauth2", flows: { clientCredentials: { tokenUrl: "https://auth.quality.es/token", availableScopes: { "fleet:read": "Read fleet data." } } }, scopes: ["fleet:read"] },
+      basic: { type: "userPassword" },
+      partnerScheme: { $ref: "./partner-security.yaml#/components/securitySchemes/partner" },
+    },
+    servers: {
+      regional: { host: "kafka-regional.quality.es:9093", protocol: "kafka-secure", security: [scheme("saslScram")] },
+      sandbox: { host: "kafka-sandbox.quality.es:9092", protocol: "kafka" },
+    },
+    operations: {
+      archiveConsumer: {
+        action: "receive",
+        channel: { $ref: "#/channels/vehicleTelemetry" },
+        security: [scheme("mtls"), scheme("partnerScheme")],
+        traits: [{ $ref: "#/components/operationTraits/archiveTrait" }],
+      },
+    },
+    operationTraits: {
+      telemetryConsumer: { bindings: { kafka: { clientId: { type: "string", enum: ["fleet"] } } }, security: [scheme("saslScram")] },
+      archiveTrait: { security: [{ type: "X509" }, scheme("scramAlias")] },
+      noSecurity: { description: "Declares no security." },
+    },
+    replies: { ackReply: { channel: { $ref: "#/channels/dispatchReplies" }, "x-security": [{ type: "plain" }] } },
+    messageTraits: { securityHeaders: { headers: { type: "object", properties: { security: { type: "string", default: "plain" } } } } },
+    messages: {
+      telemetry: {
+        name: "telemetry",
+        contentType: "application/vnd.apache.avro",
+        traits: [{ $ref: "#/components/messageTraits/securityHeaders" }],
+        payload: {
+          schemaFormat: "application/vnd.apache.avro;version=1.9.0",
+          schema: { type: "record", name: "Telemetry", fields: [{ name: "vehicleId", type: "string" }, { name: "security", type: ["null", "string"], default: null }] },
+        },
+      },
+      dispatch: {
+        name: "dispatch",
+        correlationId: { location: "$message.header#/correlationId" },
+        headers: { type: "object", properties: { correlationId: { type: "string" }, replyTo: { type: "string" } } },
+        payload: { type: "object", properties: { route: { type: ["string", "null"] }, security: { type: "object", properties: { type: { const: "plain" } } } } },
+      },
+      ack: { name: "ack", payload: { type: "object", properties: { accepted: { type: "boolean" } } } },
+    },
+    schemas: { security: { type: "object", properties: { type: { type: "string", enum: ["plain", "oauth2"] } } } },
+  },
+};

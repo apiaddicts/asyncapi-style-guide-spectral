@@ -1,0 +1,132 @@
+module.exports = {
+  asyncapi: "3.0.0",
+  id: "urn:es:quality:insurance:claims-event-streams",
+  info: {
+    title: "Quality Insurance Claims Event Streams",
+    version: "4.0.0",
+    description: "First notice of loss, adjuster assignments, fraud signals and payouts on the event backbone of the insurer.",
+    contact: { name: "Claims Integration", email: "claims-integration@quality.es", url: "https://claims.quality.es" },
+    license: { name: "Apache-2.0", url: "https://www.apache.org/licenses/LICENSE-2.0" },
+    tags: [{ name: "claims", description: "Claims lifecycle." }],
+  },
+  defaultContentType: "application/json",
+  servers: {
+    eventstreams: {
+      host: "es-claims.quality.es:443",
+      protocol: "kafka-secure",
+      protocolVersion: "3.3.0",
+      title: "IBM Event Streams production",
+      summary: "Claims cluster.",
+      security: [{ $ref: "#/components/securitySchemes/saslScram" }],
+      tags: [{ name: "kafka", description: "Primary backbone." }],
+      externalDocs: { url: "https://docs.quality.es/eventstreams" },
+      bindings: { kafka: { schemaRegistryUrl: "https://registry.quality.es", schemaRegistryVendor: "ibm", bindingVersion: "0.5.0" } },
+    },
+    claimsDr: {
+      host: "{cluster}.quality.es:{port}",
+      pathname: "/claims",
+      protocol: "kafka-secure",
+      protocolVersion: "3.3.0",
+      variables: {
+        cluster: { enum: ["es-dr-a", "es-dr-b"], default: "es-dr-a" },
+        port: { $ref: "#/components/serverVariables/kafkaPort" },
+      },
+    },
+    fraudSignals: { host: "kafka-fraud.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0", bindings: { $ref: "#/components/serverBindings/kafkaIbm" } },
+    adjusterMqtt: {
+      host: "mqtt.quality.es:8883",
+      pathname: "/adjusters",
+      protocol: "secure-mqtt",
+      protocolVersion: "5.0",
+      bindings: { mqtt: { clientId: "adjusters", cleanSession: true, keepAlive: 60, bindingVersion: "0.2.0" } },
+    },
+    payoutsAmqp: { host: "rabbit.quality.es:5671", pathname: "/payouts", protocol: "amqps", protocolVersion: "0-9-1" },
+    policyMq: { host: "qm1.quality.es:1414", protocol: "ibmmq", protocolVersion: "9.3", bindings: { ibmmq: { groupId: "PRODCLSTR1", cipherSpec: "ANY_TLS12_OR_HIGHER", bindingVersion: "0.1.0" } } },
+    garageWebhooks: { host: "hooks.quality.es", pathname: "/garages", protocol: "https", protocolVersion: "2" },
+    dashboardWss: { host: "live.quality.es", pathname: "/claims", protocol: "wss", protocolVersion: "13" },
+    numericVersion: { host: "kafka-lab.quality.es:9092", protocol: "kafka", protocolVersion: 3.3 },
+    "x-mirror": { host: "kafka-mirror.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0", description: "MirrorMaker 2 target." },
+    shared: { $ref: "#/components/servers/regional" },
+    sharedAgain: { $ref: "#/components/servers/regional" },
+    sharedChained: { $ref: "#/components/servers/regionalAlias" },
+    withSiblings: { $ref: "#/components/servers/regional", host: "", protocolVersion: null },
+    partnerExternal: { $ref: "./partner-servers.yaml#/servers/reinsurer" },
+  },
+  channels: {
+    claimsOpened: {
+      address: "claims.cdc.claims.opened.v1",
+      title: "Claim opened",
+      servers: [{ $ref: "#/servers/eventstreams" }, { $ref: "#/servers/claimsDr" }, { $ref: "#/components/servers/regional" }],
+      messages: { claimOpened: { $ref: "#/components/messages/claimOpened" } },
+      bindings: { kafka: { topic: "claims.cdc.claims.opened.v1", partitions: 12, bindingVersion: "0.5.0" } },
+    },
+    adjusterLocation: {
+      address: "adjusters/{adjusterId}/location",
+      servers: [{ $ref: "#/servers/adjusterMqtt" }],
+      parameters: { adjusterId: { description: "Adjuster identifier.", location: "$message.header#/adjusterId" } },
+      messages: {
+        locationReported: {
+          name: "locationReported",
+          headers: { type: "object", properties: { host: { type: ["string", "null"] }, protocolVersion: { type: ["string", "null"] } } },
+          payload: {
+            schemaFormat: "application/vnd.apache.avro;version=1.9.0",
+            schema: { type: "record", name: "LocationReported", fields: [{ name: "host", type: ["null", "string"], default: null }, { name: "protocolVersion", type: ["null", "string"], default: null }] },
+          },
+          traits: [{ $ref: "#/components/messageTraits/deviceHeaders" }],
+          correlationId: { location: "$message.header#/correlationId" },
+        },
+      },
+    },
+    payoutReplies: {
+      address: null,
+      servers: [{ $ref: "#/servers/payoutsAmqp" }],
+      messages: {
+        payoutConfirmed: {
+          payload: { $ref: "#/components/schemas/Payout" },
+          examples: [{ name: "sepa", headers: { protocol: "" }, payload: { payoutId: "P-1", host: "" } }],
+        },
+      },
+    },
+  },
+  operations: {
+    receiveClaimOpened: {
+      action: "receive",
+      channel: { $ref: "#/channels/claimsOpened" },
+      messages: [{ $ref: "#/channels/claimsOpened/messages/claimOpened" }],
+      traits: [{ $ref: "#/components/operationTraits/claimsConsumer" }],
+      bindings: { kafka: { groupId: { type: "string", enum: ["claims-triage"] }, bindingVersion: "0.5.0" } },
+    },
+    sendAdjusterLocation: { action: "send", channel: { $ref: "#/channels/adjusterLocation" } },
+    requestPayout: { action: "send", channel: { $ref: "#/channels/payoutReplies" }, reply: { $ref: "#/components/replies/payoutAck" } },
+  },
+  components: {
+    servers: {
+      regional: { host: "kafka-regional.quality.es:9093", protocol: "kafka-secure", protocolVersion: "3.3.0" },
+      regionalAlias: { $ref: "#/components/servers/regional" },
+      sandbox: { host: "localhost:9092", protocol: "kafka", protocolVersion: "3.3.0", description: "Local sandbox." },
+      remoteShared: { $ref: "./shared-servers.yaml#/sandbox" },
+    },
+    serverVariables: { kafkaPort: { enum: ["443", "9093"], default: "443" } },
+    serverBindings: { kafkaIbm: { kafka: { schemaRegistryUrl: "https://registry.quality.es", bindingVersion: "0.5.0" } } },
+    schemas: {
+      Payout: { type: "object", properties: { payoutId: { type: "string" }, host: { type: ["string", "null"] }, protocol: { type: ["string", "null"], enum: ["sepa", null] } } },
+    },
+    messages: {
+      claimOpened: {
+        name: "claimOpened",
+        payload: {
+          schemaFormat: "application/vnd.aai.asyncapi+json;version=3.0.0",
+          schema: { type: "object", properties: { claimId: { type: "string" }, host: { type: "string" }, protocolVersion: { type: "string" } } },
+        },
+        traits: [{ $ref: "#/components/messageTraits/deviceHeaders" }],
+      },
+    },
+    messageTraits: { deviceHeaders: { headers: { type: "object", properties: { protocol: { type: "string" } } } } },
+    operationTraits: { claimsConsumer: { bindings: { kafka: { clientId: { type: "string", enum: ["claims"] } } } } },
+    replies: { payoutAck: { address: { location: "$message.header#/replyTo" }, channel: { $ref: "#/channels/payoutReplies" } } },
+    parameters: { adjusterId: { description: "Adjuster identifier." } },
+    securitySchemes: { saslScram: { type: "scramSha512", description: "SASL SCRAM credentials." } },
+    "x-servers": { draft: { description: "Never referenced, so never checked." } },
+  },
+  "x-servers": { rogue: { host: "" } },
+};
