@@ -1,0 +1,61 @@
+module.exports = {
+  asyncapi: "2.6.0",
+  info: { title: "Quality Logistics Backbone", version: "1.0.0", tags: [{ name: "logistics" }] },
+  servers: {
+    production: { url: "kafka.quality.es:9093", protocol: "kafka-secure" },
+    depots: { url: "mqtt.quality.es:8883", protocol: "secure-mqtt" },
+  },
+  channels: {
+    "logistics.cdc.shipments.dispatched.v1": {
+      description: "",
+      parameters: { region: { description: "", schema: { type: "string" } } },
+      bindings: { kafka: { message: null } },
+      subscribe: {
+        summary: "Receive dispatched shipments.",
+        traits: [{}, { description: "" }, { $ref: "#/components/operationTraits/nullMessage" }],
+        message: {
+          payload: { type: "object", properties: { carrier: { type: ["string", "null"] }, message: { type: "string" }, oneOf: { type: "array" } } },
+          traits: [{ $ref: "#/components/messageTraits/blank" }],
+        },
+      },
+    },
+    "logistics.cdc.parcels.scanned.v1": {
+      publish: { message: { oneOf: [null, { $ref: "#/components/messages/gone" }, { $ref: "#/components/messages/parcelAvro" }] } },
+      Publish: {},
+      SUBSCRIBE: { message: null },
+      send: {},
+      receive: { message: { oneOf: [] } },
+      "x-subscribe": {},
+      messages: {},
+      operations: { a: {} },
+    },
+    "logistics.cdc.silent.v1": { description: "" },
+    "logistics.cdc.unusable.v1": null,
+    "logistics.cdc.text.v1": "logistics.cdc.text.v1",
+    "logistics.cdc.dangling.v1": { $ref: "#/components/channels/retired" },
+    "logistics.cdc.external.v1": { $ref: "./shared/channels.yaml#/parcels" },
+    "logistics.cdc.externalOperation.v1": { subscribe: { $ref: "./shared/operations.yaml#/receiveParcels" } },
+  },
+  operations: { blank: { action: "send" }, empty: {}, nothing: null },
+  components: {
+    channels: { reusable: { description: "" }, nullChannel: null, list: [{ publish: {} }] },
+    operations: { reusable: { action: "send", messages: [] } },
+    replies: { blank: { messages: [] } },
+    operationTraits: { nullMessage: { message: null }, emptyOneOf: { message: { oneOf: [] } }, unused: {} },
+    messageTraits: { blank: { message: null, messages: [] } },
+    messages: {
+      parcelAvro: {
+        schemaFormat: "application/vnd.apache.avro;version=1.9.0",
+        payload: { type: "record", name: "Parcel", fields: [{ name: "carrier", type: ["null", "string"], default: null }] },
+      },
+      orphan: null,
+      blank: { oneOf: [] },
+    },
+    schemas: { Shipment: { type: "object", properties: { message: { type: "string" }, messages: { type: "array" } } } },
+    parameters: { region: { description: "", schema: { type: "string" } } },
+    correlationIds: { blank: { location: "$message.header#/id", description: "" } },
+    "x-operations": { draft: {}, blank: { message: null } },
+  },
+  "x-operations": { drafts: { operationId: "draft" }, blank: { message: { oneOf: [] } } },
+  "x-channel-list": [{ publish: {} }, null],
+};

@@ -7,6 +7,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.0.0] - 2026-10-20
+
+### Added
+
+- AAR065 - MessageFormat: Message identifiers and names must follow the configured naming convention (default `camelCase`).
+- AAR066 - TagsFormat: Tag names must follow the configured naming convention (default `kebab-case`).
+- AAR067 - ContentTypeValues: `contentType` and `defaultContentType` must be valid MIME types from the allowed list.
+- AAR068 - BindingTypes: Binding keys must be protocols from the allowed list that exist in the document's AsyncAPI version.
+- AAR069 - RequiredPropertiesInBindings: Protocol bindings must declare the fields required for their protocol, optionally conditioned on a binding field (`?is=queue`).
+- AAR070 - FormatVersionBindings: `bindingVersion` must match the configured pattern (default: a semantic version).
+- AAR071 - RequiredExamplesForMessage: Every message must provide at least one example with a `payload`.
+- AAR072 - ExampleValidateSchema: Message examples must be valid against the message schemas.
+- AAR073 - RequiredTraits: Every message must apply at least one message trait and every configured `required-traits` (default: none).
+- AAR074 - PropertiesObjectFormat: Schema property and Avro field names must follow the configured naming convention (default `camelCase`); headers are not checked.
+- AAR075 - RequiredInfoAttributes: `info` must declare a non-empty `title`, `version` and `description`.
+- AAR076 - RequiredInfoTags: Every Tag object must declare a non-empty `name` and `description`.
+- AAR077 - RequiredAttributesContact: `info.contact` must declare a non-empty `name` and `email`.
+- AAR078 - RequiredAttributesLicense: `info.license` must declare a non-empty `name` and `url`.
+- AAR079 - RequiredAttributesExternalDocs: Every External Documentation object must declare a non-empty `description` and `url`.
+- AAR080 - ValidValuesLicenses: The license `name` must be an SPDX license identifier or a `LicenseRef-` identifier.
+- AAR081 - ValidServer: Server names must match the configured naming pattern (default: letters, digits, `-` and `_`).
+- AAR082 - ServerType: Server names must start with an approved server type, alone or followed by `-` or `_` (default: `eventstreams`, `kafka`).
+- AAR083 - ValidServerHost: Server hosts must match the enterprise host pattern (default: `quality.es` or one of its subdomains).
+- AAR084 - ValidServerProtocol: Server protocols must be allowed transport protocols (`allowed-protocols`; default: every AsyncAPI protocol, `ibmmq-secure` included).
+- AAR085 - ValidServerProtocolVersion: Server `protocolVersion` values must be approved versions (default: `3.3.0`).
+- AAR086 - RequiredAttributesServer: Every server must declare a non-empty `url` (2.x) or `host` (3.x), `protocol` and `protocolVersion`.
+- AAR087 - RequiredAttributesChannels: Every channel must declare `address` (`null` if dynamic), a non-empty `description` and `messages` (2.x: `description` and a `publish` or `subscribe` operation).
+- AAR088 - ValidServerChannels: Every channel must list at least one server of the root `servers` object (AsyncAPI 2.2.0 and later).
+- AAR089 - ValidSecurityChannels: Security schemes applied by servers and operations must be of approved types (default: `scramSha512`, `X509`).
+- AAR090 - RequiredBindingChannels: Every channel must declare a `kafka` binding.
+- AAR091 - ValidAlmostMessageInChannels: A 3.x channel's `messages` must include at least one message.
+- AAR092 - RequiredAttributesOperation: Every operation must declare a non-empty `action`, `channel` and `summary` (2.x: `summary`).
+- AAR093 - RequiredBindingOperations: Every operation must declare a `kafka` binding, directly or through its traits.
+- AAR094 - RequiredOneMessageOperations: Every operation must declare at least one message (2.x: in `message`; a 3.x operation without `messages` takes its channel's).
+- Rule documentation with noncompliant and compliant examples for every rule in `docs/resources`.
+
+### Changed
+
+- AAR001 - MandatoryHttpsProtocol: The secure protocol list is now configurable through the `pattern` option (default `^(https|wss|amqps|kafka-secure|secure-mqtt)$`). Backed by the new `asa-server-protocol-secure` function.
+
 ## [1.1.0] - 2026-09-20
 
 Consolidates everything shipped across `1.1.0-beta.1` through `1.1.0-beta.5` below.

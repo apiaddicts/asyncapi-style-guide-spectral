@@ -49,4 +49,12 @@ async function linterForRule(rule, opts = {}) {
   return linter;
 }
 
-module.exports.linterForRule = linterForRule;
+const traitRef = (name) => ({ $ref: `#/components/messageTraits/${name}` });
+
+const chars = (...codes) => String.fromCharCode(...codes);
+
+module.exports = {
+  linterForRule,
+  traitRef,
+  chars,
+};
