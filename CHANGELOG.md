@@ -43,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AAR094 - RequiredOneMessageOperations: Every operation must declare at least one message (2.x: in `message`; a 3.x operation without `messages` takes its channel's).
 - Rule documentation with noncompliant and compliant examples for every rule in `docs/resources`.
 
+### Changed
+
+- AAR001 - MandatoryHttpsProtocol: The secure protocol list is now configurable through the `pattern` option (default `^(https|wss|amqps|kafka-secure|secure-mqtt)$`). Backed by the new `asa-server-protocol-secure` function.
+
 ## [1.1.0] - 2026-09-20
 
 Consolidates everything shipped across `1.1.0-beta.1` through `1.1.0-beta.5` below.
