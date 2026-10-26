@@ -27,7 +27,7 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral"
+    "url": "https://github.com/apiaddicts/asyncapi-style-guide-spectral"
   },
   "devDependencies": {
     "@stoplight/spectral-core": "^1.19.5",
