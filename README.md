@@ -20,7 +20,7 @@ Based on the SonarQube rules from [sonarasyncapi-rules](https://github.com/apiad
 
 ```bash
 # Clone the repository
-git clone https://github.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral.git
+git clone https://github.com/apiaddicts/asyncapi-style-guide-spectral.git
 cd apiaddicts-asyncapi-style-guide-spectral
 npm install
 ```
@@ -34,7 +34,7 @@ npm install
 spectral lint -r asa-spectral.yaml your-asyncapi.yaml
 
 # Lint using remote ruleset
-spectral lint -r https://raw.githubusercontent.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/main/asa-spectral.yaml your-asyncapi.yaml
+spectral lint -r https://raw.githubusercontent.com/apiaddicts/asyncapi-style-guide-spectral/main/asa-spectral.yaml your-asyncapi.yaml
 ```
 
 #### Spectral Config File
@@ -43,7 +43,7 @@ Create a `.spectral.yaml` in your project root:
 
 ```yaml
 extends:
-  - https://raw.githubusercontent.com/apiaddicts/apiaddicts-asyncapi-style-guide-spectral/main/asa-spectral.yaml
+  - https://raw.githubusercontent.com/apiaddicts/asyncapi-style-guide-spectral/main/asa-spectral.yaml
 ```
 
 Then run:
