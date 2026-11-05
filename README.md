@@ -150,7 +150,7 @@ Each rule is documented, with noncompliant and compliant examples for AsyncAPI 2
 | **AAR031** | `warn` | Message examples must follow the declared payload and headers schemas. |
 | **AAR052** | `error` | The namespace of a named Avro schema (record, enum or fixed) is required and must follow the corporate pattern. |
 | **AAR055** | `warn` | The `x-payload-references` extension, wherever it appears, must have `subject`, `ref` and `referenceName` on every item. |
-| **AAR056** | `error` | When the payload uses Avro, `schemaFormat` must be exactly `application/vnd.apache.avro;version=1.9.0`. |
+| **AAR056** | `error` | When the payload uses Avro, `schemaFormat` must be `application/vnd.apache.avro[+json|+yaml];version=<version>` with an allowed version (configurable via `allowedVersions`; default `1.9.0`). |
 | **AAR059** | `error` | The `name` field of every Avro record (including nested records) must be in CamelCase with an uppercase first letter. |
 | **AAR060** | `error` | A message's `contentType` (and the document-level `defaultContentType`) must match `application/*+avro`. |
 | **AAR067** | `error` | Message and message trait `contentType` values, and `defaultContentType`, must be valid MIME types from the allowed list. |
@@ -191,7 +191,7 @@ The ruleset includes 55 custom Spectral functions for complex validation logic:
 | `asa-channel-naming-convention` | AAR053 | Validates channel/topic name against the corporate topic naming pattern |
 | `asa-classification-valid-values` | AAR054 | Validates that the channel/topic classification segment is cdc, cmd or sys |
 | `asa-x-payload-references-well-formed` | AAR055 | Validates that x-payload-references items each have subject, ref and referenceName |
-| `asa-avro-schema-format` | AAR056 | Validates that an Avro schemaFormat is exactly application/vnd.apache.avro;version=1.9.0 |
+| `asa-avro-schema-format` | AAR056 | Validates that an Avro schemaFormat declares one of the allowed Avro versions |
 | `asa-error-topic-documented` | AAR057 | Validates that at least one channel is documented as an error topic |
 | `asa-retry-topic-naming-convention` | AAR058 | Validates that retry channels follow the required retry-topic naming pattern |
 | `asa-avro-record-name-camel-case` | AAR059 | Validates that every Avro record's `name` (including nested records) is in CamelCase |
