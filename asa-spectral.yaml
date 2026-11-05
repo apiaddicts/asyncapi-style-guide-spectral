@@ -631,13 +631,15 @@ rules:
       function: asa-x-payload-references-well-formed
 
   asa:AAR056:
-    description: "When the payload uses Avro (schemaFormat contains 'application/vnd.apache.avro'), schemaFormat must be exactly 'application/vnd.apache.avro;version=1.9.0', the standard version used across the style guide examples."
+    description: "When the payload uses Avro (schemaFormat contains 'application/vnd.apache.avro'), schemaFormat must be 'application/vnd.apache.avro[+json|+yaml];version=<version>' with a version allowed by the organization. The allow-list is configurable via the allowedVersions option (comma-separated); default: 1.9.0."
     message: "AAR056: {{error}}"
     documentationUrl: "https://github.com/apiaddicts/asyncapi-style-guide-spectral/blob/main/docs/resources/AAR056.md"
     severity: error
     given: "$..schemaFormat"
     then:
       function: asa-avro-schema-format
+      functionOptions:
+        allowedVersions: "1.9.0"
 
   asa:AAR057:
     description: "At least one channel must be documented as an error topic following the pattern '<topicOriginal>.[<consumerGroup>.]error.<n>' (e.g. 'beca.cmd.alumnos.solicitud.beca.grupo1.error.1'), required by Spring for error-topic routing. The consumer group is part of the name only when there is more than one consumer."
