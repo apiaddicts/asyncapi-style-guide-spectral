@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-06
+
 ### Changed
 
 - AAR056 - AvroSchemaFormat: The allowed Avro versions are now configurable through the `allowedVersions` option (comma-separated; default `1.9.0`). The `+json` and `+yaml` variants of the Avro schema format are accepted when their version is allowed.
