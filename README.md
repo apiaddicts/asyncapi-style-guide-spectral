@@ -317,9 +317,9 @@ This Spectral ruleset is a direct translation of the [sonarasyncapi-rules](https
 | AAR026 | `asa:AAR026` | BUG | MAJOR |
 | AAR029 | `asa:AAR029` | BUG | MAJOR |
 | AAR031 | `asa:AAR031` | BUG | MAJOR |
-| AAR032 | `asa:AAR032` | BUG | MAJOR |
-| AAR033 | `asa:AAR033` | BUG | MAJOR |
-| AAR034 | `asa:AAR034` | BUG | MAJOR |
+| AAR032 | `asa:AAR032` | VULNERABILITY | MAJOR |
+| AAR033 | `asa:AAR033` | VULNERABILITY | MAJOR |
+| AAR034 | `asa:AAR034` | VULNERABILITY | MAJOR |
 | AAR035 | `asa:AAR035` | BUG | MAJOR |
 | AAR036 | `asa:AAR036` | BUG | MAJOR |
 | AAR037 | `asa:AAR037` | BUG | MAJOR |
