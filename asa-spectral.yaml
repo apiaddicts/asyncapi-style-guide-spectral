@@ -434,7 +434,7 @@ rules:
   # ---------------------------------------------------------------------------
   # AAR032 - NumericParameterIntegrity
   # Numeric parameters should have minimum, maximum, or format restriction.
-  # Severity: warn (MAJOR / BUG)
+  # Severity: warn (MAJOR / VULNERABILITY)
   # ---------------------------------------------------------------------------
   asa:AAR032:
     description: "Numeric properties should declare a value restriction (minimum, maximum, format, enum or const)."
@@ -453,7 +453,7 @@ rules:
   # ---------------------------------------------------------------------------
   # AAR033 - StringParameterIntegrity
   # String parameters should have minLength, maxLength, pattern, or enum.
-  # Severity: warn (MAJOR / BUG)
+  # Severity: warn (MAJOR / VULNERABILITY)
   # ---------------------------------------------------------------------------
   asa:AAR033:
     description: "String properties should declare a value restriction (minLength, maxLength, pattern, enum, const or format)."
@@ -472,7 +472,7 @@ rules:
   # ---------------------------------------------------------------------------
   # AAR034 - NumericFormat
   # Numeric types require a valid format.
-  # Severity: warn (MAJOR / BUG)
+  # Severity: warn (MAJOR / VULNERABILITY)
   # ---------------------------------------------------------------------------
   asa:AAR034:
     description: "Numeric types require a valid format (int32, int64, float, double)."
